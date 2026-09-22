@@ -15,6 +15,13 @@ t('ısınma Squat 120', (await p.textContent('.isinma')).includes('120 kg'));
 const kg = p.locator('.bar input[inputmode="decimal"]'); t('kg kutusu type=text', await kg.getAttribute('type') === 'text');
 await kg.fill('42,5'); await kg.dispatchEvent('change'); await p.waitForTimeout(200);
 t('virgül → 42.5', await kg.inputValue() === '42.5', await kg.inputValue());
+// stepper: tek tık +2.5 → 45; basılı tut → bırak → 600 ms sonra değer sabit (22 Eyl sonsuz sayma hatası)
+const plus = p.locator('.bar .stepper button').nth(1);
+await plus.click(); await p.waitForTimeout(250); t('stepper +2.5 → 45', await kg.inputValue() === '45', await kg.inputValue());
+await plus.dispatchEvent('pointerdown'); await p.waitForTimeout(900); await p.dispatchEvent('body', 'pointerup'); await p.waitForTimeout(400);
+const v1 = await p.locator('.bar input[inputmode="decimal"]').inputValue(); await p.waitForTimeout(600); const v2 = await p.locator('.bar input[inputmode="decimal"]').inputValue();
+t('basılı tut → bırak → sayaç durur', v1 === v2 && Number(v1) > 45, `${v1} → ${v2}`);
+await kg.fill('42,5'); await kg.dispatchEvent('change'); await p.waitForTimeout(200);
 await p.locator('.bar .chips').nth(0).getByRole('button', { name: '4', exact: true }).click(); await p.waitForTimeout(150);
 await p.locator('.bar .chips').nth(1).getByRole('button', { name: '3', exact: true }).click(); await p.waitForTimeout(150);
 await p.locator('.bar .chips').nth(2).getByRole('button', { name: '7.5', exact: true }).click(); await p.waitForTimeout(150);

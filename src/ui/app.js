@@ -115,8 +115,8 @@ export class App {
     // KG stepper + dokun-yaz
     const kgIn = el('input', { type: 'text', inputmode: 'decimal', autocomplete: 'off', value: d.kg === null ? '' : M.fmt(d.kg), placeholder: r.bw ? 'toplam: bw+ek' : 'kg', style: 'text-align:center;font-size:22px;font-weight:600' });
     kgIn.addEventListener('change', async () => { d.kg = M.parseKg(kgIn.value); await S.setMeta(draftKey, d); kgIn.value = d.kg === null ? '' : M.fmt(d.kg); });
-    const step = async n => { d.kg = Math.max(0, Math.round(((d.kg ?? planKg ?? 0) + n) * 100) / 100); await save(); };
-    bar.append(el('div', { class: 'lbl', style: 'margin-top:8px' }, 'KG' + (planKg !== null ? ` · plan ${M.fmt(planKg)}` : '')), el('div', { class: 'stepper' }, hold(el('button', {}, '−2.5'), () => step(-2.5)), kgIn, hold(el('button', {}, '+2.5'), () => step(2.5))));
+    const step = n => { d.kg = Math.max(0, Math.round(((d.kg ?? planKg ?? 0) + n) * 100) / 100); kgIn.value = M.fmt(d.kg); };   // yerinde; kayıt+çizim basma bitince
+    bar.append(el('div', { class: 'lbl', style: 'margin-top:8px' }, 'KG' + (planKg !== null ? ` · plan ${M.fmt(planKg)}` : '')), el('div', { class: 'stepper' }, hold(el('button', {}, '−2.5'), () => step(-2.5), save), kgIn, hold(el('button', {}, '+2.5'), () => step(2.5), save)));
     // SET
     const setN = r.set ?? 3; bar.append(el('div', { class: 'lbl', style: 'margin-top:6px' }, 'SET'), el('div', { class: 'chips' }, ...[1, 2, 3, 4, 5].map(n => el('button', { class: d.sets === n ? 'sel' : '', onclick: async () => { d.sets = n; await save(); } }, n))));
     // TEKRAR
@@ -190,10 +190,14 @@ export class App {
   async import(file) { if (!file) return; const r = await S.importNdjson(await file.text()); this.msg = `Yüklendi: ${r.written} yeni · ${r.skipped} zaten vardı · ${r.bad} bozuk satır`; this.render(); }
 }
 /** Basılı tutunca hızlanan düğme (stepper). */
-function hold(btn, fn) {
-  let t = null, iv = null;
-  const start = e => { e.preventDefault(); fn(); t = setTimeout(() => { iv = setInterval(fn, 120); }, 450); };
-  const stop = () => { clearTimeout(t); clearInterval(iv); };
-  btn.addEventListener('pointerdown', start); btn.addEventListener('pointerup', stop); btn.addEventListener('pointerleave', stop); btn.addEventListener('pointercancel', stop);
+function hold(btn, fn, onEnd = null) {
+  // Basılı tutma: 450 ms sonra 120 ms'de bir tekrar. Zamanlayıcılar belge düzeyinde kapatılır — düğme yeniden çizimle
+  // DOM'dan düşse bile pointerup yakalanır (22 Eyl: eski sürüm düğme kaybolunca sonsuza dek saymaya devam ediyordu).
+  let t = null, iv = null, active = false;
+  const ENDS = ['pointerup', 'pointercancel'];
+  const stop = () => { if (!active) return; active = false; clearTimeout(t); clearInterval(iv); t = iv = null; for (const ev of ENDS) document.removeEventListener(ev, stop); window.removeEventListener('blur', stop); onEnd?.(); };
+  const start = e => { e.preventDefault(); if (active) return; active = true; for (const ev of ENDS) document.addEventListener(ev, stop); window.addEventListener('blur', stop);
+    fn(); t = setTimeout(() => { iv = setInterval(() => { if (!btn.isConnected) return stop(); fn(); }, 120); }, 450); };
+  btn.addEventListener('pointerdown', start);
   return btn;
 }
