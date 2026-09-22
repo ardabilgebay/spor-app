@@ -97,7 +97,7 @@ await ctx.setOffline(false);
 await tab('Ayarlar'); await p.waitForTimeout(300);
 const txt = await p.textContent('main');
 t('Ayarlar: toplam olay 240 + yerel', /Toplam olay.*?(2[5-9]\d)/s.test(txt), txt.slice(0, 120));
-t('OneDrive ayarlı değil', txt.includes('ayarlı değil'));
+t('OneDrive ayarlı, giriş gerekli', txt.includes('giriş gerekli'), txt.slice(txt.indexOf('OneDrive'), txt.indexOf('OneDrive') + 60));
 t('sayfa hatası yok', !logs.some(l => l.startsWith('PAGEERROR')), logs.filter(l => l.startsWith('PAGEERROR')).join(' | '));
 console.log(`\n  ${ok}/${ok + fail} geçti — ${fail ? 'E2E BASARISIZ' : 'E2E GECTI'}`); if (fail) console.log(logs.filter(l => !l.includes('favicon')).slice(-8).join('\n'));
 await b.close(); process.exit(fail ? 1 : 0);
