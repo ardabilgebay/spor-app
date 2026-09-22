@@ -140,3 +140,25 @@ export function weekly(def, state, overrides = null) {
       sinyal: M.sinyal({ hafta: h, ortDeltaRpe, gercek: ger, min, doluGun, esik: cfg.doluGunEsik, stil: cfg.sinyalStil }) };
   });
 }
+
+/** Önceki seans: aynı row_key (egzersiz|modifier) için bu seanstan ÖNCEKİ en son arda girişi (tüm cycle'lar). Mockup `e.prev`. */
+export function prevEntry(stateAll, r, sess, cycle) {
+  const cand = stateAll.filter(s => s.row_key === r.row_key && s.actor === 'arda' && !s.deleted && M.isNum(s.kg) && !s.skipped
+    && !(s.cycle === cycle && s.week === sess.week && s.day === sess.day));
+  if (!cand.length) return null;
+  cand.sort((a, b) => a.ts < b.ts ? 1 : -1);
+  return cand[0];
+}
+export function prevMetni(s) {
+  if (!s) return null;
+  const rep = s.reps ?? s.reps_text ?? '';
+  return `${M.fmt(s.kg)}×${M.fmt(s.sets)}×${rep}${s.rpe ? ` R${M.fmt(s.rpe)}` : ''}${s.note ? ` — ${s.note}` : ''}`;
+}
+/** Dinlenme metni → saniye (mockup: Top Single/Triple 210, Backoff/Repeat/Load Drop 180, Trap/Teknik 120, aksesuar 90). */
+export function dinlenmeSn(r) {
+  const m = `${r.modifier ?? ''} ${r.metod ?? ''}`;
+  if (/single|triple|double|pr attempt|tahmin/i.test(m)) return 210;
+  if (/backoff|repeat|load drop|agir|ağır/i.test(m)) return 180;
+  if (/trap|teknik|clean|snatch/i.test(`${m} ${r.egzersiz} ${r.tekrar_metin ?? ''}`)) return 120;
+  return 90;
+}

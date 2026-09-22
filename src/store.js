@@ -61,8 +61,8 @@ export async function logStress({ program, cycle, week, value }) {
   const ev = { id: ulid(), ts: new Date().toISOString(), ts_kind: 'device', device: await deviceId(), entered_by: 'arda', type: 'stress.logged', ref: null, schema_v: SCHEMA_V, source: { kind: 'app' }, data: { program, cycle, week, value } };
   await appendEvent(ev); return ev;
 }
-export async function logSession(kind, { program, cycle, week, day, duration_s = null }) {
-  const ev = { id: ulid(), ts: new Date().toISOString(), ts_kind: 'device', device: await deviceId(), entered_by: 'arda', type: `session.${kind}`, ref: null, schema_v: SCHEMA_V, source: { kind: 'app' }, data: { program, cycle, week, day, duration_s } };
+export async function logSession(kind, { program, cycle, week, day, duration_s = null, note = null }) {
+  const ev = { id: ulid(), ts: new Date().toISOString(), ts_kind: 'device', device: await deviceId(), entered_by: 'arda', type: `session.${kind}`, ref: null, schema_v: SCHEMA_V, source: { kind: 'app' }, data: { program, cycle, week, day, duration_s, note } };
   await appendEvent(ev); return ev;
 }
 
@@ -118,6 +118,13 @@ export async function markUploaded(ids) { await db.sync_state.bulkPut(ids.map(ev
 /** Seans için geçerli set durumları. */
 export async function setsFor(program, cycle, week, day) {
   return db.set_state.where('[program+cycle+week+day]').equals([program, cycle, week, day]).toArray();
+}
+/** Programın TÜM cycle'larındaki durum (önceki seans / geçmiş için). */
+export async function stateAllFor(program) { return db.set_state.where('program').equals(program).toArray(); }
+/** Seans olayları (started/finished) → [{kind, week, day, ts, note, duration_s}] */
+export async function sessionEvents(program, cycle) {
+  const evs = await db.events.where('type').anyOf('session.started', 'session.finished').filter(e => e.data.program === program && e.data.cycle === cycle).sortBy('ts');
+  return evs.map(e => ({ kind: e.type.slice(8), week: e.data.week, day: e.data.day, ts: e.ts, note: e.data.note ?? null, duration_s: e.data.duration_s ?? null }));
 }
 export async function stateFor(program, cycle) {
   return db.set_state.where('program').equals(program).filter(s => s.cycle === cycle).toArray();

@@ -30,7 +30,7 @@ async function boot() {
   await app.start();
   // 6) SW — güncelleme yalnız kullanıcı isteğiyle (seans ortasında uygulanmaz)
   if ('serviceWorker' in navigator) {
-    try { const { registerSW } = await import('virtual:pwa-register'); registerSW({ immediate: true, onNeedRefresh() { app.msg = 'Yeni sürüm hazır — Ayarlar > yenile (seans bitince).'; } }); } catch {}
+    try { const { registerSW } = await import('virtual:pwa-register'); const updateSW = registerSW({ immediate: true, onNeedRefresh() { app.needRefresh = () => updateSW(true); if (app.tab === 'ayarlar') app.render(); } }); } catch {}
   }
 }
 boot().catch(e => { document.getElementById('app').textContent = 'Açılış hatası: ' + e.message; console.error(e); });
