@@ -83,7 +83,7 @@ export class App {
     this.main.scrollTop = top;
     this.renderSheet();
   }
-  head(k, t, ...right) { this.hK.textContent = k; this.hT.textContent = t; this.hR.replaceChildren(...right.filter(Boolean)); }
+  head(k, t, ...right) { this.hK.textContent = k; this.hT.textContent = t; this.hR.replaceChildren(...right.filter(Boolean)); this.hdr.classList.remove('one'); }
   footer(cls, ...kids) { this.foot.className = cls; this.foot.replaceChildren(...kids.filter(Boolean)); }
   banners() {
     const out = []; const st = this.sync?.last;
@@ -96,10 +96,8 @@ export class App {
     const { def, v, p } = c; const tarih = new Date().toLocaleDateString('tr-TR', { weekday: 'long', day: 'numeric', month: 'long' });
     if (!v) { this.head(tarih, PROG_AD[p]); this.main.append(el('div', { class: 'banner' }, 'Program tanımı yok.')); return; }
     const faz = c.seans?.faz ?? 'onizleme';
-    const sure = c.seans?.started_at && faz !== 'onizleme' ? el('span', { class: 'chip tab', id: 'sure' }, this.sureMetni(c.seans.started_at)) : null;
-    this.head(tarih, `Hafta ${v.week} — ${P.GUN_AD[v.day]} Seansı`,
-      this.kronoPill(), this.krono ? null : sure, faz === 'log' ? el('button', { class: 'pill acc', style: 'border-color:var(--acc-line)', onclick: () => this.fazSet('ozet') }, 'Bitir') : null);
-    if (sure) this.tickSure();
+    this.head(tarih, `Hafta ${v.week} — ${P.GUN_AD[v.day]} Seansı`);
+    this.hdr.classList.add('one');
     const m = el('div', { class: 'pop' }); this.main.append(m);
     if (faz === 'onizleme') await this.fOnizleme(c, m);
     else if (faz === 'isinma') this.fIsinma(c, m);
@@ -107,7 +105,7 @@ export class App {
     else if (faz === 'ozet') await this.fOzet(c, m);
   }
   sureMetni(iso) { const k = Math.max(0, Math.round((Date.now() - new Date(iso)) / 1000)); return mmss(k); }
-  tickSure() { clearInterval(this.sureIv); this.sureIv = setInterval(() => { const e = this.hR.querySelector('#sure'); if (!e || !this.c?.seans?.started_at) return clearInterval(this.sureIv); e.textContent = this.sureMetni(this.c.seans.started_at); }, 1000); }
+  tickSure() { clearInterval(this.sureIv); this.sureIv = setInterval(() => { const e = this.foot.querySelector('#sure') ?? this.hR.querySelector('#sure'); if (!e || !this.c?.seans?.started_at) return clearInterval(this.sureIv); e.textContent = this.sureMetni(this.c.seans.started_at); }, 1000); }
   async fazSet(faz, extra = {}) {
     const c = this.c; const s = { ...(c.seans ?? { tik: [], started_at: null, openKey: null }), faz, ...extra };
     if (faz !== 'onizleme' && !s.started_at) { s.started_at = new Date().toISOString(); await S.logSession('started', { program: c.p, cycle: c.def.cycle, week: c.v.week, day: c.v.day }); }
@@ -183,8 +181,21 @@ export class App {
     const openRow = v.rows.find(r => r.row_key === openKey) ?? null;
     if (v.kol) m.append(this.kolSatiri(c));
     m.append(el('div', { class: 'grid', style: 'margin-top:10px' }, ...v.rows.map(r => this.rowCard(c, r, { open: r === openRow, now: r === openRow, onclick: async () => { await S.setMeta(c.seansKey, { ...c.seans, openKey: r.row_key }); this.render(); } }))));
-    if (!openRow) { this.footer('foot', el('button', { class: 'pri', style: 'flex:1', onclick: () => this.fazSet('ozet') }, 'Seansı bitir')); return; }
-    this.footer('log', ...await this.logBar(c, openRow));
+    const seansBar = this.seansBar(c);
+    if (!openRow) { this.footer('log', seansBar, el('div', { class: 'acts', style: 'margin-top:8px' }, el('button', { class: 'pri', onclick: () => this.fazSet('ozet') }, 'Seansı bitir'))); return; }
+    this.footer('log', seansBar, ...await this.logBar(c, openRow));
+  }
+  /** Seans şeridi (çubuğun tepesi): tutamaç · geçen süre · dinlenme rozeti · Bitir. */
+  seansBar(c) {
+    const sure = el('span', { class: 'chip tab', id: 'sure' }, this.sureMetni(c.seans.started_at)); this.tickSure();
+    const grab = el('button', { class: 'grab', title: this.logCollapsed ? 'Aç' : 'Katla', onclick: () => { this.logCollapsed = !this.logCollapsed; this.applyCollapse(); } }, el('span', { class: 'gl' }), el('span', { class: 'gt' }, this.logCollapsed ? '▴  aç' : '▾  katla'));
+    return el('div', { class: 'sbar' }, grab, el('div', { class: 'srow' }, sure, this.kronoPill(), el('span', { style: 'flex:1' }), el('button', { class: 'pill acc', style: 'border-color:var(--acc-line)', onclick: () => this.fazSet('ozet') }, 'Bitir')));
+  }
+  applyCollapse() {
+    const f = this.foot; const c = this.logCollapsed;
+    f.querySelector('.body')?.classList.toggle('hidden', c); f.querySelector('.hh')?.classList.toggle('hidden', c);
+    f.querySelector('.oz')?.classList.toggle('hidden', !c); f.querySelector('.kmini')?.classList.toggle('hidden', !c);
+    const g = f.querySelector('.grab .gt'); if (g) g.textContent = c ? '▴  aç' : '▾  katla';
   }
   async logBar(c, r) {
     const { def, v, p } = c; const draftKey = `draft:${p}|${def.cycle}|${v.week}|${v.day}|${r.row_key}`;
@@ -197,11 +208,10 @@ export class App {
     const saveDraft = () => S.setMeta(draftKey, d);
     const ozet = () => `${d.kg === null ? '—' : fmt(d.kg)}×${d.sets ?? '—'}×${d.reps ?? r.tekrar_metin ?? '—'}${d.rpe ? ` R${fmt(d.rpe)}` : ''}`;
     // başlık + katla/aç
-    const ozetS = el('span', { class: 'oz tab' });
-    const chev = el('button', { class: 'chev', onclick: () => { this.logCollapsed = !this.logCollapsed; body.classList.toggle('hidden', this.logCollapsed); ozetS.classList.toggle('hidden', !this.logCollapsed); chev.textContent = this.logCollapsed ? '▴' : '▾'; kaydetMini.classList.toggle('hidden', !this.logCollapsed); } }, this.logCollapsed ? '▴' : '▾');
-    const kaydetMini = el('button', { class: 'pill sel hidden', onclick: () => commit() }, 'Kaydet');
-    const ttl = el('div', { class: 'ttl' }, el('div', { class: 'n' }, r.egzersiz + (r.modifier ? ` · ${r.modifier}` : '')), el('div', { class: 'hh tab' }, r.hedef?.replace(/^.*\n/, '').replace(/\n.*$/s, '') ?? ''), ozetS, kaydetMini, chev);
-    const body = el('div', { class: this.logCollapsed ? 'hidden' : '' });
+    const ozetS = el('span', { class: 'oz tab' + (this.logCollapsed ? '' : ' hidden') });
+    const kaydetMini = el('button', { class: 'pill sel kmini' + (this.logCollapsed ? '' : ' hidden'), onclick: () => commit() }, 'Kaydet');
+    const ttl = el('div', { class: 'ttl' }, el('div', { class: 'n' }, r.egzersiz + (r.modifier ? ` · ${r.modifier}` : '')), el('div', { class: 'hh tab' + (this.logCollapsed ? ' hidden' : '') }, r.hedef?.replace(/^.*\n/, '').replace(/\n.*$/s, '').replace(/\s*[▸⚠].*$/, '') ?? ''), ozetS, kaydetMini);
+    const body = el('div', { class: 'body' + (this.logCollapsed ? ' hidden' : '') });
     // kişi
     let segBtns = [];
     if (p === 'Alper') body.append(el('div', { class: 'seg' }, ...(segBtns = ['arda', 'alper'].map(a => el('button', { class: d.actor === a ? 'sel' : '', onclick: () => { d.actor = a; fill(); saveDraft(); paint(); } }, a === 'arda' ? 'Arda' : 'Alper')))));
@@ -243,13 +253,13 @@ export class App {
       rpeBtns.forEach((b, i) => b.classList.toggle('sel', d.rpe === RPE_LIST[i]));
       notBtn.classList.toggle('sel', !!d.note);
       const q = cur(); kaydet.textContent = q && !q.skipped ? 'Güncelle' : 'Kaydet'; skipBtn.textContent = q?.skipped ? 'Geri al' : 'Atla';
-      ozetS.textContent = ozet(); ozetS.classList.toggle('hidden', !this.logCollapsed);
+      ozetS.textContent = ozet();
     };
     paint();
     const commit = async ({ skipped = false } = {}) => {
       const q = cur();
       if (skipped && q?.skipped) { await S.appendEvent(await this.deleteEvent(r.ref, d.actor)); await S.setMeta(draftKey, null); this.sync?.schedule(); return this.render(); }
-      if (!skipped && d.kg === null) { hint.textContent = 'kg gir (ya da Atla).'; hint.classList.remove('hidden'); this.logCollapsed = false; body.classList.remove('hidden'); return; }
+      if (!skipped && d.kg === null) { hint.textContent = 'kg gir (ya da Atla).'; hint.classList.remove('hidden'); this.logCollapsed = false; this.applyCollapse(); return; }
       // gerçek dinlenme: bu seansta önceki kayıttan bu yana geçen süre; plan: bir önceki kayıtta kurulan sayaç
       const now = Date.now(); const last = c.seans?.last_save_at ? new Date(c.seans.last_save_at).getTime() : null;
       const rest_s = last ? Math.round((now - last) / 1000) : null; const rest_plan_s = c.seans?.last_rest_plan_s ?? null;
@@ -274,7 +284,7 @@ export class App {
     const k = this.krono; if (!k) return clearInterval(this.kronoIv);
     const kalan = this.kronoKalan();
     const pct = kalan >= 0 ? Math.round((1 - kalan / k.sn) * 100) : Math.min(100, Math.round((-kalan / k.sn) * 100));
-    const pill = this.hR.querySelector('#kpill'); if (pill) { pill.querySelector('.kt').textContent = this.kronoMetin(kalan); pill.classList.toggle('over', kalan < 0); pill.querySelector('.ring').style.setProperty('--pct', `${pct}%`); }
+    const pill = this.foot.querySelector('#kpill') ?? this.hR.querySelector('#kpill'); if (pill) { pill.querySelector('.kt').textContent = this.kronoMetin(kalan); pill.classList.toggle('over', kalan < 0); pill.querySelector('.ring').style.setProperty('--pct', `${pct}%`); }
     const big = this.main.querySelector('#krobig'); if (big) { big.textContent = this.kronoMetin(kalan); big.className = 'big tab ' + (kalan >= 0 ? 'on' : 'over'); }
     if (kalan === 0 && !k.bitti) { k.bitti = true; if (navigator.vibrate) navigator.vibrate([80, 60, 80]); }   // sayaç durmaz: aşım kırmızı sayar, dokununca kapanır
   }

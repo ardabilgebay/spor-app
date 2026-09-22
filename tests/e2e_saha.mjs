@@ -27,7 +27,7 @@ await p.locator('main .isirow').nth(0).click(); await p.waitForTimeout(150);
 t('basamak tik', (await p.$$('main .isirow.on')).length === 1);
 await p.locator('.foot button.pri').click(); await p.waitForTimeout(400);
 // LOG fazı
-t('log fazı: çubuk açık, Bitir görünür', (await p.$$('.log')).length === 1 && (await p.textContent('.hdr .right')).includes('Bitir'));
+t('log fazı: çubuk açık, Bitir ve süre çubukta, başlık tek satır', (await p.$$('.log')).length === 1 && (await p.textContent('.log .srow')).includes('Bitir') && (await p.$$('.log #sure')).length === 1 && (await p.$$('.hdr.one')).length === 1);
 t('log fazında liste üstte sade (stres rozeti yok)', (await p.$$('main .sig')).length === 0);
 t('kg kutusu type=text', await kg().getAttribute('type') === 'text');
 await kg().fill('42,5'); await kg().dispatchEvent('change'); await p.waitForTimeout(150);
@@ -40,7 +40,7 @@ await p.locator('.log .fld').nth(2).locator('button', { hasText: /^7.5$/ }).clic
 t('çip seçimi yerinde (ana liste yeniden çizilmedi)', (await p.$$eval('main .card.mark', a => a.length)) === before && (await p.locator('.log .fld').nth(0).locator('button.sel').textContent()) === '4');
 await p.locator('.log .acts .pri').click(); await p.waitForTimeout(500);
 let done = await p.$$eval('main .card.mark.done .yap', a => a.map(x => x.textContent)); t('Clean kaydedildi 42.5×4×3 RPE7.5', done[0]?.startsWith('42.5×4×3 · RPE7.5'), done[0]);
-t('dinlenme rozeti başlıkta: sıradaki Top Single → 8:00 civarı', (await p.$$('.hdr #kpill')).length === 1 && /^7:5\d|8:00/.test(await p.textContent('.hdr #kpill .kt')), await p.textContent('.hdr #kpill'));
+t('dinlenme rozeti çubukta: sıradaki Top Single → 8:00 civarı', (await p.$$('.log #kpill')).length === 1 && /^7:5\d|8:00/.test(await p.textContent('.log #kpill .kt')), await p.textContent('.log #kpill'));
 t('sıradaki hareket Squat Top Single açık', (await p.textContent('.log .ttl .n')).startsWith('Squat'));
 // plaka sheet → aktar
 await p.locator('.log .kgrow .plk-ic').click(); await p.waitForTimeout(300);
@@ -50,19 +50,19 @@ t('plaka: sayı yazıldı 200 → tek taraf 90', (await p.textContent('.sheet .p
 await p.locator('.sheet input.big').fill('120'); await p.locator('.sheet input.big').dispatchEvent('change'); await p.waitForTimeout(100);
 await p.locator('.sheet .plk button.plus').click(); await p.waitForTimeout(100); await p.locator('.sheet .btnrow .pri').click(); await p.waitForTimeout(200);
 t('aktar → kg 122.5', await kg().inputValue() === '122.5', await kg().inputValue());
-await p.locator('.log .chev').click(); await p.waitForTimeout(150);
-t('çubuk katlandı: özet 122.5×1×1 + mini Kaydet', !(await p.locator('.log .kgrow').isVisible()) && (await p.textContent('.log .oz')).startsWith('122.5×1×1'));
-await p.locator('.log .chev').click(); await p.waitForTimeout(150); t('çubuk açıldı', await p.locator('.log .kgrow').isVisible());
-await p.locator('.hdr #kpill').click(); await p.waitForTimeout(200); t('dinlenme rozeti dokununca gizlendi', (await p.$$('.hdr #kpill')).length === 0);
+await p.locator('.log .grab').click(); await p.waitForTimeout(150);
+t('çubuk katlandı: özet 122.5×1×1 + mini Kaydet, hedef gizli', !(await p.locator('.log .kgrow').isVisible()) && (await p.textContent('.log .oz')).startsWith('122.5×1×1') && await p.locator('.log .kmini').isVisible() && !(await p.locator('.log .hh').isVisible()));
+await p.locator('.log .grab').click(); await p.waitForTimeout(150); t('çubuk açıldı', await p.locator('.log .kgrow').isVisible());
+await p.locator('.log #kpill').click(); await p.waitForTimeout(200); t('dinlenme rozeti dokununca gizlendi', (await p.$$('.log #kpill')).length === 0);
 await p.locator('.log .acts .pri').click(); await p.waitForTimeout(400);
 // Atla → Top Triple
 await p.locator('.log .acts .skip', { hasText: 'Atla' }).click(); await p.waitForTimeout(400);
-t('atlandı işaretli, çubuk kapandı (satır kalmadı)', (await p.$$('main .card.mark.skip')).length === 1 && (await p.$$('.log')).length === 0);
+t('atlandı işaretli, giriş alanı kapandı, "Seansı bitir" çıktı', (await p.$$('main .card.mark.skip')).length === 1 && (await p.$$('.log .kgrow')).length === 0 && (await p.textContent('.log')).includes('Seansı bitir'));
 // uygulama ölümü: yenile → log fazı ve kayıtlar duruyor
 await p.reload(); await p.waitForSelector('.hdr .t'); await p.waitForTimeout(400);
 t('yenileme sonrası Diğer + log fazında + 2 kayıt + 1 atlandı', (await p.textContent('.hdr .t')) === 'Hafta 1 — Salı Seansı' && (await p.$$('main .card.mark.done')).length === 2 && (await p.$$('main .card.mark.skip')).length === 1);
 // Bitir → özet → kapat
-await p.locator('.hdr .right button', { hasText: 'Bitir' }).click(); await p.waitForTimeout(400);
+await p.locator('.log .srow button', { hasText: 'Bitir' }).click(); await p.waitForTimeout(400);
 t('özet: 3 kutu + hacim + mola satırı (plan 8:00)', (await p.$$('main .grid.g3 .card')).length === 3 && (await p.textContent('main .grid.g3')).includes('Hacim') && /öncesi mola \d:\d\d \/ plan 8:00/.test(await p.textContent('main')), (await p.textContent('main')).slice(-300));
 await p.locator('main textarea').fill('E2E seans notu'); await p.locator('.foot button.pri').click(); await p.waitForTimeout(500);
 t('kapatıldı → işaretçi sonraki seansa (H1 Perşembe), "Seansa başla"', (await p.textContent('.hdr .t')) === 'Hafta 1 — Perşembe Seansı' && (await p.textContent('.foot button.pri')) === 'Seansa başla', (await p.textContent('.hdr .t')) + ' | ' + (await p.textContent('.foot')));

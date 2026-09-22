@@ -30,6 +30,10 @@ textarea{min-height:76px;resize:none;line-height:1.45}
 @media (display-mode: standalone){.hdr{padding-top:max(calc(12px + env(safe-area-inset-top)), 58px)}}
 .hdr .k{font-size:21px;font-weight:500;letter-spacing:-.02em;text-transform:none;color:var(--mute);line-height:1.15}
 .hdr .t{font-weight:500;font-size:21px;line-height:1.15;letter-spacing:-.02em;margin-top:2px}
+/* tek satır başlık (Bugün): "22 Eylül Salı · Hafta 4 — Pazartesi Seansı" */
+.hdr.one>div:first-child{display:flex;align-items:baseline;gap:8px;min-width:0;white-space:nowrap;overflow:hidden}
+.hdr.one .k{font-size:15.5px;flex:none}.hdr.one .k::after{content:'·';margin-left:8px;color:var(--dim2)}
+.hdr.one .t{font-size:17px;margin:0;overflow:hidden;text-overflow:ellipsis}
 .hdr .right{flex:none;display:flex;align-items:center;gap:8px}
 .chip{font-size:13px;color:var(--mute);border:1px solid var(--line);border-radius:999px;padding:5px 10px}
 .strip{flex:none;display:flex;gap:6px;padding:8px var(--pad) 10px;overflow-x:auto;scrollbar-width:none}
@@ -93,7 +97,9 @@ main{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;paddin
 .log .krono .t{font-size:13.5px;color:var(--acc-ink);font-weight:500}
 .log .krono .sub{flex:1;font-size:11.5px;color:var(--dim)}
 .log .krono button{min-height:30px;padding:0 10px;border-radius:6px;background:transparent;color:var(--mute);font-size:12px}
-.log .ttl{display:flex;align-items:center;gap:8px}.log .ttl .n{flex:1}.log .ttl .oz{font-size:13px;color:var(--acc-ink);white-space:nowrap}
+.log .ttl{display:flex;align-items:center;gap:8px;margin-top:6px;min-height:32px}.log .ttl .n{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.log .ttl .hh{max-width:45%;overflow:hidden;text-overflow:ellipsis}.log .ttl .oz{font-size:13.5px;color:var(--acc-ink);white-space:nowrap}
+.sbar{display:flex;flex-direction:column;gap:4px}.grab{width:100%;min-height:30px;padding:0;border:0;background:transparent;display:flex;flex-direction:column;align-items:center;gap:3px;color:var(--mute);border-radius:0}.grab .gl{width:56px;height:5px;border-radius:3px;background:var(--line)}.grab .gt{font-size:11px;letter-spacing:.06em;text-transform:uppercase}.grab:active{transform:none}
+.srow{display:flex;align-items:center;gap:8px}
 .log .chev{flex:none;min-height:30px;width:34px;padding:0;border-radius:6px;background:transparent;color:var(--mute);font-size:13px}
 .sigrow{display:flex;gap:6px;margin-top:8px}.sigrow .sig{flex:1;margin-top:0;min-width:0;padding:8px 10px}
 .kpill{display:flex;align-items:center;gap:6px;min-height:32px;padding:0 10px 0 6px;border-radius:999px;border:1px solid var(--acc-line);background:var(--acc-bg);color:var(--acc-ink);font-size:13px;font-weight:500}
