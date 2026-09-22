@@ -13,10 +13,11 @@ await p.goto(URL); await p.waitForSelector('.hdr .t', { timeout: 15000 });
 t('alt sekme çubuğu 5 sekme', (await p.$$('.tabs button')).length === 5);
 t('üstte program şeridi', (await p.$$('.strip button')).length === 3);
 await strip('Diğer Günler'); await p.waitForTimeout(300);
-t('başlık Hafta 1 — Salı (Bugün yazısı yok)', (await p.textContent('.hdr .t')) === 'Hafta 1 — Salı', await p.textContent('.hdr .t'));
+t('başlık Hafta 1 — Salı, kicker yalnız tarih', (await p.textContent('.hdr .t')) === 'Hafta 1 — Salı' && !/Diğer|Deadlift/.test(await p.textContent('.hdr .k')), await p.textContent('.hdr .k'));
 t('önizleme: 3 hareket kartı + dinlenme metni', (await p.$$('main .card.mark')).length === 3 && (await p.textContent('main .card.mark .meta')).includes('dinlenme'));
 t('ısınma pili top set 120', (await p.textContent('main .pills .p.top')) === '120 kg');
-t('stres girilmedi rozeti', (await p.$$eval('main .sig', a => a.map(x => x.textContent).join(' '))).includes('girilmedi'));
+t('stres girilmedi rozeti + sinyal yan yana', (await p.$$eval('main .sigrow .sig', a => a.map(x => x.textContent).join(' '))).includes('girilmedi') && (await p.$$('main .sigrow .sig')).length === 2);
+t('depolama uyarısı ve "Sonraki" satırı yok', !(await p.textContent('main')).includes('Kalıcı depolama') && !(await p.textContent('main')).includes('Sonraki:'));
 // Seansa başla → stres sheet → 3 → ısınma
 await p.locator('.foot button.pri').click(); await p.waitForTimeout(300);
 t('stres sheet açıldı', (await p.$$('.sheet .stres button')).length === 5);
@@ -27,7 +28,7 @@ t('basamak tik', (await p.$$('main .isirow.on')).length === 1);
 await p.locator('.foot button.pri').click(); await p.waitForTimeout(400);
 // LOG fazı
 t('log fazı: çubuk açık, Bitir görünür', (await p.$$('.log')).length === 1 && (await p.textContent('.hdr .right')).includes('Bitir'));
-t('stres rozeti: 3 · normal (değiştirilebilir)', (await p.textContent('main .sig')).includes('3'));
+t('log fazında liste üstte sade (stres rozeti yok)', (await p.$$('main .sig')).length === 0);
 t('kg kutusu type=text', await kg().getAttribute('type') === 'text');
 await kg().fill('42,5'); await kg().dispatchEvent('change'); await p.waitForTimeout(150);
 t('virgül → 42.5', await kg().inputValue() === '42.5', await kg().inputValue());
@@ -39,16 +40,20 @@ await p.locator('.log .fld').nth(2).locator('button', { hasText: /^7.5$/ }).clic
 t('çip seçimi yerinde (ana liste yeniden çizilmedi)', (await p.$$eval('main .card.mark', a => a.length)) === before && (await p.locator('.log .fld').nth(0).locator('button.sel').textContent()) === '4');
 await p.locator('.log .acts .pri').click(); await p.waitForTimeout(500);
 let done = await p.$$eval('main .card.mark.done .yap', a => a.map(x => x.textContent)); t('Clean kaydedildi 42.5×4×3 RPE7.5', done[0]?.startsWith('42.5×4×3 · RPE7.5'), done[0]);
-t('dinlenme kronometresi çubukta', (await p.$$('.log .krono')).length === 1 && /\d:\d\d/.test(await p.textContent('.log .krono .t')));
+t('dinlenme rozeti başlıkta: sıradaki Top Single → 8:00 civarı', (await p.$$('.hdr #kpill')).length === 1 && /^7:5\d|8:00/.test(await p.textContent('.hdr #kpill .kt')), await p.textContent('.hdr #kpill'));
 t('sıradaki hareket Squat Top Single açık', (await p.textContent('.log .ttl .n')).startsWith('Squat'));
 // plaka sheet → aktar
-await p.locator('.log .plakabtn').click(); await p.waitForTimeout(300);
+await p.locator('.log .kgrow .plk-ic').click(); await p.waitForTimeout(300);
 t('plaka sheet 120 kg · tek taraf 50', (await p.textContent('.sheet .big')) === '120 kg' && (await p.textContent('.sheet .plates')).includes('50'));
 await p.locator('.sheet .plk button.plus').click(); await p.waitForTimeout(100); await p.locator('.sheet .btnrow .pri').click(); await p.waitForTimeout(200);
 t('aktar → kg 122.5', await kg().inputValue() === '122.5', await kg().inputValue());
+await p.locator('.log .chev').click(); await p.waitForTimeout(150);
+t('çubuk katlandı: özet 122.5×1×1 + mini Kaydet', !(await p.locator('.log .kgrow').isVisible()) && (await p.textContent('.log .oz')).startsWith('122.5×1×1'));
+await p.locator('.log .chev').click(); await p.waitForTimeout(150); t('çubuk açıldı', await p.locator('.log .kgrow').isVisible());
+await p.locator('.hdr #kpill').click(); await p.waitForTimeout(200); t('dinlenme rozeti dokununca gizlendi', (await p.$$('.hdr #kpill')).length === 0);
 await p.locator('.log .acts .pri').click(); await p.waitForTimeout(400);
 // Atla → Top Triple
-await p.locator('.log .acts .skip').click(); await p.waitForTimeout(400);
+await p.locator('.log .acts .skip', { hasText: 'Atla' }).click(); await p.waitForTimeout(400);
 t('atlandı işaretli, çubuk kapandı (satır kalmadı)', (await p.$$('main .card.mark.skip')).length === 1 && (await p.$$('.log')).length === 0);
 // uygulama ölümü: yenile → log fazı ve kayıtlar duruyor
 await p.reload(); await p.waitForSelector('.hdr .t'); await p.waitForTimeout(400);

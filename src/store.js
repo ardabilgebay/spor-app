@@ -45,14 +45,14 @@ export async function appendEvent(ev, { fromRemote = false } = {}) {
 }
 
 /** Yeni set olayı üret + yaz. Girdi sayılar önceden ayrıştırılmış olmalı (parseKg vb.). */
-export async function logSet({ ref, actor = 'arda', kg, sets, reps, reps_text = null, rpe, note = null, skipped = false, entered_by = 'arda', supersedes = null }) {
+export async function logSet({ ref, actor = 'arda', kg, sets, reps, reps_text = null, rpe, note = null, skipped = false, entered_by = 'arda', supersedes = null, rest_s = null, rest_plan_s = null }) {
   if (skipped) kg = 0;
   if (kg === 0 && !skipped) throw new Error('kg=0 yalnız skipped=true ile (A6-2)');
   if (reps !== null && reps !== undefined && reps_text) throw new Error('reps ve reps_text aynı anda dolu olamaz');
   const ev = {
     id: ulid(), ts: new Date().toISOString(), ts_kind: 'device', device: await deviceId(), entered_by,
     type: supersedes ? 'set.corrected' : 'set.logged', ref, schema_v: SCHEMA_V, source: { kind: 'app' },
-    data: { actor, kg: kg ?? null, sets: sets ?? null, reps: reps ?? null, reps_text, rpe: rpe ?? null, note, skipped, ...(supersedes ? { supersedes } : {}) },
+    data: { actor, kg: kg ?? null, sets: sets ?? null, reps: reps ?? null, reps_text, rpe: rpe ?? null, note, skipped, ...(supersedes ? { supersedes } : {}), ...(rest_s !== null ? { rest_s } : {}), ...(rest_plan_s !== null ? { rest_plan_s } : {}) },
   };
   await appendEvent(ev);
   return ev;

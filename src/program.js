@@ -154,11 +154,17 @@ export function prevMetni(s) {
   const rep = s.reps ?? s.reps_text ?? '';
   return `${M.fmt(s.kg)}×${M.fmt(s.sets)}×${rep}${s.rpe ? ` R${M.fmt(s.rpe)}` : ''}${s.note ? ` — ${s.note}` : ''}`;
 }
-/** Dinlenme metni → saniye (mockup: Top Single/Triple 210, Backoff/Repeat/Load Drop 180, Trap/Teknik 120, aksesuar 90). */
-export function dinlenmeSn(r) {
+/** Dinlenme kuralı (Arda, 22 Eyl): sayaç SIRADAKİ harekete göre — Top Single/Double/Triple öncesi 480 sn, ağır set öncesi 300 sn, diğerleri 90 sn. */
+export function dinlenmeKategori(r) {
+  if (!r) return 'light';
   const m = `${r.modifier ?? ''} ${r.metod ?? ''}`;
-  if (/single|triple|double|pr attempt|tahmin/i.test(m)) return 210;
-  if (/backoff|repeat|load drop|agir|ağır/i.test(m)) return 180;
-  if (/trap|teknik|clean|snatch/i.test(`${m} ${r.egzersiz} ${r.tekrar_metin ?? ''}`)) return 120;
-  return 90;
+  if (/single|double|triple|pr attempt|tahmin/i.test(m)) return 'top';
+  if (/agir|ağır|backoff|repeat|load drop|heavy|volume/i.test(m) || (M.isNum(r.pct_1rm) && M.isNum(r.hedef_rpe) && r.hedef_rpe >= 8)) return 'heavy';
+  return 'light';
 }
+export const DINLENME_SN = { top: 480, heavy: 300, light: 90 };
+/** Kaydedilen satırdan sonra sıradaki tamamlanmamış satır; yoksa null. */
+export function sonrakiSatir(rows, r) { const i = rows.indexOf(r); return rows.slice(i + 1).find(x => !x.tamam) ?? rows.slice(0, i).find(x => !x.tamam) ?? null; }
+export function dinlenmeSn(rows, r) { const n = sonrakiSatir(rows, r); return n ? DINLENME_SN[dinlenmeKategori(n)] : DINLENME_SN[dinlenmeKategori(r)]; }
+/** Kartta gösterilecek kısa dinlenme metni: Excel metninin ilk parçası (• / >> sonrası not). */
+export function dinlenmeKisa(t) { return t ? String(t).split(/\s*(?:•|>>)\s*/)[0].trim() : null; }

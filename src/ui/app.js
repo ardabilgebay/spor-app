@@ -28,7 +28,7 @@ export class App {
   constructor({ root, defs, sync, remote, version }) {
     Object.assign(this, { root, defs, sync, remote, version });
     this.tab = 'bugun'; this.prog = null; this.kilit = {}; this.persist = null; this.msg = null; this.needRefresh = null;
-    this.sheet = null; this.plakaKg = 100; this.krono = null; this.progSel = {}; this.ozet = null;
+    this.sheet = null; this.plakaKg = 100; this.krono = null; this.progSel = {}; this.ozet = null; this.logCollapsed = false;
     this.sync?.on(() => { if (this.tab === 'ayarlar') this.render(); });
   }
   // ── kabuk ────────────────────────────────────────────────────────
@@ -87,8 +87,8 @@ export class App {
     if (!v) { this.head(tarih, PROG_AD[p]); this.main.append(el('div', { class: 'banner' }, 'Program tanımı yok.')); return; }
     const faz = c.seans?.faz ?? 'onizleme';
     const sure = c.seans?.started_at && faz !== 'onizleme' ? el('span', { class: 'chip tab', id: 'sure' }, this.sureMetni(c.seans.started_at)) : null;
-    this.head(`${PROG_AD[p]} · ${tarih}`, `Hafta ${v.week} — ${P.GUN_AD[v.day]}`,
-      sure, faz === 'log' ? el('button', { class: 'pill acc', style: 'border-color:var(--acc-line)', onclick: () => this.fazSet('ozet') }, 'Bitir') : null);
+    this.head(tarih, `Hafta ${v.week} — ${P.GUN_AD[v.day]}`,
+      this.kronoPill(), this.krono ? null : sure, faz === 'log' ? el('button', { class: 'pill acc', style: 'border-color:var(--acc-line)', onclick: () => this.fazSet('ozet') }, 'Bitir') : null);
     if (sure) this.tickSure();
     const m = el('div', { class: 'pop' }); this.main.append(m);
     if (faz === 'onizleme') await this.fOnizleme(c, m);
@@ -107,12 +107,12 @@ export class App {
     const { v, stres } = c; const val = stres.get(v.week);
     return el('button', { class: 'sig', style: 'width:100%;border:0;min-height:0;text-align:left;cursor:pointer', onclick: () => { this.sheet = { kind: 'stres' }; this.renderSheet(); } },
       el('span', { class: 'dot ' + (val ? (val >= 4 ? 'warn' : 'acc') : 'dim') }),
-      el('span', { style: 'flex:1' }, val ? `Hayat stresi H${v.week}: ${val} · ${STRES_AD[val - 1]}` : `Hafta ${v.week} hayat stresi girilmedi`),
-      el('span', { class: 'dim xs' }, val ? 'değiştir ›' : 'gir ›'));
+      el('span', { style: 'flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap' }, val ? `Stres ${val} · ${STRES_AD[val - 1]}` : 'Stres girilmedi'),
+      el('span', { class: 'dim xs' }, '›'));
   }
   sinyalSatiri(c) {
     const w = c.wk.find(x => x.week === c.v.week); const s = w?.sinyal ?? '—';
-    return el('div', { class: 'sig' }, el('span', { class: 'dot ' + sinyalRenk(s) }), el('span', {}, s === '—' ? `Hafta ${c.v.week} sinyali için henüz veri yok` : `${s} · ${w.uyum}`));
+    return el('div', { class: 'sig' }, el('span', { class: 'dot ' + sinyalRenk(s) }), el('span', { style: 'min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap' }, s === '—' ? `H${c.v.week} sinyal: veri yok` : `${s.replace(/^\S+\s/, '')} · ${w.uyum.split(' • ')[0]}`));
   }
   kolSatiri(c) {
     const { v, p, def } = c; if (!v.kol) return null;
@@ -135,23 +135,20 @@ export class App {
       alp ? el('div', { class: 'small blue tab', style: 'margin-top:2px' }, alp) : null,
       yap ? el('div', { class: 'yap tab' }, yap) : null,
       (open || !r.tamam) && prev ? el('div', { class: 'prev' }, 'Geçen: ' + prev) : null,
-      el('div', { class: 'meta' }, [r.dinlenme ? `dinlenme ${r.dinlenme}` : null, r.plaka ? (r.plakaAlper ? 'Arda · ' : '') + r.plaka : null, r.plakaAlper ? 'Alper · ' + r.plakaAlper : null, r.tamam && r.arda.count > 1 ? `${r.arda.count} kayıt` : null].filter(Boolean).join(' · ')));
+      el('div', { class: 'meta' }, [r.dinlenme ? `dinlenme ${P.dinlenmeKisa(r.dinlenme)}` : null, r.plaka ? (r.plakaAlper ? 'Arda · ' : '') + r.plaka : null, r.plakaAlper ? 'Alper · ' + r.plakaAlper : null, r.tamam && r.arda.count > 1 ? `${r.arda.count} kayıt` : null].filter(Boolean).join(' · ')));
   }
   async fOnizleme(c, m) {
     const { v } = c; const tamamlandi = c.finished.has(`${v.week}|${v.day}`) || v.tamamlanan === v.rows.length;
-    m.append(el('div', { style: 'display:flex;align-items:baseline;gap:10px;flex-wrap:wrap' }, el('div', { style: 'font-weight:500;font-size:19px;letter-spacing:-.02em' }, `Seans ${v.idx} / ${v.N}`), el('div', { class: 'small mute tab' }, `${v.tamamlanan}/${v.rows.length} hareket kayıtlı`)));
-    m.append(...[this.sinyalSatiri(c), this.stresRozet(c), ...this.banners(), this.kolSatiri(c)].filter(Boolean));
+    m.append(el('div', { style: 'display:flex;align-items:baseline;gap:10px;flex-wrap:wrap' }, el('div', { style: 'font-weight:500;font-size:19px;letter-spacing:-.02em' }, `Seans ${v.idx} / ${v.N}`), el('div', { class: 'small mute tab' }, `${v.rows.length} hareket · ${v.tamamlanan} kayıtlı`)));
+    m.append(...[el('div', { class: 'sigrow' }, this.sinyalSatiri(c), this.stresRozet(c)), this.kolSatiri(c)].filter(Boolean));
     if (this.kilit[c.p]) m.append(el('div', { class: 'banner', style: 'display:flex;justify-content:space-between;align-items:center' }, `Seans kilidi: ${this.kilit[c.p]}`, el('button', { class: 'pill', onclick: async () => { delete this.kilit[c.p]; await S.setMeta('kilit', this.kilit); this.render(); } }, 'Kaldır')));
     if (v.isinmaBasamak) {
       m.append(el('div', { style: 'margin-top:14px', class: 'h' }, el('div', { class: 'k' }, `Isınma · ${M.topSet(v.rows).egzersiz}`), el('div', { class: 'xs dim2' }, `${v.isinmaBasamak.length + 1} basamak · top set ${fmt(v.topKg)} kg`)));
       m.append(el('div', { class: 'pills tab' }, el('span', { class: 'p' }, 'boş bar'), ...v.isinmaBasamak.map(k => el('span', { class: 'p' }, fmt(k))), el('span', { class: 'p top' }, `${fmt(v.topKg)} kg`)));
     }
-    m.append(el('div', { class: 'k', style: 'margin-top:16px' }, `Seans · ${v.rows.length} hareket`));
-    m.append(el('div', { class: 'grid', style: 'margin-top:8px' }, ...v.rows.map(r => this.rowCard(c, r, { open: true }))));
+    m.append(el('div', { class: 'grid', style: 'margin-top:14px' }, ...v.rows.map(r => this.rowCard(c, r, { open: true }))));
     const son = c.sev.filter(e => e.kind === 'finished' && e.note).slice(-1)[0];
     if (son && son.week === v.week && son.day === v.day) m.append(el('div', { class: 'prev', style: 'margin-top:10px' }, 'Seans notu: ' + son.note));
-    const sonraki = P.sessions(c.def, c.ov).find(s => s.idx === v.idx + 1);
-    m.append(el('div', { class: 'xs dim2', style: 'margin-top:12px' }, sonraki ? `Sonraki: Seans ${sonraki.idx} · Hafta ${sonraki.week} ${P.GUN_AD[sonraki.day]} · ${sonraki.rows.slice(0, 3).map(r => r.egzersiz).join(', ')}` : 'Cycle\'ın son seansı.'));
     this.footer('foot', el('button', { class: 'pri', style: 'flex:1', onclick: async () => {
       if (!c.stres.has(v.week)) { this.sheet = { kind: 'stres', sonra: 'isinma' }; this.renderSheet(); return; }
       await this.fazSet(v.isinmaBasamak && !tamamlandi ? 'isinma' : 'log');
@@ -174,7 +171,7 @@ export class App {
     const nowRow = v.rows.find(r => !r.tamam) ?? null;
     const openKey = c.seans?.openKey && v.rows.some(r => r.row_key === c.seans.openKey) ? c.seans.openKey : nowRow?.row_key ?? null;
     const openRow = v.rows.find(r => r.row_key === openKey) ?? null;
-    m.append(...[this.stresRozet(c), this.kolSatiri(c)].filter(Boolean));
+    if (v.kol) m.append(this.kolSatiri(c));
     m.append(el('div', { class: 'grid', style: 'margin-top:10px' }, ...v.rows.map(r => this.rowCard(c, r, { open: r === openRow, now: r === openRow, onclick: async () => { await S.setMeta(c.seansKey, { ...c.seans, openKey: r.row_key }); this.render(); } }))));
     if (!openRow) { this.footer('foot', el('button', { class: 'pri', style: 'flex:1', onclick: () => this.fazSet('ozet') }, 'Seansı bitir')); return; }
     this.footer('log', ...await this.logBar(c, openRow));
@@ -187,82 +184,92 @@ export class App {
     const fill = () => { const q = cur(); d.kg = q?.kg ?? planKg() ?? null; d.sets = q?.sets ?? r.set ?? null; d.reps = q?.reps ?? r.tekrar ?? null; d.rpe = q?.rpe ?? null; d.note = q?.note ?? null; };
     if (d.kg === null && d.sets === null) fill();
     const saveDraft = () => S.setMeta(draftKey, d);
-    const out = [];
-    // dinlenme kronometresi (kayıt sonrası aktif)
-    if (this.krono?.key === c.seansKey && this.krono.end > Date.now()) out.push(this.kronoSatiri());
-    out.push(el('div', { class: 'ttl' }, el('div', { class: 'n' }, r.egzersiz + (r.modifier ? ` · ${r.modifier}` : '')), el('div', { class: 'hh tab' }, r.hedef?.replace(/^.*\n/, '').replace(/\n.*$/s, '') ?? '')));
+    const ozet = () => `${d.kg === null ? '—' : fmt(d.kg)}×${d.sets ?? '—'}×${d.reps ?? r.tekrar_metin ?? '—'}${d.rpe ? ` R${fmt(d.rpe)}` : ''}`;
+    // başlık + katla/aç
+    const ozetS = el('span', { class: 'oz tab' });
+    const chev = el('button', { class: 'chev', onclick: () => { this.logCollapsed = !this.logCollapsed; body.classList.toggle('hidden', this.logCollapsed); ozetS.classList.toggle('hidden', !this.logCollapsed); chev.textContent = this.logCollapsed ? '▴' : '▾'; kaydetMini.classList.toggle('hidden', !this.logCollapsed); } }, this.logCollapsed ? '▴' : '▾');
+    const kaydetMini = el('button', { class: 'pill sel hidden', onclick: () => commit() }, 'Kaydet');
+    const ttl = el('div', { class: 'ttl' }, el('div', { class: 'n' }, r.egzersiz + (r.modifier ? ` · ${r.modifier}` : '')), el('div', { class: 'hh tab' }, r.hedef?.replace(/^.*\n/, '').replace(/\n.*$/s, '') ?? ''), ozetS, kaydetMini, chev);
+    const body = el('div', { class: this.logCollapsed ? 'hidden' : '' });
     // kişi
     let segBtns = [];
-    if (p === 'Alper') out.push(el('div', { class: 'seg' }, ...(segBtns = ['arda', 'alper'].map(a => el('button', { class: d.actor === a ? 'sel' : '', onclick: () => { d.actor = a; fill(); saveDraft(); paint(); } }, a === 'arda' ? 'Arda' : 'Alper')))));
-    // kg
+    if (p === 'Alper') body.append(el('div', { class: 'seg' }, ...(segBtns = ['arda', 'alper'].map(a => el('button', { class: d.actor === a ? 'sel' : '', onclick: () => { d.actor = a; fill(); saveDraft(); paint(); } }, a === 'arda' ? 'Arda' : 'Alper')))));
+    // kg + plaka
     const kgIn = el('input', { type: 'text', inputmode: 'decimal', autocomplete: 'off', enterkeyhint: 'done', placeholder: '—', class: 'tab' });
-    const kgSub = el('div', { class: 'sub' });
+    const kgSub = el('div', { class: 'sub tab' });
     kgIn.addEventListener('change', () => { d.kg = M.parseKg(kgIn.value); saveDraft(); paint(); });
     kgIn.addEventListener('keydown', e => { if (e.key === 'Enter') kgIn.blur(); });
     const step = n => { d.kg = Math.max(0, Math.round(((d.kg ?? planKg() ?? 0) + n) * 100) / 100); saveDraft(); paint(); };
-    out.push(el('div', { class: 'kgrow' }, el('button', { onclick: () => step(-KG_ADIM) }, '−'), el('div', { class: 'mid' }, kgIn, kgSub), el('button', { class: 'plus', onclick: () => step(KG_ADIM) }, '+')));
-    // plaka
-    const plakaS = el('span', { class: 's tab' });
-    if (r.barli) out.push(el('button', { class: 'plakabtn', onclick: () => { this.sheet = { kind: 'plaka', kg: d.kg ?? planKg() ?? 20, aktar: kg => { d.kg = kg; saveDraft(); paint(); } }; this.renderSheet(); } }, el('span', { style: 'color:var(--acc)' }, '▬'), plakaS, el('span', { class: 'c' }, '›')));
+    const plakaBtn = r.barli ? el('button', { class: 'plk-ic', title: 'Plaka hesabı', onclick: () => { this.sheet = { kind: 'plaka', kg: d.kg ?? planKg() ?? 20, aktar: kg => { d.kg = kg; saveDraft(); paint(); } }; this.renderSheet(); } }, '▬') : null;
+    body.append(el('div', { class: 'kgrow' }, el('button', { onclick: () => step(-KG_ADIM) }, '−'), el('div', { class: 'mid' }, kgIn, kgSub), el('button', { class: 'plus', onclick: () => step(KG_ADIM) }, '+'), plakaBtn));
     // set / tekrar / rpe
     const setBtns = [1, 2, 3, 4, 5].map(n => el('button', { class: 'tab', onclick: () => { d.sets = n; saveDraft(); paint(); } }, n));
     const base = r.tekrar ?? 5; const reps = r.tekrar_metin ? [] : [base - 2, base - 1, base, base + 1, base + 2].filter(n => n >= 1);
     const repBtns = reps.map(n => el('button', { class: 'tab', onclick: () => { d.reps = n; saveDraft(); paint(); } }, n));
-    const repIn = el('input', { type: 'text', inputmode: 'numeric', placeholder: r.tekrar_metin ?? '…', style: 'flex:none;width:60px;text-align:center', class: 'tab' });
-    repIn.addEventListener('change', () => { const n = M.parseKg(repIn.value); d.reps = n; saveDraft(); paint(); });
+    const repIn = el('input', { type: 'text', inputmode: 'numeric', placeholder: r.tekrar_metin ?? '…', style: 'flex:none;width:54px;text-align:center', class: 'tab' });
+    repIn.addEventListener('change', () => { d.reps = M.parseKg(repIn.value); saveDraft(); paint(); });
     const rpeBtns = RPE_LIST.map(n => el('button', { class: 'tab', onclick: () => { d.rpe = d.rpe === n ? null : n; saveDraft(); paint(); } }, fmt(n)));
-    out.push(el('div', { class: 'fld' }, el('div', { class: 'lbl' }, 'Set'), el('div', { class: 'opts' }, ...setBtns)));
-    out.push(el('div', { class: 'fld' }, el('div', { class: 'lbl' }, 'Tekrar'), el('div', { class: 'opts' }, ...repBtns, repIn)));
-    out.push(el('div', { class: 'fld' }, el('div', { class: 'lbl' }, 'RPE' + (r.hedef_rpe ? ` ${fmt(r.hedef_rpe)}` : '')), el('div', { class: 'opts rpe' }, ...rpeBtns)));
-    const notIn = el('input', { type: 'text', value: d.note ?? '', placeholder: 'not — his, aksaklık, gelecek haftaya…', enterkeyhint: 'done' });
-    notIn.addEventListener('change', () => { d.note = notIn.value.trim() || null; saveDraft(); });
-    out.push(el('div', { class: 'fld' }, el('div', { class: 'lbl' }, 'Not'), notIn));
+    body.append(el('div', { class: 'fld' }, el('div', { class: 'lbl' }, 'Set'), el('div', { class: 'opts' }, ...setBtns)));
+    body.append(el('div', { class: 'fld' }, el('div', { class: 'lbl' }, 'Tkr'), el('div', { class: 'opts' }, ...repBtns, repIn)));
+    body.append(el('div', { class: 'fld' }, el('div', { class: 'lbl' }, 'RPE' + (r.hedef_rpe ? ` ${fmt(r.hedef_rpe)}` : '')), el('div', { class: 'opts rpe' }, ...rpeBtns)));
+    // not (isteğe bağlı, düğmeyle açılır)
+    const notIn = el('input', { type: 'text', value: d.note ?? '', placeholder: 'not — his, aksaklık, gelecek haftaya…', enterkeyhint: 'done', class: d.note ? '' : 'hidden', style: 'margin-top:7px;min-height:40px' });
+    notIn.addEventListener('change', () => { d.note = notIn.value.trim() || null; saveDraft(); paint(); });
+    body.append(notIn);
     // eylemler
     const hint = el('div', { class: 'xs warn hidden', style: 'margin-top:6px' });
     const kaydet = el('button', { class: 'pri', onclick: () => commit() });
     const skipBtn = el('button', { class: 'skip', onclick: () => commit({ skipped: true }) });
-    out.push(el('div', { class: 'acts' }, skipBtn, kaydet), hint);
+    const notBtn = el('button', { class: 'skip', title: 'Not', onclick: () => { notIn.classList.remove('hidden'); notIn.focus(); } }, '✎');
+    body.append(el('div', { class: 'acts' }, skipBtn, notBtn, kaydet), hint);
     const paint = () => {
       kgIn.value = d.kg === null ? '' : fmt(d.kg);
-      const pk = planKg(); kgSub.textContent = (r.bw ? 'toplam yük (BW + ek)' : pk !== null && pk !== undefined ? `plan ${fmt(pk)} kg` : 'plan yok') + ` · ${fmt(KG_ADIM)} kg adım · sayıya dokun-yaz`;
-      if (r.barli) plakaS.textContent = P.plakaMetni(d.kg) ?? 'plaka: kg gir';
+      const pk = planKg(); kgSub.textContent = r.bw ? 'toplam yük · BW + ek' : (pk !== null && pk !== undefined ? `plan ${fmt(pk)}` : 'plan yok') + (r.barli && d.kg ? ` · ${P.plakaMetni(d.kg)?.replace('bir tarafa ', 'yan ') ?? ''}` : '');
       segBtns.forEach(b => b.classList.toggle('sel', b.textContent.toLowerCase() === d.actor));
       setBtns.forEach((b, i) => b.classList.toggle('sel', d.sets === i + 1));
       repBtns.forEach((b, i) => b.classList.toggle('sel', d.reps === reps[i]));
       repIn.value = d.reps !== null && !reps.includes(d.reps) ? String(d.reps) : ''; repIn.classList.toggle('sel', d.reps !== null && !reps.includes(d.reps));
       rpeBtns.forEach((b, i) => b.classList.toggle('sel', d.rpe === RPE_LIST[i]));
+      notBtn.classList.toggle('sel', !!d.note);
       const q = cur(); kaydet.textContent = q && !q.skipped ? 'Güncelle' : 'Kaydet'; skipBtn.textContent = q?.skipped ? 'Geri al' : 'Atla';
+      ozetS.textContent = ozet(); ozetS.classList.toggle('hidden', !this.logCollapsed);
     };
     paint();
     const commit = async ({ skipped = false } = {}) => {
       const q = cur();
       if (skipped && q?.skipped) { await S.appendEvent(await this.deleteEvent(r.ref, d.actor)); await S.setMeta(draftKey, null); this.sync?.schedule(); return this.render(); }
-      if (!skipped && d.kg === null) { hint.textContent = 'kg gir (ya da Atla).'; hint.classList.remove('hidden'); return; }
+      if (!skipped && d.kg === null) { hint.textContent = 'kg gir (ya da Atla).'; hint.classList.remove('hidden'); this.logCollapsed = false; body.classList.remove('hidden'); return; }
+      // gerçek dinlenme: bu seansta önceki kayıttan bu yana geçen süre; plan: bir önceki kayıtta kurulan sayaç
+      const now = Date.now(); const last = c.seans?.last_save_at ? new Date(c.seans.last_save_at).getTime() : null;
+      const rest_s = last ? Math.round((now - last) / 1000) : null; const rest_plan_s = c.seans?.last_rest_plan_s ?? null;
       const data = { kg: d.kg, sets: d.sets, reps: d.reps, reps_text: r.tekrar_metin && d.reps === null ? r.tekrar_metin : null, rpe: d.rpe, note: d.note };
-      await S.logSet({ ref: r.ref, actor: d.actor, ...data, skipped, supersedes: q?.event_id ?? null });
+      await S.logSet({ ref: r.ref, actor: d.actor, ...data, skipped, supersedes: q?.event_id ?? null, rest_s: skipped ? null : rest_s, rest_plan_s: skipped ? null : rest_plan_s });
       await S.setMeta(draftKey, null); this.sync?.schedule();
-      if (!skipped) this.kronoBaslat(c.seansKey, P.dinlenmeSn(r), r.egzersiz);
-      await S.setMeta(c.seansKey, { ...c.seans, openKey: null });   // sıradaki tamamlanmamış açılır
+      let plan = null;
+      if (!skipped) { plan = P.dinlenmeSn(v.rows.map(x => x === r ? { ...x, tamam: true } : x), r); this.kronoBaslat(c.seansKey, plan, P.sonrakiSatir(v.rows, r)?.egzersiz ?? 'sonraki'); }
+      await S.setMeta(c.seansKey, { ...c.seans, openKey: null, last_save_at: skipped ? c.seans?.last_save_at ?? null : new Date(now).toISOString(), last_rest_plan_s: plan ?? c.seans?.last_rest_plan_s ?? null });
       if (navigator.vibrate) navigator.vibrate(12);
       this.render();
     };
-    return out;
+    return [ttl, body];
   }
   async deleteEvent(ref, actor) {
     return { id: S.ulid(), ts: new Date().toISOString(), ts_kind: 'device', device: await S.deviceId(), entered_by: 'arda', type: 'set.deleted', ref, schema_v: 1, source: { kind: 'app' }, data: { actor } };
   }
-  kronoBaslat(key, sn, ad) { clearInterval(this.kronoIv); this.krono = { key, end: Date.now() + sn * 1000, sn, ad }; this.kronoIv = setInterval(() => this.kronoTick(), 500); }
+  kronoBaslat(key, sn, ad) { clearInterval(this.kronoIv); this.krono = { key, end: Date.now() + sn * 1000, sn, ad, start: Date.now() }; this.kronoIv = setInterval(() => this.kronoTick(), 500); }
+  kronoKalan() { const k = this.krono; return k ? Math.max(0, Math.round((k.end - Date.now()) / 1000)) : 0; }
   kronoTick() {
     const k = this.krono; if (!k) return clearInterval(this.kronoIv);
-    const kalan = Math.max(0, Math.round((k.end - Date.now()) / 1000));
-    const t = this.foot.querySelector('.krono .t'), ring = this.foot.querySelector('.krono .ring');
-    if (t) { t.textContent = kalan > 0 ? mmss(kalan) : 'hazır'; ring.style.setProperty('--pct', `${Math.round((1 - kalan / k.sn) * 100)}%`); }
+    const kalan = this.kronoKalan();
+    const pill = this.hR.querySelector('#kpill'); if (pill) { pill.querySelector('.kt').textContent = kalan > 0 ? mmss(kalan) : 'hazır'; pill.classList.toggle('done', kalan <= 0); pill.querySelector('.ring').style.setProperty('--pct', `${Math.round((1 - kalan / k.sn) * 100)}%`); }
     const big = this.main.querySelector('#krobig'); if (big) { big.textContent = kalan > 0 ? mmss(kalan) : 'hazır'; big.className = 'big tab ' + (kalan > 0 ? 'on' : 'done'); }
     if (kalan <= 0) { clearInterval(this.kronoIv); if (navigator.vibrate) navigator.vibrate([80, 60, 80]); }
   }
-  kronoSatiri() {
-    const k = this.krono; const kalan = Math.max(0, Math.round((k.end - Date.now()) / 1000));
-    return el('div', { class: 'krono' }, el('span', { class: 'ring', style: `--pct:${Math.round((1 - kalan / k.sn) * 100)}%` }), el('span', { class: 't tab' }, mmss(kalan)), el('span', { class: 'sub' }, `dinlenme · ${Math.round(k.sn / 60 * 10) / 10} dk · ${k.ad}`), el('button', { onclick: () => { this.krono = null; clearInterval(this.kronoIv); this.render(); } }, 'Geç'));
+  /** Başlıktaki dinlenme rozeti: bağımsız, dokununca gizlenir (Geç). */
+  kronoPill() {
+    const k = this.krono; if (!k) return null; const kalan = this.kronoKalan();
+    return el('button', { id: 'kpill', class: 'kpill' + (kalan <= 0 ? ' done' : ''), title: 'Dinlenmeyi geç', onclick: () => { this.krono = null; clearInterval(this.kronoIv); this.render(); } },
+      el('span', { class: 'ring', style: `--pct:${Math.round((1 - kalan / k.sn) * 100)}%` }), el('span', { class: 'kt tab' }, kalan > 0 ? mmss(kalan) : 'hazır'), el('span', { class: 'kx' }, '×'));
   }
   // ── ÖZET ─────────────────────────────────────────────────────────
   async fOzet(c, m) {
@@ -284,7 +291,7 @@ export class App {
   }
   // ── PROGRAM (hafta × gün ızgarası) ───────────────────────────────
   async rProgram(c) {
-    const { def, p, state } = c; this.head(`${PROG_AD[p]} · ${def.cycle}`, 'Program');
+    const { def, p, state } = c; this.head(`${def.cycle} · ${[...new Set(def.rows.map(r => r.week))].length} hafta`, 'Program');
     const ss = P.sessions(def, c.ov); const gunler = [...new Set(ss.map(s => s.day))]; const weeks = [...new Set(ss.map(s => s.week))];
     const sel = this.progSel[p] ?? c.idx;
     const m = el('div', { class: 'pop' }); this.main.append(m);
@@ -318,7 +325,7 @@ export class App {
   }
   // ── İLERLEME ─────────────────────────────────────────────────────
   async rIlerleme(c) {
-    const { def, p, wk, stateAll } = c; this.head(`${PROG_AD[p]} · ${def.cycle}`, 'İlerleme'); const cfg = M.CONFIG[p];
+    const { def, p, wk, stateAll } = c; this.head(def.cycle, 'İlerleme'); const cfg = M.CONFIG[p];
     const m = el('div', { class: 'pop' }); this.main.append(m);
     // Tahmini 1RM (K20): ana kaldırışlar için son tekli (RPE'li) + son üçlü
     const lifts = cfg.weeklyFilter ?? [def.program === 'Deadlift' ? 'Deadlift' : null].filter(Boolean);
