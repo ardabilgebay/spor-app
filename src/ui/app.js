@@ -23,6 +23,16 @@ const KG_ADIM = 2.5;
 const sinyalRenk = s => !s || s === '—' ? 'dim' : s.startsWith('🔴') ? 'red' : s.startsWith('🔵') ? 'blue' : s.startsWith('⏳') ? 'warn' : s.startsWith('⏸') ? 'dim' : 'ok';
 const mmss = k => `${Math.floor(k / 60)}:${String(k % 60).padStart(2, '0')}`;
 const fmt = M.fmt;
+/** Basılı tutunca hızlanan düğme: hemen 1 adım; 400 ms sonra 150 ms'de bir; 1,5 sn sonra ×4 adım. Bitiş belge düzeyinde yakalanır (düğme kaybolsa da durur). */
+function hold(btn, fn) {
+  let t = null, iv = null, on = false, t0 = 0;
+  const ENDS = ['pointerup', 'pointercancel'];
+  const stop = () => { if (!on) return; on = false; clearTimeout(t); clearInterval(iv); for (const e of ENDS) document.removeEventListener(e, stop); window.removeEventListener('blur', stop); };
+  btn.addEventListener('pointerdown', e => { e.preventDefault(); if (on) return; on = true; t0 = Date.now(); for (const ev of ENDS) document.addEventListener(ev, stop); window.addEventListener('blur', stop);
+    fn(1); t = setTimeout(() => { iv = setInterval(() => { if (!btn.isConnected) return stop(); fn(Date.now() - t0 > 1500 ? 4 : 1); }, 150); }, 400); });
+  btn.addEventListener('click', e => e.preventDefault());
+  return btn;
+}
 
 export class App {
   constructor({ root, defs, sync, remote, version }) {
@@ -181,7 +191,8 @@ export class App {
     const d = (await S.getMeta(draftKey)) ?? { actor: 'arda', kg: null, sets: null, reps: null, rpe: null, note: null };
     const planKg = () => d.actor === 'alper' ? r.onerilen_alper : r.onerilen;
     const cur = () => d.actor === 'alper' ? r.alper : r.arda;
-    const fill = () => { const q = cur(); d.kg = q?.kg ?? planKg() ?? null; d.sets = q?.sets ?? r.set ?? null; d.reps = q?.reps ?? r.tekrar ?? null; d.rpe = q?.rpe ?? null; d.note = q?.note ?? null; };
+    const prevE = P.prevEntry(c.stateAll, r, v, def.cycle);
+    const fill = () => { const q = cur(); d.kg = q?.kg ?? planKg() ?? (d.actor === 'arda' ? prevE?.kg ?? null : null); d.sets = q?.sets ?? r.set ?? null; d.reps = q?.reps ?? r.tekrar ?? null; d.rpe = q?.rpe ?? null; d.note = q?.note ?? null; };
     if (d.kg === null && d.sets === null) fill();
     const saveDraft = () => S.setMeta(draftKey, d);
     const ozet = () => `${d.kg === null ? '—' : fmt(d.kg)}×${d.sets ?? '—'}×${d.reps ?? r.tekrar_metin ?? '—'}${d.rpe ? ` R${fmt(d.rpe)}` : ''}`;
@@ -200,8 +211,8 @@ export class App {
     kgIn.addEventListener('change', () => { d.kg = M.parseKg(kgIn.value); saveDraft(); paint(); });
     kgIn.addEventListener('keydown', e => { if (e.key === 'Enter') kgIn.blur(); });
     const step = n => { d.kg = Math.max(0, Math.round(((d.kg ?? planKg() ?? 0) + n) * 100) / 100); saveDraft(); paint(); };
-    const plakaBtn = r.barli ? el('button', { class: 'plk-ic', title: 'Plaka hesabı', onclick: () => { this.sheet = { kind: 'plaka', kg: d.kg ?? planKg() ?? 20, aktar: kg => { d.kg = kg; saveDraft(); paint(); } }; this.renderSheet(); } }, '▬') : null;
-    body.append(el('div', { class: 'kgrow' }, el('button', { onclick: () => step(-KG_ADIM) }, '−'), el('div', { class: 'mid' }, kgIn, kgSub), el('button', { class: 'plus', onclick: () => step(KG_ADIM) }, '+'), plakaBtn));
+    const plakaBtn = r.barli ? el('button', { class: 'plk-ic', title: 'Plaka hesabı', onclick: () => { this.sheet = { kind: 'plaka', kg: d.kg ?? planKg() ?? prevE?.kg ?? 20, aktar: kg => { d.kg = kg; saveDraft(); paint(); } }; this.renderSheet(); } }, '▬') : null;
+    body.append(el('div', { class: 'kgrow' }, hold(el('button', {}, '−'), k => step(-KG_ADIM * k)), el('div', { class: 'mid', onclick: e => { if (e.target !== kgIn) { kgIn.focus(); kgIn.select?.(); } } }, kgIn, kgSub), hold(el('button', { class: 'plus' }, '+'), k => step(KG_ADIM * k)), plakaBtn));
     // set / tekrar / rpe
     const setBtns = [1, 2, 3, 4, 5].map(n => el('button', { class: 'tab', onclick: () => { d.sets = n; saveDraft(); paint(); } }, n));
     const base = r.tekrar ?? 5; const reps = r.tekrar_metin ? [] : [base - 2, base - 1, base, base + 1, base + 2].filter(n => n >= 1);
@@ -224,7 +235,7 @@ export class App {
     body.append(el('div', { class: 'acts' }, skipBtn, notBtn, kaydet), hint);
     const paint = () => {
       kgIn.value = d.kg === null ? '' : fmt(d.kg);
-      const pk = planKg(); kgSub.textContent = r.bw ? 'toplam yük · BW + ek' : (pk !== null && pk !== undefined ? `plan ${fmt(pk)}` : 'plan yok') + (r.barli && d.kg ? ` · ${P.plakaMetni(d.kg)?.replace('bir tarafa ', 'yan ') ?? ''}` : '');
+      const pk = planKg(); kgSub.textContent = (r.bw ? 'toplam yük · BW + ek' : (pk !== null && pk !== undefined ? `plan ${fmt(pk)}` : prevE ? `geçen ${fmt(prevE.kg)}` : 'plan yok')) + (r.barli && d.kg ? ` · ${P.plakaMetni(d.kg)?.replace('bir tarafa ', 'yan ') ?? ''}` : '') + ' · ✎ yaz';
       segBtns.forEach(b => b.classList.toggle('sel', b.textContent.toLowerCase() === d.actor));
       setBtns.forEach((b, i) => b.classList.toggle('sel', d.sets === i + 1));
       repBtns.forEach((b, i) => b.classList.toggle('sel', d.reps === reps[i]));
@@ -391,15 +402,16 @@ export class App {
     m.append(box);
   }
   plakaBlok(kg0, onChange, aktar = null) {
-    let kg = kg0; const big = el('div', { class: 'big tab' }); const plates = el('div', { class: 'plates' }); const not = el('div', { class: 'xs dim2', style: 'margin-top:6px' });
-    const paint = () => { big.textContent = `${fmt(kg)} kg`; const t = P.plakaMetni(kg); plates.replaceChildren(); not.textContent = '';
+    let kg = kg0; const big = el('input', { type: 'text', inputmode: 'decimal', class: 'big tab', autocomplete: 'off', enterkeyhint: 'done' }); const plates = el('div', { class: 'plates' }); const not = el('div', { class: 'xs dim2', style: 'margin-top:6px' });
+    big.addEventListener('change', () => { const v = M.parseKg(big.value); if (v !== null) set(v); else paint(); }); big.addEventListener('keydown', e => { if (e.key === 'Enter') big.blur(); });
+    const paint = () => { big.value = fmt(kg); const t = P.plakaMetni(kg); plates.replaceChildren(); not.textContent = '';
       if (!t) { not.textContent = 'kg gir'; return; }
       if (t.startsWith('sadece') || t.startsWith('bar altı')) { plates.append(el('span', { class: 'p' }, t)); return; }
       const [, yan, rest] = /bir tarafa ([\d.]+): (.*)$/.exec(t) ?? []; const parts = (rest ?? '').replace(/\s*\(.*\)$/, '').split(' + ');
       plates.append(el('span', { class: 'p n' }, `tek taraf ${yan}`), ...parts.map(x => el('span', { class: 'p' }, x))); const ek = /\((.*)\)/.exec(t); not.textContent = ek ? `Tek tarafta ${ek[1].replace('−', '')} açık kalıyor (plaka seti 25/20/15/10/5/2.5/1.25).` : 'Bar 20 kg dahil.'; };
     const set = v => { kg = Math.max(0, Math.round(v * 100) / 100); onChange?.(kg); paint(); };
     paint();
-    return el('div', {}, el('div', { class: 'plk' }, el('button', { onclick: () => set(kg - KG_ADIM) }, '−'), el('div', { class: 'mid' }, big, el('div', { class: 'sub' }, 'bar 20 kg · çift taraf')), el('button', { class: 'plus', onclick: () => set(kg + KG_ADIM) }, '+')), plates, not,
+    return el('div', {}, el('div', { class: 'plk' }, hold(el('button', {}, '−'), k => set(kg - KG_ADIM * k)), el('div', { class: 'mid' }, big, el('div', { class: 'sub' }, 'bar 20 kg · çift taraf · ✎ sayıya dokun-yaz')), hold(el('button', { class: 'plus' }, '+'), k => set(kg + KG_ADIM * k))), plates, not,
       aktar ? el('div', { class: 'btnrow', style: 'margin-top:14px' }, el('button', { class: 'sec', onclick: () => { this.sheet = null; this.renderSheet(); } }, 'Kapat'), el('button', { class: 'pri', style: 'min-height:48px;font-size:14px', onclick: () => { aktar(kg); this.sheet = null; this.renderSheet(); } }, `${fmt(kg)} kg'yi aktar`)) : null);
   }
   // ── AYARLAR ──────────────────────────────────────────────────────

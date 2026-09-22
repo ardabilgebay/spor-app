@@ -109,8 +109,8 @@ main{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;paddin
 .kgrow button.plk-ic{width:40px;color:var(--acc);font-size:15px}
 .kgrow button.plus{background:var(--acc-bg);border-color:var(--acc-line);color:var(--acc-ink)}
 .kgrow .mid{flex:1;text-align:center;min-width:0}
-.kgrow input{width:100%;text-align:center;font-weight:500;font-size:30px;line-height:1;letter-spacing:-.03em;background:transparent;border:0;min-height:34px;padding:0;color:var(--ink)}
-.kgrow input:focus{outline:none;border-bottom:1px solid var(--acc)}
+.kgrow input{width:100%;text-align:center;font-weight:500;font-size:30px;line-height:1;letter-spacing:-.03em;background:transparent;border:0;border-bottom:1px dashed var(--acc-line);border-radius:0;min-height:36px;padding:0 0 2px;color:var(--ink)}
+.kgrow input:focus{outline:none;border-bottom:2px solid var(--acc)}
 .kgrow .sub{font-size:10.5px;color:var(--dim);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .plakabtn{display:flex;align-items:center;gap:8px;width:100%;margin-top:7px;min-height:38px;padding:0 11px;background:var(--bg);color:var(--ink2);text-align:left}
 .plakabtn .s{flex:1;font-size:12.5px;min-width:0}.plakabtn .c{flex:none;font-size:15px;color:var(--dim)}
@@ -140,7 +140,7 @@ main{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;paddin
 .plk{display:flex;align-items:center;gap:10px;margin-top:12px}
 .plk button{width:52px;height:52px;font-size:22px;padding:0}
 .plk button.plus{background:var(--acc-bg);border-color:var(--acc-line);color:var(--acc-ink)}
-.plk .mid{flex:1;text-align:center}.plk .big{font-weight:500;font-size:32px;letter-spacing:-.03em}.plk .sub{font-size:11px;color:var(--dim)}
+.plk .mid{flex:1;text-align:center}.plk input.big{width:100%;text-align:center;font-weight:500;font-size:32px;letter-spacing:-.03em;background:transparent;border:0;border-bottom:1px dashed var(--acc-line);border-radius:0;min-height:40px;padding:0;color:var(--ink)}.plk input.big:focus{outline:none;border-bottom:2px solid var(--acc)}.plk .sub{font-size:11px;color:var(--dim)}
 .plates{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px;min-height:44px;align-items:center}
 .plates .p{flex:none;padding:8px 11px;border-radius:6px;font-size:13.5px;background:var(--in);box-shadow:0 0 0 1px var(--line)}
 .plates .p.n{background:var(--acc-bg);box-shadow:0 0 0 1px var(--acc-line);color:var(--acc-ink)}

@@ -44,7 +44,10 @@ t('dinlenme rozeti başlıkta: sıradaki Top Single → 8:00 civarı', (await p.
 t('sıradaki hareket Squat Top Single açık', (await p.textContent('.log .ttl .n')).startsWith('Squat'));
 // plaka sheet → aktar
 await p.locator('.log .kgrow .plk-ic').click(); await p.waitForTimeout(300);
-t('plaka sheet 120 kg · tek taraf 50', (await p.textContent('.sheet .big')) === '120 kg' && (await p.textContent('.sheet .plates')).includes('50'));
+t('plaka sheet 120 kg · tek taraf 50', (await p.locator('.sheet input.big').inputValue()) === '120' && (await p.textContent('.sheet .plates')).includes('50'));
+await p.locator('.sheet input.big').fill('200'); await p.locator('.sheet input.big').dispatchEvent('change'); await p.waitForTimeout(100);
+t('plaka: sayı yazıldı 200 → tek taraf 90', (await p.textContent('.sheet .plates')).includes('90'));
+await p.locator('.sheet input.big').fill('120'); await p.locator('.sheet input.big').dispatchEvent('change'); await p.waitForTimeout(100);
 await p.locator('.sheet .plk button.plus').click(); await p.waitForTimeout(100); await p.locator('.sheet .btnrow .pri').click(); await p.waitForTimeout(200);
 t('aktar → kg 122.5', await kg().inputValue() === '122.5', await kg().inputValue());
 await p.locator('.log .chev').click(); await p.waitForTimeout(150);
@@ -82,7 +85,10 @@ await p.locator('main button', { hasText: 'Kaldır' }).click(); await p.waitForT
 t('kilit kaldırıldı → Perşembe', (await p.textContent('.hdr .t')) === 'Hafta 1 — Perşembe Seansı');
 // Aletler
 await tab('Aletler'); await p.waitForTimeout(300);
-t('Aletler: plaka 100 kg + 7 süre düğmesi (30sn…8dk)', (await p.textContent('main .plk .big')) === '100 kg' && (await p.$$('main .krobtns button')).length === 7);
+t('Aletler: plaka 100 kg + 7 süre düğmesi (30sn…8dk)', (await p.locator('main .plk input.big').inputValue()) === '100' && (await p.$$('main .krobtns button')).length === 7);
+await p.locator('main .plk button.plus').dispatchEvent('pointerdown'); await p.waitForTimeout(2000); await p.dispatchEvent('body', 'pointerup'); await p.waitForTimeout(300);
+const hv = Number(await p.locator('main .plk input.big').inputValue()); await p.waitForTimeout(500);
+t('basılı tut 2 sn → hızlanan artış (>120) ve bırakınca durur', hv > 120 && Number(await p.locator('main .plk input.big').inputValue()) === hv, String(hv));
 await p.locator('main .krobtns button', { hasText: '30 sn' }).click(); await p.waitForTimeout(1300);
 t('kronometre çalışıyor', /0:2\d/.test(await p.textContent('#krobig')), await p.textContent('#krobig'));
 await p.evaluate(() => { const a = document.querySelector('#app'); }); await p.waitForTimeout(0);
