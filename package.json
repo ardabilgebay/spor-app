@@ -1,0 +1,22 @@
+{
+  "name": "spor-app",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "node tests/golden_test.mjs && node tests/store_test.mjs && node tests/program_test.mjs && node tests/oracle_test.mjs"
+  },
+  "dependencies": {
+    "@azure/msal-browser": "^4",
+    "dexie": "^4"
+  },
+  "devDependencies": {
+    "fake-indexeddb": "^6",
+    "playwright": "^1.63.0",
+    "vite": "^6",
+    "vite-plugin-pwa": "^1"
+  }
+}
