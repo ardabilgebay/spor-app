@@ -165,6 +165,7 @@ export function dinlenmeKategori(r) {
 export const DINLENME_SN = { top: 480, heavy: 300, light: 90 };
 /** Kaydedilen satırdan sonra sıradaki tamamlanmamış satır; yoksa null. */
 export function sonrakiSatir(rows, r) { const i = rows.indexOf(r); return rows.slice(i + 1).find(x => !x.tamam) ?? rows.slice(0, i).find(x => !x.tamam) ?? null; }
-export function dinlenmeSn(rows, r) { const n = sonrakiSatir(rows, r); return n ? DINLENME_SN[dinlenmeKategori(n)] : DINLENME_SN[dinlenmeKategori(r)]; }
+/** Süre = max(bitirilen setin kategorisi, sıradaki setin kategorisi): top set sonrası da, top set öncesi de 8 dk (Arda, 22 Eyl: Sumo Double sonrası Pull-up'a 1:30 verilmişti — hata). */
+export function dinlenmeSn(rows, r) { const n = sonrakiSatir(rows, r); const a = DINLENME_SN[dinlenmeKategori(r)], b = n ? DINLENME_SN[dinlenmeKategori(n)] : 0; return Math.max(a, b); }
 /** Kartta gösterilecek kısa dinlenme metni: Excel metninin ilk parçası (• / >> sonrası not). */
 export function dinlenmeKisa(t) { return t ? String(t).split(/\s*(?:•|>>)\s*/)[0].trim() : null; }

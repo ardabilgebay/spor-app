@@ -79,7 +79,7 @@ async function applyToState(ev) {
     return;
   }
   if (newer) await db.set_state.put({ key, program: ev.ref.program, cycle: ev.ref.cycle, week: ev.ref.week, day: ev.ref.day, row_key: ev.ref.row_key, actor: ev.data.actor,
-    kg: ev.data.kg, sets: ev.data.sets, reps: ev.data.reps, reps_text: ev.data.reps_text, rpe: ev.data.rpe, note: ev.data.note, skipped: ev.data.skipped,
+    kg: ev.data.kg, sets: ev.data.sets, reps: ev.data.reps, reps_text: ev.data.reps_text, rpe: ev.data.rpe, note: ev.data.note, skipped: ev.data.skipped, rest_s: ev.data.rest_s ?? null, rest_plan_s: ev.data.rest_plan_s ?? null,
     ts: ev.ts, ts_kind: ev.ts_kind, event_id: ev.id, count, deleted: false });
   else if (cur) await db.set_state.update(key, { count });
 }

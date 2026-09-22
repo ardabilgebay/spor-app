@@ -13,7 +13,7 @@ await p.goto(URL); await p.waitForSelector('.hdr .t', { timeout: 15000 });
 t('alt sekme çubuğu 5 sekme', (await p.$$('.tabs button')).length === 5);
 t('üstte program şeridi', (await p.$$('.strip button')).length === 3);
 await strip('Diğer Günler'); await p.waitForTimeout(300);
-t('başlık Hafta 1 — Salı, kicker yalnız tarih', (await p.textContent('.hdr .t')) === 'Hafta 1 — Salı' && !/Diğer|Deadlift/.test(await p.textContent('.hdr .k')), await p.textContent('.hdr .k'));
+t('başlık "Hafta 1 — Salı Seansı", üst satır yalnız tarih', (await p.textContent('.hdr .t')) === 'Hafta 1 — Salı Seansı' && !/Diğer|Deadlift/.test(await p.textContent('.hdr .k')), await p.textContent('.hdr .k'));
 t('önizleme: 3 hareket kartı + dinlenme metni', (await p.$$('main .card.mark')).length === 3 && (await p.textContent('main .card.mark .meta')).includes('dinlenme'));
 t('ısınma pili top set 120', (await p.textContent('main .pills .p.top')) === '120 kg');
 t('stres girilmedi rozeti + sinyal yan yana', (await p.$$eval('main .sigrow .sig', a => a.map(x => x.textContent).join(' '))).includes('girilmedi') && (await p.$$('main .sigrow .sig')).length === 2);
@@ -57,12 +57,12 @@ await p.locator('.log .acts .skip', { hasText: 'Atla' }).click(); await p.waitFo
 t('atlandı işaretli, çubuk kapandı (satır kalmadı)', (await p.$$('main .card.mark.skip')).length === 1 && (await p.$$('.log')).length === 0);
 // uygulama ölümü: yenile → log fazı ve kayıtlar duruyor
 await p.reload(); await p.waitForSelector('.hdr .t'); await p.waitForTimeout(400);
-t('yenileme sonrası Diğer + log fazında + 2 kayıt + 1 atlandı', (await p.textContent('.hdr .t')) === 'Hafta 1 — Salı' && (await p.$$('main .card.mark.done')).length === 2 && (await p.$$('main .card.mark.skip')).length === 1);
+t('yenileme sonrası Diğer + log fazında + 2 kayıt + 1 atlandı', (await p.textContent('.hdr .t')) === 'Hafta 1 — Salı Seansı' && (await p.$$('main .card.mark.done')).length === 2 && (await p.$$('main .card.mark.skip')).length === 1);
 // Bitir → özet → kapat
 await p.locator('.hdr .right button', { hasText: 'Bitir' }).click(); await p.waitForTimeout(400);
-t('özet: 3 kutu + hacim', (await p.$$('main .grid.g3 .card')).length === 3 && (await p.textContent('main .grid.g3')).includes('Hacim'));
+t('özet: 3 kutu + hacim + mola satırı (plan 8:00)', (await p.$$('main .grid.g3 .card')).length === 3 && (await p.textContent('main .grid.g3')).includes('Hacim') && /öncesi mola \d:\d\d \/ plan 8:00/.test(await p.textContent('main')), (await p.textContent('main')).slice(-300));
 await p.locator('main textarea').fill('E2E seans notu'); await p.locator('.foot button.pri').click(); await p.waitForTimeout(500);
-t('kapatıldı → işaretçi sonraki seansa (H1 Perşembe), "Seansa başla"', (await p.textContent('.hdr .t')) === 'Hafta 1 — Perşembe' && (await p.textContent('.foot button.pri')) === 'Seansa başla', (await p.textContent('.hdr .t')) + ' | ' + (await p.textContent('.foot')));
+t('kapatıldı → işaretçi sonraki seansa (H1 Perşembe), "Seansa başla"', (await p.textContent('.hdr .t')) === 'Hafta 1 — Perşembe Seansı' && (await p.textContent('.foot button.pri')) === 'Seansa başla', (await p.textContent('.hdr .t')) + ' | ' + (await p.textContent('.foot')));
 // kol varyantı override (Perşembe, Biceps takvim B)
 t('kol çipleri takvim B', (await p.locator('main .pills button.sel').textContent()) === 'B');
 const kolOnce = await p.$$eval('main .card.mark .ex', a => a.map(x => x.textContent).join(','));
@@ -77,14 +77,15 @@ t('S1 hücresi tamam, S2 sırada', (await p.locator('.pgrid .cell').first().getA
 await p.locator('.pgrid .cell').first().click(); await p.waitForTimeout(400);
 t('S1 detayı: Salı, 3 satır, seans notu', (await p.textContent('main')).includes('Hafta 1 Salı') && (await p.$$('main .card.mark')).length === 3 && (await p.textContent('main')).includes('E2E seans notu'));
 await p.locator('main button', { hasText: "Bugün'de aç" }).click(); await p.waitForTimeout(400);
-t('kilit → Bugün H1 Salı (düzelt)', (await p.textContent('.hdr .t')) === 'Hafta 1 — Salı' && (await p.textContent('.foot button.pri')).includes('düzelt'));
+t('kilit → Bugün H1 Salı (düzelt)', (await p.textContent('.hdr .t')) === 'Hafta 1 — Salı Seansı' && (await p.textContent('.foot button.pri')).includes('düzelt'));
 await p.locator('main button', { hasText: 'Kaldır' }).click(); await p.waitForTimeout(300);
-t('kilit kaldırıldı → Perşembe', (await p.textContent('.hdr .t')) === 'Hafta 1 — Perşembe');
+t('kilit kaldırıldı → Perşembe', (await p.textContent('.hdr .t')) === 'Hafta 1 — Perşembe Seansı');
 // Aletler
 await tab('Aletler'); await p.waitForTimeout(300);
-t('Aletler: plaka 100 kg + kronometre düğmeleri', (await p.textContent('main .plk .big')) === '100 kg' && (await p.$$('main .krobox button')).length >= 4);
-await p.locator('main .krobox button', { hasText: '90 sn' }).click(); await p.waitForTimeout(1300);
-t('kronometre çalışıyor', /1:2\d/.test(await p.textContent('#krobig')), await p.textContent('#krobig'));
+t('Aletler: plaka 100 kg + 7 süre düğmesi (30sn…8dk)', (await p.textContent('main .plk .big')) === '100 kg' && (await p.$$('main .krobtns button')).length === 7);
+await p.locator('main .krobtns button', { hasText: '30 sn' }).click(); await p.waitForTimeout(1300);
+t('kronometre çalışıyor', /0:2\d/.test(await p.textContent('#krobig')), await p.textContent('#krobig'));
+await p.evaluate(() => { const a = document.querySelector('#app'); }); await p.waitForTimeout(0);
 // İlerleme
 await tab('İlerleme'); await p.waitForTimeout(300);
 t('İlerleme: 1RM kartları + 6 çubuk', (await p.$$('main .bars .b')).length === 6 && (await p.textContent('main')).includes('Tahmini 1RM'));

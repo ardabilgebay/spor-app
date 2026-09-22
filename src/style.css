@@ -26,8 +26,10 @@ textarea{min-height:76px;resize:none;line-height:1.45}
 .mute{color:var(--mute)}.dim{color:var(--dim)}.dim2{color:var(--dim2)}.small{font-size:12.5px}.xs{font-size:11.5px}
 .ok{color:var(--ok)}.blue{color:var(--blue)}.warn{color:var(--warn)}.red{color:var(--red)}.acc{color:var(--acc-ink)}
 /* ── kabuk ── */
-.hdr{flex:none;padding:calc(14px + env(safe-area-inset-top)) var(--pad) 6px;display:flex;align-items:flex-end;justify-content:space-between;gap:8px}
-.hdr .t{font-weight:500;font-size:25px;line-height:1.1;letter-spacing:-.02em;margin-top:3px}
+.hdr{flex:none;padding:max(calc(12px + env(safe-area-inset-top)), 24px) var(--pad) 6px;display:flex;align-items:flex-end;justify-content:space-between;gap:8px}
+@media (display-mode: standalone){.hdr{padding-top:max(calc(12px + env(safe-area-inset-top)), 58px)}}
+.hdr .k{font-size:21px;font-weight:500;letter-spacing:-.02em;text-transform:none;color:var(--mute);line-height:1.15}
+.hdr .t{font-weight:500;font-size:21px;line-height:1.15;letter-spacing:-.02em;margin-top:2px}
 .hdr .right{flex:none;display:flex;align-items:center;gap:8px}
 .chip{font-size:13px;color:var(--mute);border:1px solid var(--line);border-radius:999px;padding:5px 10px}
 .strip{flex:none;display:flex;gap:6px;padding:8px var(--pad) 10px;overflow-x:auto;scrollbar-width:none}
@@ -95,7 +97,8 @@ main{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;paddin
 .log .chev{flex:none;min-height:30px;width:34px;padding:0;border-radius:6px;background:transparent;color:var(--mute);font-size:13px}
 .sigrow{display:flex;gap:6px;margin-top:8px}.sigrow .sig{flex:1;margin-top:0;min-width:0;padding:8px 10px}
 .kpill{display:flex;align-items:center;gap:6px;min-height:32px;padding:0 10px 0 6px;border-radius:999px;border:1px solid var(--acc-line);background:var(--acc-bg);color:var(--acc-ink);font-size:13px;font-weight:500}
-.kpill .ring{width:18px;height:18px;border-radius:50%;background:conic-gradient(var(--acc) var(--pct,0%),var(--ring) 0)}.kpill .kx{color:var(--dim);font-size:13px}.kpill.done{border-color:#2f5a42;background:#16261d;color:var(--ok)}.kpill.done .ring{background:var(--ok)}
+.kpill .ring{width:18px;height:18px;border-radius:50%;background:conic-gradient(var(--acc) var(--pct,0%),var(--ring) 0)}.kpill .kx{color:var(--dim);font-size:13px}.kpill.over{border-color:#6a3030;background:#2b1a1a;color:var(--red)}.kpill.over .ring{background:conic-gradient(var(--red) var(--pct,0%),var(--ring) 0)}
+.krobox .big.over{color:var(--red)}.krobtns{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:14px}.krobtns button{min-height:44px;padding:0 4px;font-size:13.5px}
 .log .ttl .n{font-weight:500;font-size:16px;letter-spacing:-.01em;min-width:0}
 .log .ttl .hh{font-size:12px;color:var(--dim);white-space:nowrap}
 .seg{display:flex;gap:5px;margin-top:9px;padding:3px;border-radius:var(--r);background:var(--bg);box-shadow:0 0 0 1px var(--ring)}

@@ -87,7 +87,7 @@ export class App {
     if (!v) { this.head(tarih, PROG_AD[p]); this.main.append(el('div', { class: 'banner' }, 'Program tanımı yok.')); return; }
     const faz = c.seans?.faz ?? 'onizleme';
     const sure = c.seans?.started_at && faz !== 'onizleme' ? el('span', { class: 'chip tab', id: 'sure' }, this.sureMetni(c.seans.started_at)) : null;
-    this.head(tarih, `Hafta ${v.week} — ${P.GUN_AD[v.day]}`,
+    this.head(tarih, `Hafta ${v.week} — ${P.GUN_AD[v.day]} Seansı`,
       this.kronoPill(), this.krono ? null : sure, faz === 'log' ? el('button', { class: 'pill acc', style: 'border-color:var(--acc-line)', onclick: () => this.fazSet('ozet') }, 'Bitir') : null);
     if (sure) this.tickSure();
     const m = el('div', { class: 'pop' }); this.main.append(m);
@@ -257,19 +257,29 @@ export class App {
     return { id: S.ulid(), ts: new Date().toISOString(), ts_kind: 'device', device: await S.deviceId(), entered_by: 'arda', type: 'set.deleted', ref, schema_v: 1, source: { kind: 'app' }, data: { actor } };
   }
   kronoBaslat(key, sn, ad) { clearInterval(this.kronoIv); this.krono = { key, end: Date.now() + sn * 1000, sn, ad, start: Date.now() }; this.kronoIv = setInterval(() => this.kronoTick(), 500); }
-  kronoKalan() { const k = this.krono; return k ? Math.max(0, Math.round((k.end - Date.now()) / 1000)) : 0; }
+  kronoKalan() { const k = this.krono; return k ? Math.round((k.end - Date.now()) / 1000) : 0; }   // negatif = aşım
+  kronoMetin(kalan) { return kalan >= 0 ? mmss(kalan) : '+' + mmss(-kalan); }
   kronoTick() {
     const k = this.krono; if (!k) return clearInterval(this.kronoIv);
     const kalan = this.kronoKalan();
-    const pill = this.hR.querySelector('#kpill'); if (pill) { pill.querySelector('.kt').textContent = kalan > 0 ? mmss(kalan) : 'hazır'; pill.classList.toggle('done', kalan <= 0); pill.querySelector('.ring').style.setProperty('--pct', `${Math.round((1 - kalan / k.sn) * 100)}%`); }
-    const big = this.main.querySelector('#krobig'); if (big) { big.textContent = kalan > 0 ? mmss(kalan) : 'hazır'; big.className = 'big tab ' + (kalan > 0 ? 'on' : 'done'); }
-    if (kalan <= 0) { clearInterval(this.kronoIv); if (navigator.vibrate) navigator.vibrate([80, 60, 80]); }
+    const pct = kalan >= 0 ? Math.round((1 - kalan / k.sn) * 100) : Math.min(100, Math.round((-kalan / k.sn) * 100));
+    const pill = this.hR.querySelector('#kpill'); if (pill) { pill.querySelector('.kt').textContent = this.kronoMetin(kalan); pill.classList.toggle('over', kalan < 0); pill.querySelector('.ring').style.setProperty('--pct', `${pct}%`); }
+    const big = this.main.querySelector('#krobig'); if (big) { big.textContent = this.kronoMetin(kalan); big.className = 'big tab ' + (kalan >= 0 ? 'on' : 'over'); }
+    if (kalan === 0 && !k.bitti) { k.bitti = true; if (navigator.vibrate) navigator.vibrate([80, 60, 80]); }   // sayaç durmaz: aşım kırmızı sayar, dokununca kapanır
   }
   /** Başlıktaki dinlenme rozeti: bağımsız, dokununca gizlenir (Geç). */
   kronoPill() {
     const k = this.krono; if (!k) return null; const kalan = this.kronoKalan();
-    return el('button', { id: 'kpill', class: 'kpill' + (kalan <= 0 ? ' done' : ''), title: 'Dinlenmeyi geç', onclick: () => { this.krono = null; clearInterval(this.kronoIv); this.render(); } },
-      el('span', { class: 'ring', style: `--pct:${Math.round((1 - kalan / k.sn) * 100)}%` }), el('span', { class: 'kt tab' }, kalan > 0 ? mmss(kalan) : 'hazır'), el('span', { class: 'kx' }, '×'));
+    return el('button', { id: 'kpill', class: 'kpill' + (kalan < 0 ? ' over' : ''), title: 'Dinlenmeyi geç', onclick: () => { this.krono = null; clearInterval(this.kronoIv); this.render(); } },
+      el('span', { class: 'ring', style: `--pct:${kalan >= 0 ? Math.round((1 - kalan / k.sn) * 100) : 100}%` }), el('span', { class: 'kt tab' }, this.kronoMetin(kalan)), el('span', { class: 'kx' }, '×'));
+  }
+  /** Dinlenme uyumu: rest_s/rest_plan_s olan girişler → {n, ort_oran, uyumlu, erken, gec} (±15% bant). */
+  dinlenmeStat(entries) {
+    const xs = entries.filter(s => M.isNum(s.rest_s) && M.isNum(s.rest_plan_s) && s.rest_plan_s > 0);
+    if (!xs.length) return null;
+    const oran = xs.map(s => s.rest_s / s.rest_plan_s);
+    const ort = oran.reduce((a, b) => a + b, 0) / oran.length;
+    return { n: xs.length, ort, uyumlu: oran.filter(o => o >= 0.85 && o <= 1.15).length, erken: oran.filter(o => o < 0.85).length, gec: oran.filter(o => o > 1.15).length };
   }
   // ── ÖZET ─────────────────────────────────────────────────────────
   async fOzet(c, m) {
@@ -282,7 +292,13 @@ export class App {
     m.append(el('div', { class: 'card', style: 'margin-top:12px' }, el('div', { class: 'k2' }, 'Haftalık sinyal'), el('div', { style: 'display:flex;align-items:center;gap:9px;margin-top:7px' }, el('span', { class: 'dot ' + sinyalRenk(w?.sinyal) }), el('span', { style: 'font-weight:500;font-size:16px' }, w?.sinyal ?? '—')), el('div', { class: 'small mute', style: 'margin-top:5px;line-height:1.45' }, w ? `Uyum ${w.uyum} · gerçek ${fmt(w.gercek)} / beklenen ${fmt(w.min)}–${fmt(w.max)} kg · ${w.doluGun} gün dolu` : '')));
     m.append(el('div', { class: 'k', style: 'margin-top:12px' }, 'Seans notu'));
     const ta = el('textarea', { placeholder: 'his, aksaklık, gelecek haftaya not…', style: 'margin-top:7px' }); ta.value = this.ozet?.note ?? ''; ta.addEventListener('input', () => { this.ozet = { note: ta.value }; }); m.append(ta);
-    m.append(el('div', { class: 'grid', style: 'margin-top:12px' }, ...v.rows.map(r => el('div', { class: 'card', style: 'display:flex;justify-content:space-between;gap:10px;padding:9px 11px' }, el('span', { style: 'font-size:14px;font-weight:500' }, r.egzersiz + (r.modifier ? ` · ${r.modifier}` : '')), el('span', { class: 'tab ' + (r.tamam ? (r.arda.skipped ? 'dim' : 'ok') : 'warn'), style: 'white-space:nowrap;font-size:14px' }, r.tamam ? (r.arda.skipped ? 'atlandı' : `${fmt(r.arda.kg)}×${fmt(r.arda.sets)}×${r.arda.reps ?? r.arda.reps_text ?? ''}${r.arda.rpe ? ` R${fmt(r.arda.rpe)}` : ''}`) : 'girilmedi')))));
+    const restTxt = a => M.isNum(a?.rest_s) ? `mola ${mmss(a.rest_s)}${M.isNum(a.rest_plan_s) ? ` / plan ${mmss(a.rest_plan_s)}` : ''}` : null;
+    const restCls = a => !M.isNum(a?.rest_s) || !M.isNum(a?.rest_plan_s) ? 'dim2' : a.rest_s / a.rest_plan_s > 1.15 ? 'red' : a.rest_s / a.rest_plan_s < 0.85 ? 'blue' : 'ok';
+    m.append(el('div', { class: 'grid', style: 'margin-top:12px' }, ...v.rows.map(r => el('div', { class: 'card', style: 'padding:9px 11px' },
+      el('div', { style: 'display:flex;justify-content:space-between;gap:10px' }, el('span', { style: 'font-size:14px;font-weight:500' }, r.egzersiz + (r.modifier ? ` · ${r.modifier}` : '')), el('span', { class: 'tab ' + (r.tamam ? (r.arda.skipped ? 'dim' : 'ok') : 'warn'), style: 'white-space:nowrap;font-size:14px' }, r.tamam ? (r.arda.skipped ? 'atlandı' : `${fmt(r.arda.kg)}×${fmt(r.arda.sets)}×${r.arda.reps ?? r.arda.reps_text ?? ''}${r.arda.rpe ? ` R${fmt(r.arda.rpe)}` : ''}`) : 'girilmedi')),
+      restTxt(r.arda) ? el('div', { class: 'xs tab ' + restCls(r.arda), style: 'margin-top:3px' }, 'öncesi ' + restTxt(r.arda)) : null))));
+    const ds = this.dinlenmeStat(v.rows.map(r => r.arda).filter(Boolean));
+    if (ds) m.append(el('div', { class: 'xs dim', style: 'margin-top:8px;line-height:1.45' }, `Dinlenme: ${ds.n} arada ort. plan×${ds.ort.toFixed(2)} · ${ds.uyumlu} uyumlu · ${ds.erken} erken · ${ds.gec} uzun (bant ±%15)`));
     this.footer('foot', el('button', { class: 'sec', style: 'flex:none;min-height:52px', onclick: () => this.fazSet('log') }, 'Geri'), el('button', { class: 'pri', style: 'flex:1', onclick: async () => {
       const dur = c.seans?.started_at ? Math.round((Date.now() - new Date(c.seans.started_at)) / 1000) : null;
       await S.logSession('finished', { program: c.p, cycle: c.def.cycle, week: v.week, day: v.day, duration_s: dur, note: (this.ozet?.note ?? '').trim() || null });
@@ -348,6 +364,14 @@ export class App {
     m.append(el('div', { class: 'k', style: 'margin-top:18px' }, 'Sinyal şeridi'));
     m.append(el('div', { class: 'serit' }, ...wk.map(w => el('i', { class: sinyalRenk(w.sinyal) === 'dim' ? '' : sinyalRenk(w.sinyal), title: `H${w.week} ${w.sinyal}` }))));
     m.append(el('div', { class: 'xs dim2', style: 'margin-top:6px;line-height:1.4' }, wk.map(w => `H${w.week} ${w.sinyal}`).join(' · ')));
+    const ds = this.dinlenmeStat(stateAll.filter(s => s.actor === 'arda' && !s.deleted));
+    m.append(el('div', { class: 'card', style: 'margin-top:18px' }, el('div', { class: 'k2' }, 'Dinlenme uyumu (app kayıtları)'),
+      ds ? el('div', { class: 'grid', style: 'gap:6px;margin-top:9px' },
+        el('div', { class: 'kv' }, el('span', {}, 'Ortalama gerçek / plan'), el('span', { class: 'tab ' + (ds.ort > 1.15 ? 'red' : ds.ort < 0.85 ? 'blue' : 'ok') }, `×${ds.ort.toFixed(2)}`)),
+        el('div', { class: 'kv' }, el('span', {}, 'Uyumlu (±%15)'), el('span', { class: 'tab' }, `${ds.uyumlu}/${ds.n}`)),
+        el('div', { class: 'kv' }, el('span', {}, 'Erken devam'), el('span', { class: 'tab blue' }, ds.erken)),
+        el('div', { class: 'kv' }, el('span', {}, 'Uzun dinlenme'), el('span', { class: 'tab red' }, ds.gec)))
+      : el('div', { class: 'xs dim2', style: 'margin-top:6px' }, 'Henüz app\'ten kaydedilmiş ardışık set yok; ilk seanstan sonra dolar.')));
     if (def.cycle_ozet?.length) {
       m.append(el('div', { class: 'card', style: 'margin-top:18px' }, el('div', { class: 'k2' }, 'Cycle geçmişi (Excel)'), el('div', { class: 'grid', style: 'gap:6px;margin-top:9px' },
         ...def.cycle_ozet.filter(o => typeof o.Hafta === 'number').map(o => el('div', { class: 'kv' }, el('span', {}, `C${o.Cycle} H${o.Hafta}`), el('span', { class: 'tab' }, `${fmt(Math.round(o['Gerçek Hacim (kg)'] ?? 0))} / ${fmt(Math.round(o['Beklenen Hacim (kg)'] ?? 0))} kg · ${Math.round((o['Uyum %'] ?? 0) * 100)}%`))))));
@@ -360,9 +384,10 @@ export class App {
     const m = el('div', { class: 'pop' }); this.main.append(m);
     m.append(el('div', { class: 'k' }, 'Plaka hesabı'), this.plakaBlok(this.plakaKg, kg => { this.plakaKg = kg; S.setMeta('plaka_kg', kg); }));
     m.append(el('div', { class: 'k', style: 'margin-top:20px' }, 'Dinlenme'));
-    const k = this.krono; const kalan = k ? Math.max(0, Math.round((k.end - Date.now()) / 1000)) : 0;
-    const box = el('div', { class: 'krobox' }, el('div', { id: 'krobig', class: 'big tab ' + (k ? (kalan > 0 ? 'on' : 'done') : '') }, k ? (kalan > 0 ? mmss(kalan) : 'hazır') : '—'), el('div', { class: 'xs dim', style: 'margin-top:2px' }, k ? `${k.ad ?? 'elle'} · ${Math.round(k.sn / 60 * 10) / 10} dk` : 'süre seç'),
-      el('div', { class: 'btnrow', style: 'margin-top:14px' }, ...[90, 120, 180, 210].map(sn => el('button', { class: k?.sn === sn && kalan > 0 ? 'sel' : '', onclick: () => { this.kronoBaslat('aletler', sn, 'elle'); this.render(); } }, sn >= 120 ? `${sn / 60} dk` : `${sn} sn`)), k ? el('button', { class: 'sec', onclick: () => { this.krono = null; clearInterval(this.kronoIv); this.render(); } }, 'Durdur') : null));
+    const k = this.krono; const kalan = this.kronoKalan();
+    const box = el('div', { class: 'krobox' }, el('div', { id: 'krobig', class: 'big tab ' + (k ? (kalan >= 0 ? 'on' : 'over') : '') }, k ? this.kronoMetin(kalan) : '—'), el('div', { class: 'xs dim', style: 'margin-top:2px' }, k ? `${k.ad ?? 'elle'} · ${Math.round(k.sn / 60 * 10) / 10} dk${kalan < 0 ? ' · aşım' : ''}` : 'süre seç'),
+      el('div', { class: 'krobtns' }, ...[30, 60, 90, 120, 180, 300, 480].map(sn => el('button', { class: k?.sn === sn ? 'sel' : '', onclick: () => { this.kronoBaslat('aletler', sn, 'elle'); this.render(); } }, sn < 120 ? `${sn} sn` : `${sn / 60} dk`))),
+      k ? el('button', { class: 'sec', style: 'margin-top:8px;width:100%', onclick: () => { this.krono = null; clearInterval(this.kronoIv); this.render(); } }, 'Durdur') : null);
     m.append(box);
   }
   plakaBlok(kg0, onChange, aktar = null) {
