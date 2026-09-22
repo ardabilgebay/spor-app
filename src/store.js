@@ -145,8 +145,28 @@ export async function logArmVariant({ program, cycle, week, day, varyant }) {
 }
 /** Kapatılan seanslar (session.finished) → Set<"week|day">. */
 export async function finishedSessions(program, cycle) {
-  const evs = await db.events.where('type').equals('session.finished').filter(e => e.data.program === program && e.data.cycle === cycle).toArray();
-  return new Set(evs.map(e => `${e.data.week}|${e.data.day}`));
+  const evs = await db.events.where('type').anyOf('session.finished', 'session.reopened').filter(e => e.data.program === program && e.data.cycle === cycle).sortBy('ts');
+  const set = new Set(); for (const e of evs) { const k = `${e.data.week}|${e.data.day}`; e.type === 'session.finished' ? set.add(k) : set.delete(k); } return set;
+}
+/** SIFIRLAMA (deneme kayıtları): bir seansın app kaynaklı set girişlerini set.deleted ile siler, seansı session.reopened ile açar. Göç verisine dokunmaz; denetim izi kalır. */
+export async function resetSession(program, cycle, week, day, { onlyApp = true } = {}) {
+  const st = await db.set_state.where('[program+cycle+week+day]').equals([program, cycle, week, day]).toArray();
+  let n = 0;
+  for (const s of st) {
+    if (s.deleted) continue;
+    const ev = await db.events.get(s.event_id); if (onlyApp && ev?.source?.kind !== 'app') continue;
+    await appendEvent({ id: ulid(), ts: new Date().toISOString(), ts_kind: 'device', device: await deviceId(), entered_by: 'arda', type: 'set.deleted', ref: { program, cycle, week, day, row_key: s.row_key }, schema_v: SCHEMA_V, source: { kind: 'app', reason: 'reset' }, data: { actor: s.actor } }); n++;
+  }
+  await appendEvent({ id: ulid(), ts: new Date().toISOString(), ts_kind: 'device', device: await deviceId(), entered_by: 'arda', type: 'session.reopened', ref: null, schema_v: SCHEMA_V, source: { kind: 'app', reason: 'reset' }, data: { program, cycle, week, day } });
+  for (const k of (await db.meta.toCollection().primaryKeys()).filter(k => String(k).startsWith(`seans:${program}|${cycle}|${week}|${day}`) || String(k).startsWith(`draft:${program}|${cycle}|${week}|${day}|`))) await db.meta.delete(k);
+  return n;
+}
+/** Bu cycle'da app kaynaklı girişi olan seanslar → [{week, day, n}] */
+export async function appSessions(program, cycle) {
+  const st = await db.set_state.where('program').equals(program).filter(s => s.cycle === cycle && !s.deleted).toArray();
+  const out = new Map();
+  for (const s of st) { const ev = await db.events.get(s.event_id); if (ev?.source?.kind !== 'app') continue; const k = `${s.week}|${s.day}`; out.set(k, (out.get(k) ?? 0) + 1); }
+  return [...out].map(([k, n]) => { const [w, d] = k.split('|'); return { week: +w, day: d, n }; });
 }
 export async function stressFor(program, cycle) {
   const evs = await db.events.where('type').equals('stress.logged').filter(e => e.data.program === program && e.data.cycle === cycle).sortBy('ts');

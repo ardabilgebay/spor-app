@@ -4,7 +4,7 @@ import { chromium } from 'playwright';
 const URL = 'http://localhost:4173/spor-app/';
 const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });
 const ctx = await b.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, locale: 'tr-TR' });
-const p = await ctx.newPage(); const logs = []; p.on('console', m => logs.push(m.type() + ': ' + m.text())); p.on('pageerror', e => logs.push('PAGEERROR ' + e.message));
+const p = await ctx.newPage(); p.on('dialog', d => d.accept()); const logs = []; p.on('console', m => logs.push(m.type() + ': ' + m.text())); p.on('pageerror', e => logs.push('PAGEERROR ' + e.message));
 let ok = 0, fail = 0; const t = (n, c, d = '') => { c ? ok++ : (fail++, console.log('  ✗', n, d)); };
 const tab = name => p.locator('.tabs button', { hasText: name }).click();
 const strip = name => p.locator('.strip button', { hasText: name }).click();
@@ -83,6 +83,13 @@ await p.locator('main button', { hasText: "Bugün'de aç" }).click(); await p.wa
 t('kilit → Bugün H1 Salı (düzelt)', (await p.textContent('.hdr .t')) === 'Hafta 1 — Salı Seansı' && (await p.textContent('.foot button.pri')).includes('düzelt'));
 await p.locator('main button', { hasText: 'Kaldır' }).click(); await p.waitForTimeout(300);
 t('kilit kaldırıldı → Perşembe', (await p.textContent('.hdr .t')) === 'Hafta 1 — Perşembe Seansı');
+// SIFIRLAMA: Program → S1 → app kayıtlarını sıfırla → S1 yeniden açık, takvim Salı'ya döner
+await tab('Program'); await p.waitForTimeout(300); await p.locator('.pgrid .cell').first().click(); await p.waitForTimeout(300);
+await p.locator('main button', { hasText: 'app kayıtlarını sıfırla' }).click(); await p.waitForTimeout(600);
+t('sıfırlama → Bugün H1 Salı, 0 kayıtlı, mesaj', (await p.textContent('.hdr .t')) === 'Hafta 1 — Salı Seansı' && (await p.textContent('main')).includes('0 kayıtlı') && (await p.textContent('main')).includes('silindi'), (await p.textContent('.hdr .t')));
+await tab('Ayarlar'); await p.waitForTimeout(300);
+t('Ayarlar: deneme kayıtları bölümü var, Diğer için app kaydı yok', (await p.textContent('main')).includes('Deneme kayıtları') && /Diğer Günler\s*app kaydı yok/.test(await p.textContent('main')));
+await tab('Bugün'); await p.waitForTimeout(200);
 // Aletler
 await tab('Aletler'); await p.waitForTimeout(300);
 t('Aletler: plaka 100 kg + 7 süre düğmesi (30sn…8dk)', (await p.locator('main .plk input.big').inputValue()) === '100' && (await p.$$('main .krobtns button')).length === 7);

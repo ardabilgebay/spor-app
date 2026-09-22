@@ -154,18 +154,22 @@ export function prevMetni(s) {
   const rep = s.reps ?? s.reps_text ?? '';
   return `${M.fmt(s.kg)}×${M.fmt(s.sets)}×${rep}${s.rpe ? ` R${M.fmt(s.rpe)}` : ''}${s.note ? ` — ${s.note}` : ''}`;
 }
-/** Dinlenme kuralı (Arda, 22 Eyl): sayaç SIRADAKİ harekete göre — Top Single/Double/Triple öncesi 480 sn, ağır set öncesi 300 sn, diğerleri 90 sn. */
+/** Dinlenme kuralı (Arda, 22 Eyl akşam): mola YALNIZ sıradaki setin türüne bağlı — top set (Single/Double/Triple/PR/Tahmin) öncesi 480 sn
+ *  (son ısınmadan sonra da), Agir/heavy set öncesi 300, Backoff/Repeat/Load Drop öncesi 180, aksesuar/kol/light öncesi 90. */
 export function dinlenmeKategori(r) {
   if (!r) return 'light';
   const m = `${r.modifier ?? ''} ${r.metod ?? ''}`;
   if (/single|double|triple|pr attempt|tahmin/i.test(m)) return 'top';
-  if (/agir|ağır|backoff|repeat|load drop|heavy|volume/i.test(m) || (M.isNum(r.pct_1rm) && M.isNum(r.hedef_rpe) && r.hedef_rpe >= 8)) return 'heavy';
+  if (/backoff|repeat|load drop/i.test(m)) return 'backoff';
+  if (/agir|ağır|heavy/i.test(m) || (M.isNum(r.pct_1rm) && M.isNum(r.hedef_rpe) && r.hedef_rpe >= 8)) return 'heavy';
   return 'light';
 }
-export const DINLENME_SN = { top: 480, heavy: 300, light: 90 };
+export const DINLENME_SN = { top: 480, heavy: 300, backoff: 180, light: 90 };
 /** Kaydedilen satırdan sonra sıradaki tamamlanmamış satır; yoksa null. */
 export function sonrakiSatir(rows, r) { const i = rows.indexOf(r); return rows.slice(i + 1).find(x => !x.tamam) ?? rows.slice(0, i).find(x => !x.tamam) ?? null; }
-/** Süre = max(bitirilen setin kategorisi, sıradaki setin kategorisi): top set sonrası da, top set öncesi de 8 dk (Arda, 22 Eyl: Sumo Double sonrası Pull-up'a 1:30 verilmişti — hata). */
-export function dinlenmeSn(rows, r) { const n = sonrakiSatir(rows, r); const a = DINLENME_SN[dinlenmeKategori(r)], b = n ? DINLENME_SN[dinlenmeKategori(n)] : 0; return Math.max(a, b); }
+/** Bir setin ÖNCESİNDEKİ plan molası. */
+export function oncesiDinlenmeSn(r) { return DINLENME_SN[dinlenmeKategori(r)]; }
+/** r kaydedildikten sonra kurulacak sayaç = sıradaki setin öncesi molası (sıradaki yoksa null). */
+export function dinlenmeSn(rows, r) { const n = sonrakiSatir(rows, r); return n ? oncesiDinlenmeSn(n) : null; }
 /** Kartta gösterilecek kısa dinlenme metni: Excel metninin ilk parçası (• / >> sonrası not). */
 export function dinlenmeKisa(t) { return t ? String(t).split(/\s*(?:•|>>)\s*/)[0].trim() : null; }
