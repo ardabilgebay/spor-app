@@ -55,6 +55,8 @@ t('K25 saf: kg 0 → plan', M.rpeFreni(9, 0, 65) === 65 && M.rpeFreni(9, 60, 65,
 const da = load('Alper'); const alpS = P.sessions(da);
 const omuz = h => da.rows.filter(r => r.week === h && r.day === 'Pzt' && /Omuz 1/.test(r.sistem_notu ?? '')).map(r => `${r.egzersiz} ${r.set}×${r.tekrar}`).join();
 t('Alper omuz rotasyonu H1/H2/H3/H5', omuz(1) === 'Heavy Dumbbell Shoulder Press 3×6' && omuz(2) === 'Heavy Cheat Side Raise 3×6' && omuz(3) === 'Heavy OHP 3×6' && omuz(5) === 'Heavy Dumbbell Shoulder Press 3×6', [1,2,3,5].map(omuz).join(' | '));
+const aV1 = P.sessionView(da, await S.stateFor('Alper', da.cycle), 1);
+t('Alper ısınma: Arda 107.5 + Alper 90 rampası', aV1.topKg === 107.5 && aV1.topAlperKg === 90 && JSON.stringify(aV1.isinmaBasamakAlper) === '[35,55,67.5,77.5]', JSON.stringify([aV1.topKg, aV1.topAlperKg, aV1.isinmaBasamakAlper]));
 t('A1: kilit 6 kazanır', P.activeSessionIdx(dg, stG2, 6) === 6);
 // K22 / BUGÜN!I36 — kol varyant override (Diğer H1 Per: Biceps takvim B → A)
 const per1 = P.sessions(dg).find(s => s.week === 1 && s.day === 'Per');

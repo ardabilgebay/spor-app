@@ -115,7 +115,9 @@ export function sessionView(def, state, idx, overrides = null) {
     };
   });
   const top = M.topSet(sess.rows);
-  return { ...sess, N: ss.length, rows, kol: kolBlok(def, def.rows.filter(r => r.week === sess.week && r.day === sess.day)), isinma: M.isinmaMetni(top.kg, top.egzersiz, cfg.rampRoundBase), isinmaBasamak: M.isinmaBasamaklari(top.kg, cfg.rampRoundBase), topKg: top.kg,
+  // Alper (K3 eşleniği, Excel'de yok — Arda 23 Eyl): Alper'in top seti = aynı satırın onerilen_alper'i; rampa aynı yüzdelerle
+  const topAlper = def.program === 'Alper' && top.egzersiz ? (() => { const r = sess.rows.find(x => x.egzersiz === top.egzersiz && x.onerilen === top.kg); const kgA = r?.onerilen_alper; return M.isNum(kgA) && kgA > 0 ? { kg: kgA, egzersiz: top.egzersiz } : null; })() : null;
+  return { ...sess, N: ss.length, rows, topAlperKg: topAlper?.kg ?? null, isinmaBasamakAlper: topAlper ? M.isinmaBasamaklari(topAlper.kg, cfg.rampRoundBase) : null, kol: kolBlok(def, def.rows.filter(r => r.week === sess.week && r.day === sess.day)), isinma: M.isinmaMetni(top.kg, top.egzersiz, cfg.rampRoundBase), isinmaBasamak: M.isinmaBasamaklari(top.kg, cfg.rampRoundBase), topKg: top.kg,
     tamamlanan: rows.filter(r => r.tamam).length };
 }
 

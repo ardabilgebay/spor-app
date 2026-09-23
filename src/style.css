@@ -315,3 +315,5 @@ main.vin{animation:vin .28s var(--ease-out)}
 .kpill.done{animation:kdone 1.4s var(--spring)}
 @keyframes kdone{0%{transform:scale(1)}18%{transform:scale(1.08);box-shadow:0 0 0 6px rgba(111,207,151,.22)}40%{transform:scale(.98)}100%{transform:scale(1);box-shadow:none}}
 .kpill.over.big{border-color:#6a3030}
+
+.pills .plbl{flex:none;align-self:center;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--dim);width:38px}.pills.alp{margin-top:6px}.pills.alp .p{color:var(--blue)}.pills.alp .p.top{border-color:#3a5a80;color:var(--blue)}

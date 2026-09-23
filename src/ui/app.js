@@ -177,7 +177,8 @@ export class App {
     if (this.kilit[c.p]) m.append(el('div', { class: 'banner', style: 'display:flex;justify-content:space-between;align-items:center' }, `Seans kilidi: ${this.kilit[c.p]}`, el('button', { class: 'pill', onclick: async () => { delete this.kilit[c.p]; await S.setMeta('kilit', this.kilit); this.render(); } }, 'Kaldır')));
     if (v.isinmaBasamak) {
       m.append(el('div', { style: 'margin-top:14px', class: 'h' }, el('div', { class: 'k' }, `Isınma · ${M.topSet(v.rows).egzersiz}`), el('div', { class: 'xs dim2' }, `${v.isinmaBasamak.length + 1} basamak · top set ${fmt(v.topKg)} kg`)));
-      m.append(el('div', { class: 'pills tab' }, el('span', { class: 'p' }, 'boş bar'), ...v.isinmaBasamak.map(k => el('span', { class: 'p' }, fmt(k))), el('span', { class: 'p top' }, `${fmt(v.topKg)} kg`)));
+      m.append(el('div', { class: 'pills tab' }, v.isinmaBasamakAlper ? el('span', { class: 'plbl' }, 'Arda') : null, el('span', { class: 'p' }, 'boş bar'), ...v.isinmaBasamak.map(k => el('span', { class: 'p' }, fmt(k))), el('span', { class: 'p top' }, `${fmt(v.topKg)} kg`)));
+      if (v.isinmaBasamakAlper) m.append(el('div', { class: 'pills tab alp' }, el('span', { class: 'plbl' }, 'Alper'), el('span', { class: 'p' }, 'boş bar'), ...v.isinmaBasamakAlper.map(k => el('span', { class: 'p' }, fmt(k))), el('span', { class: 'p top' }, `${fmt(v.topAlperKg)} kg`)));
     }
     m.append(el('div', { class: 'grid', style: 'margin-top:14px' }, ...v.rows.map(r => this.rowCard(c, r, { open: true }))));
     const son = c.sev.filter(e => e.kind === 'finished' && e.note).slice(-1)[0];
@@ -189,8 +190,8 @@ export class App {
   }
   fIsinma(c, m) {
     const { v } = c; const tik = new Set(c.seans?.tik ?? []); const top = M.topSet(v.rows);
-    const adim = [['boş bar', 0, 'teknik · 8-10 tekrar'], ...v.isinmaBasamak.map((k, i) => [fmt(k) + ' kg', k, i === v.isinmaBasamak.length - 1 ? 'top set öncesi son basamak' : `rampa ${i + 1}`])];
-    m.append(el('div', { class: 'small mute', style: 'line-height:1.45' }, `${top.egzersiz} için rampa — ${fmt(v.topKg)} kg top sete kadar. Her basamağı bitirince dokun; sıra önemli değil.`));
+    const adim = [['boş bar', 0, 'teknik · 8-10 tekrar'], ...v.isinmaBasamak.map((k, i) => [fmt(k) + ' kg' + (v.isinmaBasamakAlper ? ` · Alper ${fmt(v.isinmaBasamakAlper[i])}` : ''), k, i === v.isinmaBasamak.length - 1 ? 'top set öncesi son basamak' : `rampa ${i + 1}`])];
+    m.append(el('div', { class: 'small mute', style: 'line-height:1.45' }, `${top.egzersiz} için rampa — ${fmt(v.topKg)} kg${v.topAlperKg ? ` (Alper ${fmt(v.topAlperKg)} kg)` : ''} top sete kadar. Her basamağı bitirince dokun; sıra önemli değil.`));
     const list = el('div', { class: 'grid', style: 'margin-top:14px' }); m.append(list);
     const draw = () => list.replaceChildren(...adim.map(([et, kg, sub], i) => el('button', { class: 'isirow' + (tik.has(i) ? ' on' : ''), onclick: async () => { tik.has(i) ? tik.delete(i) : tik.add(i); await S.setMeta(c.seansKey, { ...c.seans, tik: [...tik] }); c.seans.tik = [...tik]; draw(); } },
       el('span', { class: 'tik' }, tik.has(i) ? '✓' : ''), el('span', { style: 'flex:1;min-width:0' }, el('span', { class: 'big tab' }, et), el('span', { class: 'sub' }, sub)), el('span', { class: 'xs dim2 tab' }, kg ? (P.plakaMetni(kg) ?? '') : ''))));
