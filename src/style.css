@@ -259,3 +259,26 @@ button:active{transform:scale(.97)}
 .pgrid .cell .m{white-space:normal;overflow:visible;text-overflow:clip;line-height:1.15}
 .kgrow .sub{white-space:normal;overflow:visible;text-overflow:clip;line-height:1.25}
 .log .ttl .oz,.log .ttl .kmini{flex:none}
+
+/* ══ A11 · okunurluk + akışkanlık (23 Eyl 15:15 görüntüsü) ══ */
+/* iOS 26 status bar camı üst içeriği bulanıklaştırıyordu → status bar opak (index.html), başlık hemen altında, net */
+.hdr{padding-top:calc(8px + env(safe-area-inset-top))}
+@media (display-mode: standalone){.hdr{padding-top:calc(8px + env(safe-area-inset-top))}}
+.hdr .k{color:var(--ink2)}
+/* yay eğrileri — Apple'ın "spring" hissi: hafif aşım, kısa süre; yalnız transform/opacity */
+:root{--spring:cubic-bezier(.34,1.4,.64,1);--ease-out:cubic-bezier(.2,.8,.2,1)}
+.log{transition:transform .38s var(--spring)}
+.log.settle{transition:transform .18s var(--ease-out)}
+.log.dragging{transition:none}
+.grab .gl{transition:transform .32s var(--spring),background-color .2s}
+button.sel{animation:selpop .28s var(--spring)}
+.tabs button{transition:color .18s ease,transform .32s var(--spring)}
+.tabs button.sel{transform:translateY(-2px)}
+.tabs button.sel svg{animation:tabpop .36s var(--spring)}
+@keyframes tabpop{0%{transform:scale(.86)}100%{transform:none}}
+.card.tap:active{transform:scale(.985)}.card{transition:transform .2s var(--ease-out),box-shadow .18s ease,border-color .18s ease,background-color .18s ease}
+.sheet{animation:sheetUp .42s var(--spring)}
+.veil{-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
+main.vin{animation:vin .28s var(--ease-out)}
+.kgrow button:active,.fld .opts button:active{transform:scale(.92)}
+.kgrow button,.fld .opts button{transition:transform .22s var(--spring),background-color .16s ease,border-color .16s ease}

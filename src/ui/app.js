@@ -214,11 +214,17 @@ export class App {
   grabDrag(grab) {
     let y0 = null, dy = 0; const gl = grab.querySelector('.gl');
     const panel = () => this.foot;
-    const move = e => { if (y0 === null) return; dy = e.clientY - y0; const dir = this.logCollapsed ? -1 : 1; const d = dy * dir; const eff = d > 0 ? Math.min(d, 120) * 0.55 : -Math.min(-d, 60) * 0.18;   // aynı yön: takip; ters yön: hafif direnç
-      panel().style.transform = `translateY(${eff * dir}px)`; gl.style.transform = `scaleX(${1 + Math.min(Math.abs(d), 120) / 160})`; if (Math.abs(d) > 8) this.dragMoved = true; };
-    const end = () => { if (y0 === null) return; const d = dy * (this.logCollapsed ? -1 : 1); y0 = null; panel().classList.remove('dragging'); grab.classList.remove('on'); gl.style.transform = '';
-      if (d > 36) { panel().style.transform = ''; this.logCollapsed = !this.logCollapsed; this.applyCollapse(); }
-      else { panel().style.transform = ''; }
+    let raf = 0;
+    const move = e => { if (y0 === null) return; dy = e.clientY - y0; if (raf) return; raf = requestAnimationFrame(() => { raf = 0; if (y0 === null) return; const dir = this.logCollapsed ? -1 : 1; const d = dy * dir;
+      const eff = d > 0 ? 90 * (1 - Math.exp(-d / 90)) : -18 * (1 - Math.exp(d / 40));   // aynı yön: lastik takip (doyuma giden); ters yön: hafif direnç
+      panel().style.transform = `translateY(${eff * dir}px)`; gl.style.transform = `scaleX(${1 + Math.min(Math.abs(d), 120) / 140}) scaleY(${1 + Math.min(Math.abs(d), 120) / 400})`; if (Math.abs(d) > 8) this.dragMoved = true; }); };
+    const end = () => { if (y0 === null) return; const d = dy * (this.logCollapsed ? -1 : 1); y0 = null; const pn = panel(); pn.classList.remove('dragging'); grab.classList.remove('on'); gl.style.transform = '';
+      if (d > 36) {
+        // pürüzsüz: önce yönünde kısa bir kayış (transform), bitince içerik değişir ve transform geçişsiz sıfırlanır → yükseklik sıçraması animasyonla çakışmaz
+        const dir = this.logCollapsed ? -1 : 1; pn.classList.add('settle'); pn.style.transform = `translateY(${18 * dir}px)`;
+        const fin = () => { pn.removeEventListener('transitionend', fin); pn.classList.add('dragging'); pn.style.transform = ''; this.logCollapsed = !this.logCollapsed; this.applyCollapse(); requestAnimationFrame(() => requestAnimationFrame(() => pn.classList.remove('dragging', 'settle'))); };
+        pn.addEventListener('transitionend', fin); setTimeout(fin, 220);
+      } else { pn.style.transform = ''; }
       document.removeEventListener('pointermove', move); document.removeEventListener('pointerup', end); document.removeEventListener('pointercancel', end); };
     grab.addEventListener('pointerdown', e => { y0 = e.clientY; dy = 0; this.dragMoved = false; panel().classList.add('dragging'); grab.classList.add('on'); document.addEventListener('pointermove', move); document.addEventListener('pointerup', end); document.addEventListener('pointercancel', end); });
     grab.style.touchAction = 'none';
