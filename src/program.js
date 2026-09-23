@@ -162,7 +162,8 @@ export function prevMetni(s) {
 export function dinlenmeKategori(r) {
   if (!r) return 'light';
   const m = `${r.modifier ?? ''} ${r.metod ?? ''}`;
-  if (/single|double|triple|pr attempt|tahmin/i.test(m)) return 'top';
+  if (/deload/i.test(m)) return 'backoff';                                   // ANTRENÖR: "Deload Triple" top değil
+  if (/single|double|triple|pr attempt|tahmin|amrap/i.test(m)) return 'top'; // Kalibrasyon AMRAP (RPE9) = top yoğunluk
   if (/backoff|repeat|load drop/i.test(m)) return 'backoff';
   if (/agir|ağır|heavy/i.test(m) || (M.isNum(r.pct_1rm) && M.isNum(r.hedef_rpe) && r.hedef_rpe >= 8)) return 'heavy';
   return 'light';

@@ -1,7 +1,7 @@
 /* NOCTURNE — mockup tokenları (Spor App.dc.html / _ds/nocturne). Sessiz, yoğun, koyu; vurgu çizgi ve parıltı olarak, dolgu değil. */
 :root{
   --bg:#161826;--surf:#1c1e2b;--ring:#292b31;--in:#12131d;--line:#3f424d;
-  --ink:#e9e9ed;--ink2:#b2b6ca;--mute:#9397ab;--dim:#75798c;--dim2:#595d6c;
+  --ink:#e9e9ed;--ink2:#b2b6ca;--mute:#9397ab;--dim:#858aa3;--dim2:#6b7089;
   --acc:#9184d9;--acc-ink:#d2cefd;--acc-ink2:#b5abfc;--acc-bg:#2b2741;--acc-line:#5d5294;--acc-tint:rgba(145,132,217,.12);
   --ok:#6FCF97;--blue:#7AB4F5;--warn:#F5B67A;--red:#F07A7A;
   --r:8px;--r-lg:14px;--pad:16px;
@@ -124,7 +124,7 @@ main{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;paddin
 .fld .lbl{flex:none;width:38px;font-size:9.5px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;color:var(--dim)}
 .fld .opts{flex:1;display:flex;gap:6px;overflow-x:auto;scrollbar-width:none}.fld .opts::-webkit-scrollbar{display:none}
 .fld .opts button{flex:1;min-width:38px;min-height:38px;font-size:15px;font-weight:500;padding:0 4px;background:var(--bg)}
-.fld .opts.rpe{gap:3px}.fld .opts.rpe button{min-width:30px;font-size:12.5px;padding:0 2px}
+.fld .opts.rpe{gap:3px}.fld .opts.rpe button{min-width:36px;min-height:42px;font-size:13px;padding:0 2px}
 .fld .opts button.sel{background:var(--acc-bg);border-color:var(--acc-line);color:var(--acc-ink)}
 .fld input[type=text]{min-height:40px;font-size:14px}
 .acts{display:flex;gap:6px;margin-top:7px}
@@ -187,7 +187,7 @@ main{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;paddin
 .sets{display:grid;gap:4px;margin-top:6px}
 .srow-set{display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:6px;background:var(--surf);box-shadow:0 0 0 1px var(--ring);font-size:14px}
 .srow-set .sn{flex:none;width:20px;height:20px;border-radius:50%;background:var(--acc-bg);color:var(--acc-ink);font-size:11px;display:flex;align-items:center;justify-content:center}
-.srow-set .x{min-height:26px;width:26px;padding:0;border-radius:6px;background:transparent;color:var(--dim);font-size:14px}
+.srow-set .x{min-height:36px;width:40px;padding:0;border-radius:6px;background:transparent;color:var(--dim);font-size:16px}
 .acts .setk{flex:1}
 .modeb{flex:none;min-height:26px;padding:0 9px;font-size:11.5px}
 
@@ -206,3 +206,12 @@ button.sel{animation:selpop .16s ease}
 .tabs button.sel svg{animation:selpop .18s ease}
 .sig,.pgrid .cell,.isirow{transition:background-color .14s ease,box-shadow .14s ease}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+/* set-set: "Set kaydet" birincil (dolu vurgu), "Hareketi bitir" ikincil (çerçeve) — SAHA bulgusu */
+.acts .setk{background:var(--acc);border-color:var(--acc);color:#0f1020;font-weight:600}
+.acts .pri.bitir{background:transparent;color:var(--acc-ink2);font-size:14px;flex:0 0 auto;padding:0 12px}
+.acts .pri.bitir:disabled{opacity:.35}
+/* geri bildirim flaşı (iOS'ta vibrate yok) */
+.flash{position:fixed;inset:0;pointer-events:none;z-index:50;animation:flash .42s ease-out}
+.flash.ok{background:rgba(111,207,151,.10)}.flash.alarm{background:rgba(240,122,122,.18)}
+@keyframes flash{from{opacity:1}to{opacity:0}}

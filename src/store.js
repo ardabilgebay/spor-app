@@ -52,11 +52,15 @@ export function aggregateDetail(detail) {
   const mode = (arr, tieHigh) => { const m = new Map(); for (const v of arr) m.set(v, (m.get(v) ?? 0) + 1); return [...m].sort((a, b) => b[1] - a[1] || (tieHigh ? b[0] - a[0] : a[0] - b[0]))[0][0]; };
   const reps = d.map(x => x.reps).filter(isNumber);
   const rpes = d.map(x => x.rpe).filter(isNumber);
-  return { kg: mode(d.map(x => x.kg), true), sets: d.length, reps: reps.length ? mode(reps, false) : null, rpe: rpes.length ? rpes[rpes.length - 1] : null };
+  // ANTRENÖR (23 Eyl): kg = top set (max) — mod, 3×100+1×120'de 120'yi gizliyordu; rpe = SON setin RPE'si (girilmemişse null; önceki setin RPE'si "son set" sayılmaz)
+  return { kg: Math.max(...d.map(x => x.kg)), sets: d.length, reps: reps.length ? mode(reps, false) : null, rpe: isNumber(d[d.length - 1].rpe) ? d[d.length - 1].rpe : null };
 }
 const isNumber = v => typeof v === 'number' && Number.isFinite(v);
 export async function logSet({ ref, actor = 'arda', kg, sets, reps, reps_text = null, rpe, note = null, skipped = false, entered_by = 'arda', supersedes = null, rest_s = null, rest_plan_s = null, sets_detail = null }) {
-  if (sets_detail?.length) { const a = aggregateDetail(sets_detail); if (a) { kg = a.kg; sets = a.sets; reps = a.reps; rpe = a.rpe; reps_text = null; } }
+  if (sets_detail?.length) {
+    if (sets_detail.some(x => !isNumber(x.kg) || x.kg <= 0)) throw new Error('set-set: her setin kg>0 olmalı (A6-2)');   // KIRMIZI TAKIM 4
+    const a = aggregateDetail(sets_detail); if (a) { kg = a.kg; sets = a.sets; reps = a.reps; rpe = a.rpe; reps_text = null; }
+  }
   if (skipped) kg = 0;
   if (kg === 0 && !skipped) throw new Error('kg=0 yalnız skipped=true ile (A6-2)');
   if (reps !== null && reps !== undefined && reps_text) throw new Error('reps ve reps_text aynı anda dolu olamaz');
@@ -82,16 +86,18 @@ async function applyToState(ev) {
   if (!ev.type.startsWith('set.')) return;
   const key = setKey(ev.ref, ev.data.actor);
   const cur = await db.set_state.get(key);
-  const newer = !cur || tsOf(ev) > cur.ts || (tsOf(ev) === cur.ts && ev.id > cur.event_id);
+  // KIRMIZI TAKIM 2: yanlış (ileri) saatli cihazın olayı sıralamada 'şimdi'ye kelepçelenir — olayın kendi ts'i değişmez, yalnız LWW sırası
+  const nowIso = new Date().toISOString(); const effTs = tsOf(ev) > nowIso ? nowIso : tsOf(ev);
+  const newer = !cur || effTs > cur.ts || (effTs === cur.ts && ev.id > cur.event_id);
   const count = (cur?.count ?? 0) + 1;
   if (ev.type === 'set.deleted') {
-    if (newer) await db.set_state.put({ key, ...ev.ref, actor: ev.data.actor, deleted: true, event_id: ev.id, ts: ev.ts, count });
+    if (newer) await db.set_state.put({ key, ...ev.ref, actor: ev.data.actor, deleted: true, event_id: ev.id, ts: effTs, count });
     else await db.set_state.update(key, { count });
     return;
   }
   if (newer) await db.set_state.put({ key, program: ev.ref.program, cycle: ev.ref.cycle, week: ev.ref.week, day: ev.ref.day, row_key: ev.ref.row_key, actor: ev.data.actor,
     kg: ev.data.kg, sets: ev.data.sets, reps: ev.data.reps, reps_text: ev.data.reps_text, rpe: ev.data.rpe, note: ev.data.note, skipped: ev.data.skipped, rest_s: ev.data.rest_s ?? null, rest_plan_s: ev.data.rest_plan_s ?? null, sets_detail: ev.data.sets_detail ?? null,
-    ts: ev.ts, ts_kind: ev.ts_kind, event_id: ev.id, count, deleted: false });
+    ts: effTs, ts_kind: ev.ts_kind, event_id: ev.id, count, deleted: false });
   else if (cur) await db.set_state.update(key, { count });
 }
 
@@ -110,7 +116,8 @@ export async function importNdjson(text, { fromRemote = false } = {}) {
     if (!line.trim()) continue;
     let ev; try { ev = JSON.parse(line); } catch { bad++; continue; }
     if (!ev.id || !ev.type || !ev.ts) { bad++; continue; }
-    const r = await appendEvent(ev, { fromRemote }); r.written ? written++ : skipped++;
+    if (ev.type.startsWith('set.') && (!ev.ref?.program || !ev.ref?.row_key || !ev.data?.actor)) { bad++; continue; }   // KIRMIZI TAKIM 3: bozuk satır kalanı durdurmaz
+    try { const r = await appendEvent(ev, { fromRemote }); r.written ? written++ : skipped++; } catch (e) { bad++; console.warn('importNdjson satır atlandı', ev.id, e.message); }
   }
   return { written, skipped, bad };
 }

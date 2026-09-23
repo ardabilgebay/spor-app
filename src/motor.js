@@ -231,12 +231,15 @@ export const CONFIG = {
     excludedModifiersDeltaRpe: ['Opener Single', 'Second Single', 'PR Attempt', 'Tahmin Single', 'Tahmin Triple', 'Backoff Triple', 'Kalibrasyon AMRAP'] },
 };
 
-/** Türkçe ondalık ayrıştırıcı (protokol madde 9): "17,5"→17.5, "abc"→null, ""→null. */
+/** Türkçe ondalık ayrıştırıcı (protokol madde 9): "17,5"→17.5, "abc"→null, ""→null.
+ *  KIRMIZI TAKIM (23 Eyl): "1.000"/"1,000" (binlik ayırıcı) SESSİZCE 1'e dönüyordu → tek ayırıcı, en çok 2 ondalık basamak; 3 basamaklı kesir (binlik şüphesi) ve
+ *  0–999.99 dışı değerler null (kullanıcı yeniden yazar). Negatif yok. */
 export function parseKg(s) {
   if (s === null || s === undefined) return null;
-  const t = String(s).trim().replace(',', '.');
+  const t = String(s).trim().replace(/\s+/g, '');
   if (t === '') return null;
-  if (!/^-?\d+(\.\d+)?$/.test(t)) return null;
-  const v = Number(t);
+  if ((t.match(/[.,]/g) ?? []).length > 1) return null;
+  if (!/^\d{1,3}([.,]\d{1,2})?$/.test(t)) return null;
+  const v = Number(t.replace(',', '.'));
   return Number.isFinite(v) ? v : null;
 }
