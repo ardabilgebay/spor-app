@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "node tests/golden_test.mjs && node tests/store_test.mjs && node tests/program_test.mjs && node tests/oracle_test.mjs"
+    "test": "node tests/golden_test.mjs && node tests/store_test.mjs && node tests/program_test.mjs && node tests/oracle_test.mjs && node tests/kabul_test.mjs"
   },
   "dependencies": {
     "@azure/msal-browser": "^4",
