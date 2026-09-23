@@ -60,12 +60,20 @@ export class App {
     this.strip = el('div', { class: 'strip' }); this.main = el('main'); this.foot = el('div'); this.veil = el('div');
     this.tabbar = el('div', { class: 'tabs' }, ...TABS.map(([id, ad]) => el('button', { 'data-tab': id, onclick: () => this.go(id) }, svg(ICON[id]), el('span', {}, ad))));
     r.append(this.hdr, this.strip, this.main, this.foot, this.tabbar, this.veil);
+    let lastY = 0; this.main.addEventListener('scroll', () => { const y = this.main.scrollTop, dy = y - lastY; lastY = y; if (this.root.classList.contains('has-foot')) return this.tabsShow(true);   // seans sırasında sekmeler sabit
+      const atEnd = y + this.main.clientHeight >= this.main.scrollHeight - 24; if (dy > 6 && y > 40 && !atEnd) this.tabsShow(false); else if (dy < -4 || y <= 40 || atEnd) this.tabsShow(true); }, { passive: true });
+    // alt kenara dokunuş → dock gibi geri gelir
+    this.root.addEventListener('pointerdown', e => { if (e.clientY > innerHeight - 28) this.tabsShow(true); }, { passive: true });
     document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && ['log', 'isinma'].includes(this.c?.seans?.faz)) this.wakeLock(true); });
     // iOS klavye: görsel viewport küçülünce alt çubuk klavyenin üstünde kalsın
     window.visualViewport?.addEventListener('resize', () => { const vv = window.visualViewport; this.root.style.height = vv.height + 'px'; this.root.style.transform = `translateY(${vv.offsetTop}px)`; });
     await this.render();
   }
-  go(tab) { if (this.tab === tab) return; this.tab = tab; this.main.scrollTop = 0; this.main.classList.remove('vin'); void this.main.offsetWidth; this.main.classList.add('vin'); this.render(); }
+  go(tab) { if (this.tab === tab) return; this.tab = tab; this.main.scrollTop = 0; this.tabsShow(true);
+    const paint = () => { this.main.classList.remove('vin'); void this.main.offsetWidth; this.main.classList.add('vin'); return this.render(); };
+    if (document.startViewTransition && !matchMedia('(prefers-reduced-motion: reduce)').matches) document.startViewTransition(() => paint()); else paint(); }
+  /** Dock davranışı: aşağı kaydırırken sekmeler gizlenir, yukarı kaydırınca / alt kenara yaklaşınca geri gelir. */
+  tabsShow(on) { this.tabbar.classList.toggle('hide', !on); }
   async pickProgram() {
     const today = P.todayKey(); const saved = await S.getMeta('prog');
     for (const p of PROGS) { const c = await this.ctx(p); if (c.v && c.v.day === today && c.v.tamamlanan < c.v.rows.length) return p; }
