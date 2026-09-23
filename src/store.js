@@ -82,8 +82,24 @@ export async function logSession(kind, { program, cycle, week, day, duration_s =
 }
 
 /** Türetilmiş durum: set_state LWW (ts, sonra id). Eski olay silinmez; state yalnız en güncelini gösterir + kayıt sayısı. */
+/** Göç değişimi (C1, 23 Eyl; kırmızı takım #5): KURAL bazlı — en yeni `migration.superseded` olayının `keep_ids` kümesi "geçerli göç"tür;
+ *  `device==='migration'` olup bu kümede OLMAYAN her set/stres olayı duruma girmez (ne zaman, hangi cihazdan gelirse gelsin). Eski olaylar silinmez. */
+let _keep = null;   // {ts, ids:Set} | null (yükleme yapılmadı) ; ids===null → kural yok
+async function keepRule() {
+  if (_keep) return _keep;
+  const evs = await db.events.where('type').equals('migration.superseded').toArray();
+  const last = evs.sort((a, b) => a.ts < b.ts ? 1 : -1)[0];
+  _keep = last ? { ts: last.ts, ids: new Set(last.data?.keep_ids ?? []) } : { ts: null, ids: null };
+  return _keep;
+}
+export async function isSuperseded(ev) {
+  if (ev.device !== 'migration') return false;
+  const k = await keepRule(); return !!k.ids && !k.ids.has(ev.id);
+}
 async function applyToState(ev) {
+  if (ev.type === 'migration.superseded') { const k = await keepRule(); if (!k.ts || ev.ts > k.ts) _keep = { ts: ev.ts, ids: new Set(ev.data?.keep_ids ?? []) }; return; }
   if (!ev.type.startsWith('set.')) return;
+  if (await isSuperseded(ev)) return;                                  // düşürülmüş göç olayı duruma girmez
   const key = setKey(ev.ref, ev.data.actor);
   const cur = await db.set_state.get(key);
   // KIRMIZI TAKIM 2: yanlış (ileri) saatli cihazın olayı sıralamada 'şimdi'ye kelepçelenir — olayın kendi ts'i değişmez, yalnız LWW sırası
@@ -103,23 +119,46 @@ async function applyToState(ev) {
 
 /** Tüm türetilmiş durumu olaylardan yeniden kur (şema göçü / doğrulama). */
 export async function rebuildState() {
-  await db.set_state.clear();
-  const evs = await db.events.orderBy('ts').toArray();
-  for (const e of evs) await applyToState(e);
-  return evs.length;
+  _keep = null; await keepRule();                                      // ön geçiş: kural ts sırasından bağımsız bilinir
+  return db.transaction('rw', db.events, db.set_state, async () => {   // kırmızı takım #8: atomik + hızlı
+    await db.set_state.clear();
+    const evs = await db.events.orderBy('ts').toArray();
+    for (const e of evs) await applyToState(e);
+    return evs.length;
+  });
 }
 
 /** NDJSON içe aktar (migrasyon / yedekten geri yükleme / uzak cihaz dosyası). İdempotent. */
 export async function importNdjson(text, { fromRemote = false } = {}) {
-  let written = 0, skipped = 0, bad = 0;
+  let written = 0, skipped = 0, bad = 0, rebuild = false;
   for (const line of text.split('\n')) {
     if (!line.trim()) continue;
     let ev; try { ev = JSON.parse(line); } catch { bad++; continue; }
     if (!ev.id || !ev.type || !ev.ts) { bad++; continue; }
     if (ev.type.startsWith('set.') && (!ev.ref?.program || !ev.ref?.row_key || !ev.data?.actor)) { bad++; continue; }   // KIRMIZI TAKIM 3: bozuk satır kalanı durdurmaz
-    try { const r = await appendEvent(ev, { fromRemote }); r.written ? written++ : skipped++; } catch (e) { bad++; console.warn('importNdjson satır atlandı', ev.id, e.message); }
+    try { const r = await appendEvent(ev, { fromRemote }); r.written ? written++ : skipped++; if (r.written && ev.type === 'migration.superseded') rebuild = true; } catch (e) { bad++; console.warn('importNdjson satır atlandı', ev.id, e.message); }
   }
+  if (rebuild) await rebuildState();                                   // düşürme olayı, düşürdüğü olaylardan sonra gelmiş olabilir → durumu yeniden kur
   return { written, skipped, bad };
+}
+/** Göçü yenile (cutover): yeni göç dosyası önce DOĞRULANIR (kırmızı takım #7); geçerse `migration.superseded {keep_ids}` yazılır (yeni dosyanın id'leri = geçerli göç),
+ *  dosya içe aktarılır, durum yeniden kurulur. Hiçbir olay silinmez. Dönüş: {dusurulen, written, skipped, bad} | {hata}. Çağıran önce dışa aktarım almalı (UI zorlar). */
+export async function replaceMigration(text, { reason = 'cutover' } = {}) {
+  const lines = text.split('\n').filter(l => l.trim()); const evs = [];
+  for (const l of lines) { try { const e = JSON.parse(l); if (e?.id && e.type && e.ts) evs.push(e); } catch { /* sayılır */ } }
+  const migSet = evs.filter(e => e.device === 'migration' && e.type === 'set.logged');
+  if (!lines.length || evs.length !== lines.length) return { hata: `Dosya doğrulanamadı: ${lines.length} satır, ${evs.length} geçerli olay — hiçbir şey değiştirilmedi.` };
+  if (migSet.length < 50) return { hata: `Dosya göç dosyasına benzemiyor (${migSet.length} göç seti < 50) — hiçbir şey değiştirilmedi.` };
+  const keep = evs.filter(e => e.device === 'migration').map(e => e.id);
+  const k = await keepRule();
+  const oldMig = await db.events.where('device').equals('migration').filter(e => e.type.startsWith('set.') || e.type === 'stress.logged').toArray();
+  const keepSet = new Set(keep); const dusurulen = oldMig.filter(e => !keepSet.has(e.id) && !(k.ids && !k.ids.has(e.id))).length;
+  const sameRule = k.ids && k.ids.size === keepSet.size && [...keepSet].every(id => k.ids.has(id));
+  if (!sameRule) await appendEvent({ id: ulid(), ts: new Date().toISOString(), ts_kind: 'device', device: await deviceId(), entered_by: 'arda', type: 'migration.superseded', ref: null,
+    data: { keep_ids: keep, keep_count: keep.length, dropped_count: dusurulen, reason }, source: { kind: 'app' }, schema_v: SCHEMA_V });
+  const r = await importNdjson(text);
+  await rebuildState();
+  return { dusurulen, ...r };
 }
 /** Dışa aktar: tüm olaylar NDJSON (ts sıralı). */
 export async function exportNdjson() {
@@ -188,7 +227,7 @@ export async function appSessions(program, cycle) {
 }
 export async function stressFor(program, cycle) {
   const evs = await db.events.where('type').equals('stress.logged').filter(e => e.data.program === program && e.data.cycle === cycle).sortBy('ts');
-  const m = new Map(); for (const e of evs) m.set(e.data.week, e.data.value); return m;
+  const m = new Map(); for (const e of evs) { if (await isSuperseded(e)) continue; m.set(e.data.week, e.data.value); } return m;   // kırmızı takım #2: düşürülmüş göç stresi sayılmaz
 }
 export async function putProgramDef(def) { await db.program_defs.put({ key: `${def.program}|${def.cycle}`, program: def.program, cycle: def.cycle, def }); }
 export async function getProgramDef(program, cycle) { return (await db.program_defs.get(`${program}|${cycle}`))?.def ?? null; }

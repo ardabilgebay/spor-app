@@ -222,7 +222,7 @@ export class App {
       if (d > 36) {
         // pürüzsüz: önce yönünde kısa bir kayış (transform), bitince içerik değişir ve transform geçişsiz sıfırlanır → yükseklik sıçraması animasyonla çakışmaz
         const dir = this.logCollapsed ? -1 : 1; pn.classList.add('settle'); pn.style.transform = `translateY(${18 * dir}px)`;
-        const fin = () => { pn.removeEventListener('transitionend', fin); pn.classList.add('dragging'); pn.style.transform = ''; this.logCollapsed = !this.logCollapsed; this.applyCollapse(); requestAnimationFrame(() => requestAnimationFrame(() => pn.classList.remove('dragging', 'settle'))); };
+        let done = false; const fin = () => { if (done) return; done = true; pn.removeEventListener('transitionend', fin); pn.classList.add('dragging'); pn.style.transform = ''; this.logCollapsed = !this.logCollapsed; this.applyCollapse(); requestAnimationFrame(() => requestAnimationFrame(() => pn.classList.remove('dragging', 'settle'))); };
         pn.addEventListener('transitionend', fin); setTimeout(fin, 220);
       } else { pn.style.transform = ''; }
       document.removeEventListener('pointermove', move); document.removeEventListener('pointerup', end); document.removeEventListener('pointercancel', end); };
@@ -532,6 +532,13 @@ export class App {
       this.remote?.configured ? el('button', { onclick: () => st.mode === 'hazir' ? this.sync.run() : this.remote.login() }, st.mode === 'hazir' ? 'Şimdi senkronla' : 'OneDrive girişi') : null,
       el('button', { onclick: () => this.export() }, 'Dışa aktar'), el('button', { onclick: () => this.main.querySelector('#imp').click() }, 'Yedekten yükle')));
     m.append(el('input', { type: 'file', id: 'imp', accept: '.ndjson,.txt,.json', class: 'hidden', onchange: e => this.import(e.target.files[0]) }));
+    // Cutover (C1): göçü yenile — önce zorunlu dışa aktarım, sonra dosya seç; eski göç olayları silinmez, düşürülür
+    m.append(el('div', { class: 'k', style: 'margin:14px 0 6px' }, 'Cutover'), el('div', { class: 'btnrow' }, el('button', { onclick: () => this.main.querySelector('#gocimp').click() }, 'Göçü yenile (Excel → app)')),   // iOS: dosya seçici kullanıcı jestiyle senkron açılmalı (kırmızı takım #6)
+      el('input', { type: 'file', id: 'gocimp', accept: '.ndjson,.txt', class: 'hidden', onchange: async e => { const f = e.target.files[0]; if (!f) return; const txt = await f.text();
+        await this.export();                                          // önce zorunlu yedek (indirme), sonra yenileme
+        const r = await S.replaceMigration(txt);
+        this.msg = r.hata ? r.hata : `Göç yenilendi: ${r.dusurulen} eski göç olayı düşürüldü · ${r.written} yeni · ${r.skipped} zaten vardı · ${r.bad} bozuk (yedek indirildi)`; this.sync?.schedule(); this.render(); } }),
+      el('div', { class: 'xs dim2', style: 'margin-top:6px;line-height:1.5' }, 'Excel\'den yeniden çıkarılan göç dosyası yüklenir; eski göç olayları silinmez, "düşürüldü" olarak işaretlenir ve hesaba girmez. App\'ten girdiğin kayıtlara dokunulmaz.'));
     if (this.sync?.last?.err) m.append(el('div', { class: 'banner err' }, 'Son senkron hatası: ' + this.sync.last.err));
     // deneme sıfırlama (cycle, app kaynaklı)
     m.append(el('div', { class: 'k', style: 'margin:18px 0 8px' }, 'Deneme kayıtları'));

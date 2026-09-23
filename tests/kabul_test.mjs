@@ -16,19 +16,19 @@ const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 const r1 = await S.importNdjson(mig); t(`C1 göç ${N_MIG} olay yazıldı`, r1.written === N_MIG && r1.bad === 0, JSON.stringify(r1));
 // app-only seans: Deadlift W2 H3 Çar Hip Thrust (telefondan girilmiş gibi, Excel göçündeki aynı satırdan SONRA)
 const dd = defs.Deadlift; const s8 = P.sessions(dd).find(s => s.week === 3 && s.day === 'Car');
-const appEv = await S.logSet({ ref: { program: 'Deadlift', cycle: dd.cycle, week: 3, day: 'Car', row_key: 'Hip Thrust|' }, actor: 'arda', kg: 200, sets: 4, reps: 5, rpe: 7.5, rest_s: 300, rest_plan_s: 300 });
+const appEv = await S.logSet({ ref: { program: 'Deadlift', cycle: dd.cycle, week: 3, day: 'Car', row_key: 'Hip Thrust|Agir' }, actor: 'arda', kg: 200, sets: 4, reps: 5, rpe: 7.5, rest_s: 300, rest_plan_s: 300 });
 const appEv2 = await S.logSet({ ref: { program: 'Diger', cycle: defs.Diger.cycle, week: 2, day: 'Sal', row_key: P.sessions(defs.Diger)[3].rows[0].row_key }, actor: 'arda', kg: 42.5, sets: 4, reps: 3, rpe: 7 });
 const stD = await S.stateFor('Deadlift', dd.cycle);
-const ht = stD.find(s => s.week === 3 && s.day === 'Car' && s.row_key === 'Hip Thrust|' && s.actor === 'arda');
+const ht = stD.find(s => s.week === 3 && s.day === 'Car' && s.row_key === 'Hip Thrust|Agir' && s.actor === 'arda');
 t('C2 aynı satır Excel+app: durum tek kayıt, app (daha yeni ts) kazanır, rest_s korunur', ht && ht.kg === 200 && ht.rest_s === 300 && ht.event_id === appEv.id, JSON.stringify(ht));
-t('C2 aynı satır çift sayılmaz: Çar seansında Hip Thrust durumu 1 adet', stD.filter(s => s.week === 3 && s.day === 'Car' && s.row_key === 'Hip Thrust|' && s.actor === 'arda').length === 1);
+t('C2 aynı satır çift sayılmaz: Çar seansında Hip Thrust durumu 1 adet', stD.filter(s => s.week === 3 && s.day === 'Car' && s.row_key === 'Hip Thrust|Agir' && s.actor === 'arda').length === 1);
 // yeniden göç (cutover senaryosu): app olayları kaybolmaz, göç idempotent
 const r2 = await S.importNdjson(mig); t('C2 yeniden göç: 0 yeni, hepsi zaten var', r2.written === 0 && r2.skipped === N_MIG, JSON.stringify(r2));
 const allA = await S.exportNdjson(); const nA = allA.trim().split('\n').length;
 t(`C2 yeniden göç sonrası olay sayısı = göç + app (${N_MIG}+2)`, nA === N_MIG + 2, nA);
 t('C2 app olayları hâlâ mevcut', allA.includes(appEv.id) && allA.includes(appEv2.id));
 const snapA = await snapshot();
-t('C2 yeniden göç durum değiştirmedi (Hip Thrust hâlâ app kaydı)', (await S.stateFor('Deadlift', dd.cycle)).find(s => s.row_key === 'Hip Thrust|' && s.week === 3 && s.day === 'Car')?.event_id === appEv.id);
+t('C2 yeniden göç durum değiştirmedi (Hip Thrust hâlâ app kaydı)', (await S.stateFor('Deadlift', dd.cycle)).find(s => s.row_key === 'Hip Thrust|Agir' && s.week === 3 && s.day === 'Car')?.event_id === appEv.id);
 
 // ── C3: yedek → temiz cihaz (yeni Dexie veritabanı) → birebir ────────
 // store.js tek `db` örneği kullanır → temiz cihazı, A'nın tablolarını silip yeniden yükleyerek temsil ediyoruz (aynı şema, sıfır veri).
@@ -70,6 +70,40 @@ const evF = mk('01TESTFFFFFFFFFFFFFFFFFFFF', new Date(Date.now() + 365 * 864e5).
 await S.importNdjson(JSON.stringify(evF) + '\n', { fromRemote: true });
 const st4 = (await S.stateFor('Diger', ref.cycle)).find(s => s.week === 2 && s.day === 'Per' && s.row_key === ref.row_key);
 t('C4 gelecek tarihli kayıt kaydedilir; ts now’a kırpılır → şimdilik kazanır (90) ama ebedi değil', !!(await S.db.events.get(evF.id)) && st4?.kg === 90, JSON.stringify(st4));
+
+// ── C1 gerçek cutover: telefon dışa aktarımı (eski göç, farklı ID'ler) + yeni göç → replaceMigration ──
+const PHONE = new URL('../../faz1/fixtures/telefon_20260923.ndjson', import.meta.url);
+await S.db.events.clear(); await S.db.set_state.clear(); await S.db.sync_state.clear(); await S.db.meta.clear(); await S.rebuildState();
+const ph = readFileSync(PHONE, 'utf8'); const rp = await S.importNdjson(ph); const nPh = ph.trim().split('\n').length;
+t(`C1 telefon dışa aktarımı yüklendi (${nPh}, 0 bozuk)`, rp.written === nPh && rp.bad === 0, JSON.stringify(rp));
+const appIds = ph.trim().split('\n').map(l => JSON.parse(l)).filter(e => e.device !== 'migration').map(e => e.id);
+const before = await snapshot();
+t('C1 telefon durumu: Deadlift aktif 9, Diğer 4 (Excel P3 ile aynı)', before.Deadlift.idx === 9 && before.Diger.idx === 4, JSON.stringify([before.Deadlift.idx, before.Diger.idx]));
+const rr = await S.replaceMigration(mig);
+t(`C1 göç yenile: ${rr.dusurulen} eski göç düşürüldü, ${rr.written} yeni yazıldı, 0 bozuk`, rr.dusurulen === 238 && rr.written === N_MIG - 2 && rr.skipped === 2 && rr.bad === 0, JSON.stringify(rr));
+t('C1 hiçbir olay silinmedi (eski göç + yeni göç + app + 1 düşürme olayı)', (await S.db.events.count()) === nPh + (N_MIG - 2) + 1, await S.db.events.count());
+const supEv = (await S.db.events.where('type').equals('migration.superseded').toArray())[0]; t('C1 düşürme olayı keep_ids = yeni göç (248 göç cihazlı; 2 pano stres hariç) taşır', supEv?.data.keep_ids?.length === 248 && supEv.data.dropped_count === 238, JSON.stringify(supEv?.data && { k: supEv.data.keep_count, d: supEv.data.dropped_count }));
+t('C1 app olaylarının hepsi duruyor', (await S.db.events.bulkGet(appIds)).every(Boolean));
+const after = await snapshot();
+t('C1 yenileme sonrası Deadlift aktif 9, Diğer 4 (değişmedi)', after.Deadlift.idx === 9 && after.Diger.idx === 4, JSON.stringify([after.Deadlift.idx, after.Diger.idx]));
+for (const p of Object.keys(defs)) t(`C1 ${p} durum sayısı çiftlenmedi (${before[p].n} → ${after[p].n})`, after[p].n <= before[p].n + 4, `${before[p].n} → ${after[p].n}`);
+const htA = (await S.stateFor('Deadlift', 'W2')).find(s => s.week === 3 && s.day === 'Car' && s.row_key === 'Hip Thrust|Agir');
+t('C1 Hip Thrust H3 Çar: 200 kg, kazanan app kaydı', htA?.kg === 200 && appIds.includes(htA.event_id), JSON.stringify(htA));
+// ikinci kez yenile → düşürülecek eski göç yok (yeni göç düşürülmez çünkü aynı dosya → 0 yeni; düşürülen = yeni göçün 250'si, içerik yeniden yüklenir)
+const rr2 = await S.replaceMigration(mig); t('C1 yeniden yenile: aynı dosya → 0 düşürme, 0 yeni, durum aynı', rr2.dusurulen === 0 && rr2.written === 0 && same(await snapshot(), after), JSON.stringify(rr2));
+// rebuildState düşürmeyi ts sırasından bağımsız uygular
+await S.rebuildState(); t('C1 rebuildState sonrası durum aynı', same(await snapshot(), after));
+// kırmızı takım #5: geç gelen ESKİ göç olayı (başka cihazdan pull) — kural bazlı düşürme onu da düşürür
+const lateOld = JSON.parse(ph.trim().split('\n').find(l => { const e = JSON.parse(l); return e.device === 'migration' && e.type === 'set.logged' && e.ref?.program === 'Deadlift' && e.ref.cycle === 'W2'; }));
+const lateCopy = { ...lateOld, id: lateOld.id.slice(0, -4) + 'ZZZZ', ts: '2026-12-01T00:00:00.000Z', data: { ...lateOld.data, kg: 1 } };   // sahte: geç ts, saçma kg, göç cihazı
+await S.importNdjson(JSON.stringify(lateCopy) + '\n', { fromRemote: true });
+t('C1 geç gelen eski göç olayı (kural dışı id) duruma girmez', same(await snapshot(), after));
+// kırmızı takım #7: bozuk / yanlış dosya → hiçbir şey değişmez
+const bad1 = await S.replaceMigration('{"id":"x"}\nnot json\n'); const bad2 = await S.replaceMigration(ph.trim().split('\n').slice(0, 10).join('\n') + '\n');
+t('C1 bozuk dosya reddedilir, durum aynı', !!bad1.hata && !!bad2.hata && same(await snapshot(), after), JSON.stringify([bad1, bad2]));
+// dışa aktar → temiz cihaz → aynı (düşürme olayı yedekte taşınır)
+const dump = await S.exportNdjson(); await S.db.events.clear(); await S.db.set_state.clear(); await S.db.sync_state.clear(); await S.rebuildState();
+await S.importNdjson(dump); t('C1 yedek → temiz cihaz: düşürme dahil birebir', same(await snapshot(), after));
 
 console.log(`\n  ${ok}/${ok + fail} geçti — ${fail ? 'KABUL TESTİ BASARISIZ' : 'KABUL TESTİ GECTI'} (taban ≥ 20 kontrol: ${ok + fail >= 20 ? 'ok' : 'TABAN ALTI'})`);
 process.exit(fail || ok + fail < 20 ? 1 : 0);
