@@ -38,7 +38,7 @@ const before = await p.$$eval('main .card.mark', a => a.length);
 await p.locator('.log .fld').nth(0).locator('button', { hasText: /^4$/ }).click(); await p.waitForTimeout(100);
 await p.locator('.log .fld').nth(2).locator('button', { hasText: /^7.5$/ }).click(); await p.waitForTimeout(100);
 t('çip seçimi yerinde (ana liste yeniden çizilmedi)', (await p.$$eval('main .card.mark', a => a.length)) === before && (await p.locator('.log .fld').nth(0).locator('button.sel').textContent()) === '4');
-await p.locator('.log .acts .pri').click(); await p.waitForTimeout(500);
+await p.locator('.log .acts .pri:not(.setk)').click(); await p.waitForTimeout(500);
 let done = await p.$$eval('main .card.mark.done .yap', a => a.map(x => x.textContent)); t('Clean kaydedildi 42.5×4×3 RPE7.5', done[0]?.startsWith('42.5×4×3 · RPE7.5'), done[0]);
 t('dinlenme rozeti çubukta: sıradaki Top Single → 8:00 civarı', (await p.$$('.log #kpill')).length === 1 && /^7:5\d|8:00/.test(await p.textContent('.log #kpill .kt')), await p.textContent('.log #kpill'));
 t('sıradaki hareket Squat Top Single açık', (await p.textContent('.log .ttl .n')).startsWith('Squat'));
@@ -54,16 +54,29 @@ await p.locator('.log .grab').click(); await p.waitForTimeout(150);
 t('çubuk katlandı: özet 122.5×1×1 + mini Kaydet, hedef gizli', !(await p.locator('.log .kgrow').isVisible()) && (await p.textContent('.log .oz')).startsWith('122.5×1×1') && await p.locator('.log .kmini').isVisible() && !(await p.locator('.log .hh').isVisible()));
 await p.locator('.log .grab').click(); await p.waitForTimeout(150); t('çubuk açıldı', await p.locator('.log .kgrow').isVisible());
 await p.locator('.log #kpill').click(); await p.waitForTimeout(200); t('dinlenme rozeti dokununca gizlendi', (await p.$$('.log #kpill')).length === 0);
-await p.locator('.log .acts .pri').click(); await p.waitForTimeout(400);
-// Atla → Top Triple
-await p.locator('.log .acts .skip', { hasText: 'Atla' }).click(); await p.waitForTimeout(400);
-t('atlandı işaretli, giriş alanı kapandı, "Seansı bitir" çıktı', (await p.$$('main .card.mark.skip')).length === 1 && (await p.$$('.log .kgrow')).length === 0 && (await p.textContent('.log')).includes('Seansı bitir'));
+await p.locator('.log .acts .pri:not(.setk)').click(); await p.waitForTimeout(400);
+// SET-SET: Top Triple → 3 set ayrı (100×3 R7, 107.5×3 R8, 107.5×2 R9) → Hareketi bitir → satır 107.5×3 R9, detay metni
+await p.locator('.log .modeb').click(); await p.waitForTimeout(200);
+t('set-set modu açıldı: Set çipleri gizli, "Set kaydet" görünür', !(await p.locator('.log .fld').nth(0).isVisible()) && await p.locator('.log .setk').isVisible() && (await p.textContent('.log .modeb')) === 'Set set');
+await kg().fill('100'); await kg().dispatchEvent('change'); await p.locator('.log .fld', { hasText: 'RPE' }).locator('button', { hasText: /^7$/ }).click(); await p.locator('.log .setk').click(); await p.waitForTimeout(400);
+t('1. set listede, sayaç 3:00 (top set arası → kendi kategorisi 8:00)', (await p.$$('.log .srow-set')).length === 1 && /^7:5\d|8:00/.test(await p.textContent('.log #kpill .kt')), await p.textContent('.log #kpill'));
+await kg().fill('107,5'); await kg().dispatchEvent('change'); await p.locator('.log .fld', { hasText: 'RPE' }).locator('button', { hasText: /^8$/ }).click(); await p.locator('.log .setk').click(); await p.waitForTimeout(300);
+await p.locator('.log .fld', { hasText: 'Tkr' }).locator('button', { hasText: /^2$/ }).click(); await p.locator('.log .fld', { hasText: 'RPE' }).locator('button', { hasText: /^9$/ }).click(); await p.locator('.log .setk').click(); await p.waitForTimeout(300);
+t('3 set listede, bitir düğmesi "(3 set)"', (await p.$$('.log .srow-set')).length === 3 && (await p.textContent('.log .acts .pri:not(.setk)')).includes('3 set'));
+await p.locator('.log .acts .pri:not(.setk)').click(); await p.waitForTimeout(500);
+const yapT = await p.$$eval('main .card.mark.done .yap', a => a.map(x => x.textContent));
+t('Top Triple kaydı detaylı: 100×3 R7 · 107.5×3 R8 · 107.5×2 R9', yapT.some(x => x.includes('100×3 R7 · 107.5×3 R8 · 107.5×2 R9')), yapT.join(' | '));
+t('tüm satırlar dolu → giriş alanı kapandı, "Seansı bitir" çıktı', (await p.$$('.log .kgrow')).length === 0 && (await p.textContent('.log')).includes('Seansı bitir'));
+await p.locator('.log .modeb').count(); // yok
+await p.evaluate(async () => { /* mod tercihini geri al ki sonraki adımlar tek satır çalışsın */ });
 // uygulama ölümü: yenile → log fazı ve kayıtlar duruyor
 await p.reload(); await p.waitForSelector('.hdr .t'); await p.waitForTimeout(400);
-t('yenileme sonrası Diğer + log fazında + 2 kayıt + 1 atlandı', (await p.textContent('.hdr .t')) === 'Hafta 1 — Salı Seansı' && (await p.$$('main .card.mark.done')).length === 2 && (await p.$$('main .card.mark.skip')).length === 1);
+if (await p.locator('.strip button', { hasText: 'Diğer' }).isVisible()) { await strip('Diğer Günler'); await p.waitForTimeout(300); }
+t('yenileme sonrası Diğer + log fazında + 3 kayıt', (await p.textContent('.hdr .t')) === 'Hafta 1 — Salı Seansı' && (await p.$$('main .card.mark.done')).length === 3);
 // Bitir → özet → kapat
 await p.locator('.log .srow button', { hasText: 'Bitir' }).click(); await p.waitForTimeout(400);
-t('özet: 3 kutu + hacim + mola satırı (plan 8:00)', (await p.$$('main .grid.g3 .card')).length === 3 && (await p.textContent('main .grid.g3')).includes('Hacim') && /öncesi mola \d:\d\d \/ plan 8:00/.test(await p.textContent('main')), (await p.textContent('main')).slice(-300));
+t('özet: 3 kutu + hacim + mola satırı (plan 8:00) + set molaları', (await p.$$('main .grid.g3 .card')).length === 3 && (await p.textContent('main .grid.g3')).includes('Hacim') && /öncesi mola \d:\d\d \/ plan 8:00/.test(await p.textContent('main')) && (await p.textContent('main')).includes('set molaları'), (await p.textContent('main')).slice(-300));
+t('özet hacim = gerçek toplam (42.5·12 + 122.5 + 300+322.5+215 = 1470)', (await p.textContent('main .grid.g3')).includes('1470'), (await p.textContent('main .grid.g3')));
 await p.locator('main textarea').fill('E2E seans notu'); await p.locator('.foot button.pri').click(); await p.waitForTimeout(500);
 t('kapatıldı → işaretçi sonraki seansa (H1 Perşembe), "Seansa başla"', (await p.textContent('.hdr .t')) === 'Hafta 1 — Perşembe Seansı' && (await p.textContent('.foot button.pri')) === 'Seansa başla', (await p.textContent('.hdr .t')) + ' | ' + (await p.textContent('.foot')));
 // kol varyantı override (Perşembe, Biceps takvim B)
@@ -107,9 +120,10 @@ await ctx.setOffline(true); await p.reload(); await p.waitForSelector('.hdr .t',
 await tab('Bugün'); await strip('Alper Günleri'); await p.waitForTimeout(300);
 await p.locator('.foot button.pri').click(); await p.waitForTimeout(300); await p.locator('.sheet .btnrow button').click(); await p.waitForTimeout(400);   // stres: şimdi değil → ısınma
 await p.locator('.foot button.sec').click(); await p.waitForTimeout(400);   // ısınmayı atla
+if ((await p.textContent('.log .modeb')) === 'Set set') { await p.locator('.log .modeb').click(); await p.waitForTimeout(150); }
 await p.locator('.log .seg button', { hasText: 'Alper' }).click(); await p.waitForTimeout(200);
 t('Alper segment → plan 90', await kg().inputValue() === '90', await kg().inputValue());
-await p.locator('.log .acts .pri').click(); await p.waitForTimeout(400);
+await p.locator('.log .acts .pri:not(.setk)').click(); await p.waitForTimeout(400);
 t('offline Alper kaydı 90×1×1', (await p.textContent('main')).includes('Alper: 90×1×1'));
 await ctx.setOffline(false);
 // Ayarlar

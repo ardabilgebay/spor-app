@@ -30,7 +30,13 @@ async function boot() {
   await app.start();
   // 6) SW — güncelleme yalnız kullanıcı isteğiyle (seans ortasında uygulanmaz)
   if ('serviceWorker' in navigator) {
-    try { const { registerSW } = await import('virtual:pwa-register'); const updateSW = registerSW({ immediate: true, onNeedRefresh() { app.needRefresh = () => updateSW(true); if (app.tab === 'ayarlar') app.render(); } }); } catch {}
+    try { const { registerSW } = await import('virtual:pwa-register'); const updateSW = registerSW({ immediate: true, async onNeedRefresh() {
+      // Seans açık değilse hemen uygula (Arda: değişiklikler hemen aktif olsun); seans sürüyorsa Ayarlar'da düğme + seans bitince uygula.
+      const aktif = ['isinma', 'log', 'ozet'].includes(app.c?.seans?.faz);
+      app.needRefresh = () => updateSW(true);
+      if (!aktif) { await S.setMeta('son_guncelleme', new Date().toISOString()); updateSW(true); return; }
+      app.msg = 'Yeni sürüm hazır — seans bitince uygulanacak.'; if (app.tab === 'ayarlar') app.render();
+    } }); } catch {}
   }
 }
 boot().catch(e => { document.getElementById('app').textContent = 'Açılış hatası: ' + e.message; console.error(e); });

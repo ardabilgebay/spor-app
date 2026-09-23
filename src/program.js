@@ -125,7 +125,7 @@ export function weekly(def, state, overrides = null) {
     const s = state.find(x => x.week === r.week && x.day === r.day && x.row_key === r.row_key && x.actor === 'arda' && !x.deleted);
     const tekrar = r.tekrar ?? r.tekrar_metin;
     return { ...r, hafta: r.week, tekrar, beklenen_hacim: M.beklenenHacim(r.onerilen, r.set, tekrar), beklenen_max: M.beklenenMax(r.metod, r.onerilen, r.set, tekrar, cfg.repeatMaxSets, cfg.maxSetMethods),
-      gercek_hacim: s ? M.gercekHacim(s.kg, s.sets, s.reps) : null, gercek_rpe: s?.rpe ?? null,
+      gercek_hacim: s ? (s.sets_detail?.length ? M.gercekHacimDetay(s.sets_detail) : M.gercekHacim(s.kg, s.sets, s.reps)) : null, gercek_rpe: s?.rpe ?? null,
       delta_rpe: s ? M.deltaRpe(s.rpe, r.hedef_rpe, r.week, r.modifier, cfg.excludedModifiersDeltaRpe) : null };
   });
   return weeks.map(h => {
@@ -149,8 +149,11 @@ export function prevEntry(stateAll, r, sess, cycle) {
   cand.sort((a, b) => a.ts < b.ts ? 1 : -1);
   return cand[0];
 }
+/** Set-set detay metni: "180×5 · 200×5 · 200×5 R9" */
+export function detayMetni(detail) { return (detail ?? []).map(x => `${M.fmt(x.kg)}×${x.reps ?? '?'}${M.isNum(x.rpe) ? ` R${M.fmt(x.rpe)}` : ''}`).join(' · '); }
 export function prevMetni(s) {
   if (!s) return null;
+  if (s.sets_detail?.length) return `${detayMetni(s.sets_detail)}${s.note ? ` — ${s.note}` : ''}`;
   const rep = s.reps ?? s.reps_text ?? '';
   return `${M.fmt(s.kg)}×${M.fmt(s.sets)}×${rep}${s.rpe ? ` R${M.fmt(s.rpe)}` : ''}${s.note ? ` — ${s.note}` : ''}`;
 }

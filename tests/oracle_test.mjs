@@ -5,7 +5,12 @@ import * as S from '../src/store.js'; import * as P from '../src/program.js'; im
 let ok = 0, fail = 0; const t = (n, c, d = '') => c ? ok++ : (fail++, console.log('  ✗', n, d));
 const near = (a, b) => (a === null && b === null) || (M.isNum(a) && M.isNum(b) && Math.abs(a - b) < 1e-6);
 const root = new URL('../../faz1/', import.meta.url).pathname;
-const evPath = process.argv[2] ?? join(root, 'migrasyon/out/events.ndjson');
+// A6 N-version: göç olaylarına set-set detaylı sentetik bir kayıt eklenir (Diger C2 H1 Sal Squat|Top Triple → Σ = 300+322.5+215 = 837.5)
+import { writeFileSync } from 'node:fs';
+const base = readFileSync(process.argv[2] ?? join(root, 'migrasyon/out/events.ndjson'), 'utf8');
+const synth = { id: '01SYNTHDETAIL0000000000001', ts: '2026-09-23T06:00:00.000Z', ts_kind: 'device', device: 'test', entered_by: 'arda', type: 'set.logged', ref: { program: 'Diger', cycle: 'C2', week: 1, day: 'Sal', row_key: 'Squat|Top Triple' }, schema_v: 1, source: { kind: 'app' },
+  data: { actor: 'arda', kg: 107.5, sets: 3, reps: 3, reps_text: null, rpe: 9, note: null, skipped: false, sets_detail: [{ n: 1, kg: 100, reps: 3, rpe: 7 }, { n: 2, kg: 107.5, reps: 3, rpe: 8 }, { n: 3, kg: 107.5, reps: 2, rpe: 9 }] } };
+const evPath = join(mkdtempSync(join(tmpdir(), 'ev-')), 'events.ndjson'); writeFileSync(evPath, base + JSON.stringify(synth) + '\n');
 const out = join(mkdtempSync(join(tmpdir(), 'oracle-')), 'oracle_out.json');
 execFileSync('python3', [join(root, 'tools/oracle.py'), '--events', evPath, '--defs', new URL('../data/', import.meta.url).pathname, '--out', out], { stdio: 'inherit' });
 const O = JSON.parse(readFileSync(out, 'utf8'));
@@ -30,7 +35,9 @@ for (const p of ['Deadlift', 'Alper', 'Diger']) {
     const ref = `${p} H${r.week} ${r.day} ${r.row_key}`;
     t(`${ref} bek`, near(M.beklenenHacim(r.onerilen, r.set, tekrar), o.beklenen_hacim));
     t(`${ref} max`, near(M.beklenenMax(r.metod, r.onerilen, r.set, tekrar, cfg.repeatMaxSets, cfg.maxSetMethods), o.beklenen_max));
-    t(`${ref} ger`, near(s ? M.gercekHacim(s.kg, s.sets, s.reps) : null, o.gercek_hacim), `js=${s ? M.gercekHacim(s.kg, s.sets, s.reps) : null} py=${o.gercek_hacim}`);
+    const jsGer = s ? (s.sets_detail?.length ? M.gercekHacimDetay(s.sets_detail) : M.gercekHacim(s.kg, s.sets, s.reps)) : null;
+    t(`${ref} ger`, near(jsGer, o.gercek_hacim), `js=${jsGer} py=${o.gercek_hacim}`);
+    if (r.row_key === 'Squat|Top Triple' && r.week === 1 && p === 'Diger') t('A6 sentetik detay: JS ve Python Σ 837.5', near(jsGer, 837.5) && near(o.gercek_hacim, 837.5), `js=${jsGer} py=${o.gercek_hacim}`);
     t(`${ref} dRPE`, near(s ? M.deltaRpe(s.rpe, r.hedef_rpe, r.week, r.modifier, cfg.excludedModifiersDeltaRpe) : null, o.delta_rpe));
   }
 }

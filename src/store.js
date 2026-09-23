@@ -45,14 +45,25 @@ export async function appendEvent(ev, { fromRemote = false } = {}) {
 }
 
 /** Yeni set olayı üret + yaz. Girdi sayılar önceden ayrıştırılmış olmalı (parseKg vb.). */
-export async function logSet({ ref, actor = 'arda', kg, sets, reps, reps_text = null, rpe, note = null, skipped = false, entered_by = 'arda', supersedes = null, rest_s = null, rest_plan_s = null }) {
+/** Set-set detaydan satır alanlarını türet (A6): sets = adet, kg = mod (eşitlikte büyük), reps = mod (eşitlikte küçük), rpe = son dolu set. Detay verbatim kalır. */
+export function aggregateDetail(detail) {
+  const d = (detail ?? []).filter(x => x && isNumber(x.kg));
+  if (!d.length) return null;
+  const mode = (arr, tieHigh) => { const m = new Map(); for (const v of arr) m.set(v, (m.get(v) ?? 0) + 1); return [...m].sort((a, b) => b[1] - a[1] || (tieHigh ? b[0] - a[0] : a[0] - b[0]))[0][0]; };
+  const reps = d.map(x => x.reps).filter(isNumber);
+  const rpes = d.map(x => x.rpe).filter(isNumber);
+  return { kg: mode(d.map(x => x.kg), true), sets: d.length, reps: reps.length ? mode(reps, false) : null, rpe: rpes.length ? rpes[rpes.length - 1] : null };
+}
+const isNumber = v => typeof v === 'number' && Number.isFinite(v);
+export async function logSet({ ref, actor = 'arda', kg, sets, reps, reps_text = null, rpe, note = null, skipped = false, entered_by = 'arda', supersedes = null, rest_s = null, rest_plan_s = null, sets_detail = null }) {
+  if (sets_detail?.length) { const a = aggregateDetail(sets_detail); if (a) { kg = a.kg; sets = a.sets; reps = a.reps; rpe = a.rpe; reps_text = null; } }
   if (skipped) kg = 0;
   if (kg === 0 && !skipped) throw new Error('kg=0 yalnız skipped=true ile (A6-2)');
   if (reps !== null && reps !== undefined && reps_text) throw new Error('reps ve reps_text aynı anda dolu olamaz');
   const ev = {
     id: ulid(), ts: new Date().toISOString(), ts_kind: 'device', device: await deviceId(), entered_by,
     type: supersedes ? 'set.corrected' : 'set.logged', ref, schema_v: SCHEMA_V, source: { kind: 'app' },
-    data: { actor, kg: kg ?? null, sets: sets ?? null, reps: reps ?? null, reps_text, rpe: rpe ?? null, note, skipped, ...(supersedes ? { supersedes } : {}), ...(rest_s !== null ? { rest_s } : {}), ...(rest_plan_s !== null ? { rest_plan_s } : {}) },
+    data: { actor, kg: kg ?? null, sets: sets ?? null, reps: reps ?? null, reps_text, rpe: rpe ?? null, note, skipped, ...(supersedes ? { supersedes } : {}), ...(rest_s !== null ? { rest_s } : {}), ...(rest_plan_s !== null ? { rest_plan_s } : {}), ...(sets_detail?.length ? { sets_detail } : {}) },
   };
   await appendEvent(ev);
   return ev;
@@ -79,7 +90,7 @@ async function applyToState(ev) {
     return;
   }
   if (newer) await db.set_state.put({ key, program: ev.ref.program, cycle: ev.ref.cycle, week: ev.ref.week, day: ev.ref.day, row_key: ev.ref.row_key, actor: ev.data.actor,
-    kg: ev.data.kg, sets: ev.data.sets, reps: ev.data.reps, reps_text: ev.data.reps_text, rpe: ev.data.rpe, note: ev.data.note, skipped: ev.data.skipped, rest_s: ev.data.rest_s ?? null, rest_plan_s: ev.data.rest_plan_s ?? null,
+    kg: ev.data.kg, sets: ev.data.sets, reps: ev.data.reps, reps_text: ev.data.reps_text, rpe: ev.data.rpe, note: ev.data.note, skipped: ev.data.skipped, rest_s: ev.data.rest_s ?? null, rest_plan_s: ev.data.rest_plan_s ?? null, sets_detail: ev.data.sets_detail ?? null,
     ts: ev.ts, ts_kind: ev.ts_kind, event_id: ev.id, count, deleted: false });
   else if (cur) await db.set_state.update(key, { count });
 }

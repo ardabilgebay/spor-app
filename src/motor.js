@@ -72,6 +72,12 @@ export function gercekHacim(kg, set, tekrar) {
   if (!isNum(kg) || !isNum(set) || !isNum(tekrar)) return null;
   return mul3(kg, set, tekrar);
 }
+/** A6 — Set-set detay varsa gerçek hacim Σ kg×tekrar (Excel yaklaşımı kg×set×tekrar yalnız detaysız kayıtlarda). */
+export function gercekHacimDetay(detail) {
+  const d = (detail ?? []).filter(x => x && isNum(x.kg) && isNum(x.reps));
+  if (!d.length) return null;
+  return Math.round(d.reduce((a, x) => a + x.kg * x.reps, 0) * SCALE) / SCALE;
+}
 /** K9 — Alper hacim: Q × (Y||N) × (Z||O). */
 export function alperHacim(q, y, z, n, o) {
   q = nz(q); y = nz(y); z = nz(z); n = nz(n); o = nz(o);

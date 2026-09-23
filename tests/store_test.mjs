@@ -39,5 +39,14 @@ await S.markUploaded(pend.map(e => e.id)); t('işaretlendi → bekleyen 0', (awa
 // stres
 await S.logStress({ program: 'Deadlift', cycle: 'W2', week: 4, value: 2 });
 t('stres haritası', (await S.stressFor('Deadlift', 'W2')).get(4) === 2);
+// A6 — set-set detay: satır alanları türetilir (mod/adet/son RPE), detay verbatim, hacim Σ kg×tekrar
+{
+  const ref = { program: 'Diger', cycle: 'C2', week: 1, day: 'Sal', row_key: 'Squat|Top Triple' };
+  const ev = await S.logSet({ ref, actor: 'arda', kg: null, sets: null, reps: null, rpe: null, sets_detail: [{ n: 1, kg: 100, reps: 3, rpe: 7, rest_s: 480 }, { n: 2, kg: 107.5, reps: 3, rpe: 8, rest_s: 470 }, { n: 3, kg: 107.5, reps: 2, rpe: 9, rest_s: 500 }] });
+  t('A6 türetim: kg 107.5 (mod) · sets 3 · reps 3 (mod) · rpe 9 (son)', ev.data.kg === 107.5 && ev.data.sets === 3 && ev.data.reps === 3 && ev.data.rpe === 9, JSON.stringify(ev.data));
+  const st = (await S.stateFor('Diger', 'C2')).find(x => x.row_key === 'Squat|Top Triple' && x.week === 1);
+  t('A6 state detay verbatim (3 set, rest_s 480/470/500)', st.sets_detail?.length === 3 && st.sets_detail[2].rest_s === 500);
+  t('A6 aggregateDetail eşitlik: kg tie → büyük, reps tie → küçük', JSON.stringify(S.aggregateDetail([{ kg: 100, reps: 5 }, { kg: 110, reps: 4 }])) === JSON.stringify({ kg: 110, sets: 2, reps: 4, rpe: null }));
+}
 console.log(`\n  ${ok}/${ok + fail} geçti — ${fail === 0 ? 'STORE TEST GECTI' : 'BASARISIZ'}`);
 process.exit(fail ? 1 : 0);
