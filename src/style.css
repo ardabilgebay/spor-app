@@ -294,8 +294,24 @@ main.vin{animation:vin .28s var(--ease-out)}
 .tabs{transition:transform .42s var(--spring),opacity .25s ease}
 .tabs.hide{transform:translateY(calc(100% + 6px));opacity:0;pointer-events:none}
 /* View Transitions — eski görünüm hafif küçülüp solar, yeni yukarıdan yaylanır */
-::view-transition-old(root){animation:vt-out .18s ease-out both}
-::view-transition-new(root){animation:vt-in .34s var(--spring) both}
-@keyframes vt-out{to{opacity:0;transform:scale(.985)}}
-@keyframes vt-in{from{opacity:0;transform:translateY(8px)}}
-.tabs,.hdr,.strip{view-transition-name:none}
+
+/* A14: üst boşluk kısaltma (cam bandı kenarı ~90 pt ölçüldü) + tek aşamalı tutamaç */
+.hdr{padding-top:calc(env(safe-area-inset-top) * 1.4 + 6px)}
+@media (display-mode: standalone){.hdr{padding-top:calc(env(safe-area-inset-top) * 1.4 + 6px)}}
+.log{transition:transform .36s var(--spring)}
+.log.dragging{transition:none}
+
+/* A14 · Dynamic Island deseni — dinlenme pili */
+.kpill{transition:min-height .42s var(--spring),padding .42s var(--spring),border-radius .42s var(--spring),background-color .3s ease,transform .42s var(--spring);will-change:transform}
+.kpill .kbody{display:flex;flex-direction:column;align-items:flex-start;line-height:1.1}
+.kpill .kad{display:none;font-size:11px;color:var(--dim);margin-top:2px;letter-spacing:.01em}
+.kpill.big{min-height:56px;padding:6px 14px 6px 10px;border-radius:18px;gap:10px;flex:1;transform:translateZ(0)}
+.kpill.big .ring{width:34px;height:34px;transition:width .42s var(--spring),height .42s var(--spring)}
+.kpill .ring{transition:width .42s var(--spring),height .42s var(--spring)}
+.kpill.big .kt{font-size:24px;font-weight:500;letter-spacing:-.02em}
+.kpill .kt{transition:font-size .42s var(--spring)}
+.kpill.big .kad{display:block}
+.kpill.big .kx{margin-left:auto;font-size:13px;padding:6px 10px;border-radius:999px;border:1px solid var(--acc-line);color:var(--acc-ink)}
+.kpill.done{animation:kdone 1.4s var(--spring)}
+@keyframes kdone{0%{transform:scale(1)}18%{transform:scale(1.08);box-shadow:0 0 0 6px rgba(111,207,151,.22)}40%{transform:scale(.98)}100%{transform:scale(1);box-shadow:none}}
+.kpill.over.big{border-color:#6a3030}

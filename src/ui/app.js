@@ -71,7 +71,7 @@ export class App {
   }
   go(tab) { if (this.tab === tab) return; this.tab = tab; this.main.scrollTop = 0; this.tabsShow(true);
     const paint = () => { this.main.classList.remove('vin'); void this.main.offsetWidth; this.main.classList.add('vin'); return this.render(); };
-    if (document.startViewTransition && !matchMedia('(prefers-reduced-motion: reduce)').matches) document.startViewTransition(() => paint()); else paint(); }
+    paint(); }   // View Transitions denendi (A13) → iOS 27 standalone'da hayalet görüntü; kaldırıldı, yalnız main.vin
   /** Dock davranışı: aşağı kaydırırken sekmeler gizlenir, yukarı kaydırınca / alt kenara yaklaşınca geri gelir. */
   tabsShow(on) { this.tabbar.classList.toggle('hide', !on); }
   async pickProgram() {
@@ -220,21 +220,16 @@ export class App {
   }
   /** Tutamaç parmağı izler: panel dirençle (rubber band) kayar, pill uzar; eşik (36 px) geçilirse katlanır/açılır, yoksa yaylanıp döner. */
   grabDrag(grab) {
-    let y0 = null, dy = 0; const gl = grab.querySelector('.gl');
-    const panel = () => this.foot;
-    let raf = 0;
-    const move = e => { if (y0 === null) return; dy = e.clientY - y0; if (raf) return; raf = requestAnimationFrame(() => { raf = 0; if (y0 === null) return; const dir = this.logCollapsed ? -1 : 1; const d = dy * dir;
-      const eff = d > 0 ? 90 * (1 - Math.exp(-d / 90)) : -18 * (1 - Math.exp(d / 40));   // aynı yön: lastik takip (doyuma giden); ters yön: hafif direnç
-      panel().style.transform = `translateY(${eff * dir}px)`; gl.style.transform = `scaleX(${1 + Math.min(Math.abs(d), 120) / 140}) scaleY(${1 + Math.min(Math.abs(d), 120) / 400})`; if (Math.abs(d) > 8) this.dragMoved = true; }); };
-    const end = () => { if (y0 === null) return; const d = dy * (this.logCollapsed ? -1 : 1); y0 = null; const pn = panel(); pn.classList.remove('dragging'); grab.classList.remove('on'); gl.style.transform = '';
-      if (d > 36) {
-        // pürüzsüz: önce yönünde kısa bir kayış (transform), bitince içerik değişir ve transform geçişsiz sıfırlanır → yükseklik sıçraması animasyonla çakışmaz
-        const dir = this.logCollapsed ? -1 : 1; pn.classList.add('settle'); pn.style.transform = `translateY(${18 * dir}px)`;
-        let done = false; const fin = () => { if (done) return; done = true; pn.removeEventListener('transitionend', fin); pn.classList.add('dragging'); pn.style.transform = ''; this.logCollapsed = !this.logCollapsed; this.applyCollapse(); requestAnimationFrame(() => requestAnimationFrame(() => pn.classList.remove('dragging', 'settle'))); };
-        pn.addEventListener('transitionend', fin); setTimeout(fin, 220);
-      } else { pn.style.transform = ''; }
+    // iOS sheet deseni: eşik (28 px) geçilir geçilmez içerik anında değişir (tek aşama), panel parmağı izlemeye devam eder, bırakınca yayla oturur.
+    let y0 = null, dy = 0, raf = 0, toggled = false; const gl = grab.querySelector('.gl'); const panel = () => this.foot;
+    const move = e => { if (y0 === null) return; dy = e.clientY - y0; if (raf) return; raf = requestAnimationFrame(() => { raf = 0; if (y0 === null) return;
+      const dir = this.logCollapsed ? -1 : 1; const d = dy * dir;
+      if (!toggled && d > 28) { toggled = true; this.dragMoved = true; this.logCollapsed = !this.logCollapsed; this.applyCollapse(); y0 = e.clientY; dy = 0; panel().style.transform = ''; gl.style.transform = ''; return; }
+      const eff = d > 0 ? 60 * (1 - Math.exp(-d / 60)) : -14 * (1 - Math.exp(d / 30));
+      panel().style.transform = `translateY(${eff * dir}px)`; gl.style.transform = `scaleX(${1 + Math.min(Math.abs(d), 60) / 90})`; if (Math.abs(d) > 6) this.dragMoved = true; }); };
+    const end = () => { if (y0 === null) return; y0 = null; const pn = panel(); pn.classList.remove('dragging'); grab.classList.remove('on'); gl.style.transform = ''; pn.style.transform = '';
       document.removeEventListener('pointermove', move); document.removeEventListener('pointerup', end); document.removeEventListener('pointercancel', end); };
-    grab.addEventListener('pointerdown', e => { y0 = e.clientY; dy = 0; this.dragMoved = false; panel().classList.add('dragging'); grab.classList.add('on'); document.addEventListener('pointermove', move); document.addEventListener('pointerup', end); document.addEventListener('pointercancel', end); });
+    grab.addEventListener('pointerdown', e => { y0 = e.clientY; dy = 0; toggled = false; this.dragMoved = false; panel().classList.add('dragging'); grab.classList.add('on'); document.addEventListener('pointermove', move); document.addEventListener('pointerup', end); document.addEventListener('pointercancel', end); });
     grab.style.touchAction = 'none';
   }
   applyCollapse() {
@@ -373,13 +368,18 @@ export class App {
     const pct = kalan >= 0 ? Math.round((1 - kalan / k.sn) * 100) : Math.min(100, Math.round((-kalan / k.sn) * 100));
     const pill = this.foot.querySelector('#kpill') ?? this.hR.querySelector('#kpill'); if (pill) { pill.querySelector('.kt').textContent = this.kronoMetin(kalan); pill.classList.toggle('over', kalan < 0); pill.querySelector('.ring').style.setProperty('--pct', `${pct}%`); }
     const big = this.main.querySelector('#krobig'); if (big) { big.textContent = this.kronoMetin(kalan); big.className = 'big tab ' + (kalan >= 0 ? 'on' : 'over'); }
-    if (kalan === 0 && !k.bitti) { k.bitti = true; this.geriBildirim('alarm'); }   // sayaç durmaz: aşım kırmızı sayar, dokununca kapanır
+    if (kalan === 0 && !k.bitti) { k.bitti = true; this.geriBildirim('alarm'); if (pill) { pill.classList.add('done'); setTimeout(() => { pill.classList.remove('done'); if (this.kronoBig) { this.kronoBig = false; pill.classList.remove('big'); } }, 1400); } }   // sayaç durmaz: aşım kırmızı sayar; büyükse nabız sonrası küçülür
   }
   /** Başlıktaki dinlenme rozeti: bağımsız, dokununca gizlenir (Geç). */
   kronoPill() {
     const k = this.krono; if (!k) return null; const kalan = this.kronoKalan();
-    return el('button', { id: 'kpill', class: 'kpill' + (kalan < 0 ? ' over' : ''), title: 'Dinlenmeyi geç', onclick: () => { this.krono = null; clearInterval(this.kronoIv); this.render(); } },
-      el('span', { class: 'ring', style: `--pct:${kalan >= 0 ? Math.round((1 - kalan / k.sn) * 100) : 100}%` }), el('span', { class: 'kt tab' }, this.kronoMetin(kalan)), el('span', { class: 'kx' }, '×'));
+    // Dynamic Island deseni: pil dokununca yaylanarak büyür (büyük sayaç + hareket adı + Geç), tekrar dokununca küçülür; süre bitince nabız verir ve kendiliğinden küçülür.
+    const pill = el('button', { id: 'kpill', class: 'kpill' + (kalan < 0 ? ' over' : '') + (this.kronoBig ? ' big' : ''), title: this.kronoBig ? 'Küçült' : 'Büyüt',
+        onclick: () => { this.kronoBig = !this.kronoBig; pill.classList.toggle('big', this.kronoBig); pill.title = this.kronoBig ? 'Küçült' : 'Büyüt'; pill.querySelector('.kx').textContent = this.kronoBig ? 'Geç' : '×'; } },
+      el('span', { class: 'ring', style: `--pct:${kalan >= 0 ? Math.round((1 - kalan / k.sn) * 100) : 100}%` }),
+      el('span', { class: 'kbody' }, el('span', { class: 'kt tab' }, this.kronoMetin(kalan)), el('span', { class: 'kad' }, `${k.ad ?? 'dinlenme'} · plan ${this.kronoMetin(k.sn)}`)),
+      el('span', { class: 'kx', title: 'Dinlenmeyi geç', onclick: e => { e.stopPropagation(); this.krono = null; this.kronoBig = false; clearInterval(this.kronoIv); this.render(); } }, this.kronoBig ? 'Geç' : '×'));
+    return pill;
   }
   /** Dinlenme uyumu: rest_s/rest_plan_s olan girişler → {n, ort_oran, uyumlu, erken, gec} (±15% bant). */
   dinlenmeStat(entries) {

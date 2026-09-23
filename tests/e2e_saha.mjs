@@ -53,7 +53,8 @@ t('aktar → kg 122.5', await kg().inputValue() === '122.5', await kg().inputVal
 await p.locator('.log .grab').click(); await p.waitForTimeout(150);
 t('çubuk katlandı: özet 122.5×1×1 + mini Kaydet, hedef gizli', !(await p.locator('.log .kgrow').isVisible()) && (await p.textContent('.log .oz')).startsWith('122.5×1×1') && await p.locator('.log .kmini').isVisible() && !(await p.locator('.log .hh').isVisible()));
 await p.locator('.log .grab').click(); await p.waitForTimeout(150); t('çubuk açıldı', await p.locator('.log .kgrow').isVisible());
-await p.locator('.log #kpill').click(); await p.waitForTimeout(200); t('dinlenme rozeti dokununca gizlendi', (await p.$$('.log #kpill')).length === 0);
+await p.locator('.log #kpill').click(); await p.waitForTimeout(500); t('dinlenme pili dokununca büyüdü (Dynamic Island)', await p.locator('.log #kpill.big').isVisible() && (await p.textContent('.log #kpill .kx')).trim() === 'Geç');
+await p.locator('.log #kpill .kx').click(); await p.waitForTimeout(200); t('dinlenme pili Geç ile gizlendi', (await p.$$('.log #kpill')).length === 0);
 await p.locator('.log .acts .pri:not(.setk)').click(); await p.waitForTimeout(400);
 // SET-SET: Top Triple → 3 set ayrı (100×3 R7, 107.5×3 R8, 107.5×2 R9) → Hareketi bitir → satır 107.5×3 R9, detay metni
 await p.locator('.log .modeb').click(); await p.waitForTimeout(200);
