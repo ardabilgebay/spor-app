@@ -84,6 +84,18 @@ function lastArdaTs(sess, state) {
 }
 export function todayKey(date = new Date()) { return JS_GUN[date.getDay()] ?? null; }
 
+/** K25/K26 — Etkin önerilen: `rpe_freni` olan satırda plan = 1RM×pct (MROUND), önceki haftanın aynı satırındaki
+ *  gerçek RPE/kg ile frenlenir. Fren yoksa programdef `onerilen` (Excel anlık görüntüsü) aynen. Dönüş: {kg, fren:{prevRpe,prevKg,plan}|null}. */
+export function etkinOnerilen(def, state, r) {
+  if (!r.rpe_freni) return { kg: r.onerilen, fren: null };
+  const cfg = M.CONFIG[def.program];
+  const planHesap = M.onerilenKg(M.oneRmFor(def.program, r.egzersiz, def.config), r.pct_1rm, cfg.roundBase);
+  const plan = planHesap ?? r.onerilen;                       // 1RM anahtarı yoksa Excel anlık görüntüsü — snapshot:true ile görünür kılınır
+  const prev = state.find(s => s.week === r.week - 1 && s.day === r.day && s.row_key === r.row_key && s.actor === 'arda' && !s.deleted) ?? null;
+  const kg = M.rpeFreni(prev?.rpe, prev?.kg, plan, r.rpe_freni.esik, !!prev?.skipped);
+  return { kg, fren: { prevRpe: prev?.rpe ?? null, prevKg: prev?.kg ?? null, prevSkipped: !!prev?.skipped, plan, snapshot: planHesap === null, uygulandi: M.isNum(kg) && kg !== plan } };
+}
+
 /** Seans görünümü: satırlar + plan metni + mevcut girişler + renk + plaka + ısınma. */
 export function sessionView(def, state, idx, overrides = null) {
   const cfg = M.CONFIG[def.program];
@@ -91,6 +103,7 @@ export function sessionView(def, state, idx, overrides = null) {
   const rows = sess.rows.map(r => {
     const st = a => state.find(s => s.week === sess.week && s.day === sess.day && s.row_key === r.row_key && s.actor === a && !s.deleted) ?? null;
     const arda = st('arda'), alper = def.program === 'Alper' ? st('alper') : null;
+    const eo = etkinOnerilen(def, state, r); r = { ...r, onerilen: eo.kg, fren: eo.fren };
     const bugunRow = { ...r, tekrar: r.tekrar ?? r.tekrar_metin, dinlenme_metin: r.dinlenme };
     return {
       ...r, ref: { program: def.program, cycle: def.cycle, week: sess.week, day: sess.day, row_key: r.row_key },
@@ -121,7 +134,8 @@ export function plakaMetni(toplam) {
 export function weekly(def, state, overrides = null) {
   const cfg = M.CONFIG[def.program]; const ss = sessions(def, overrides);
   const weeks = [...new Set(def.rows.map(r => r.week))].sort((a, b) => a - b);
-  const rowsWith = def.rows.map(r => {
+  const rowsWith = def.rows.map(r0 => {
+    const r = { ...r0, onerilen: etkinOnerilen(def, state, r0).kg };
     const s = state.find(x => x.week === r.week && x.day === r.day && x.row_key === r.row_key && x.actor === 'arda' && !x.deleted);
     const tekrar = r.tekrar ?? r.tekrar_metin;
     return { ...r, hafta: r.week, tekrar, beklenen_hacim: M.beklenenHacim(r.onerilen, r.set, tekrar), beklenen_max: M.beklenenMax(r.metod, r.onerilen, r.set, tekrar, cfg.repeatMaxSets, cfg.maxSetMethods),

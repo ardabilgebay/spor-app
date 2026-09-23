@@ -61,7 +61,7 @@ export async function logSet({ ref, actor = 'arda', kg, sets, reps, reps_text = 
     if (sets_detail.some(x => !isNumber(x.kg) || x.kg <= 0)) throw new Error('set-set: her setin kg>0 olmalı (A6-2)');   // KIRMIZI TAKIM 4
     const a = aggregateDetail(sets_detail); if (a) { kg = a.kg; sets = a.sets; reps = a.reps; rpe = a.rpe; reps_text = null; }
   }
-  if (skipped) kg = 0;
+  if (skipped) { kg = 0; rpe = null; }   // KIRMIZI TAKIM 23 Eyl: atlanan sette RPE anlamsız (Excel'de boş) — taşınmaz; K25 freni 0 kg öneremez
   if (kg === 0 && !skipped) throw new Error('kg=0 yalnız skipped=true ile (A6-2)');
   if (reps !== null && reps !== undefined && reps_text) throw new Error('reps ve reps_text aynı anda dolu olamaz');
   const ev = {

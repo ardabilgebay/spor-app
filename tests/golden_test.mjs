@@ -24,7 +24,7 @@ function oneRmFor(prog, r, meta) {
   const s = meta.inputs_setup;
   if (prog === 'Deadlift') return s.deadlift_1rm_kg;
   if (prog === 'Alper') return r.egzersiz === 'Bench Press' ? s.bench_1rm_arda_kg : null;
-  if (prog === 'Diger') return ({ 'Squat': s.squat_1rm_kg, 'Front Squat': s.front_squat_1rm_kg, 'Bench Press': s.bench_1rm_cuma_ek_kg })[r.egzersiz] ?? null;
+  if (prog === 'Diger') return ({ 'Squat': s.squat_1rm_kg, 'Front Squat': s.front_squat_1rm_kg, 'Bench Press': s.bench_1rm_cuma_ek_kg, 'Standing Barbell OHP': s.ohp_1rm_kg })[r.egzersiz] ?? null;
 }
 
 for (const [prog, key] of [['Deadlift', 'deadlift'], ['Alper', 'alper'], ['Diger', 'diger']]) {
@@ -40,7 +40,11 @@ for (const [prog, key] of [['Deadlift', 'deadlift'], ['Alper', 'alper'], ['Diger
     // K1 Önerilen
     if (M.isNum(r.pct_1rm)) {
       const rm = oneRmFor(prog, r, fx.meta);
-      if (rm !== null && M.isNum(r.onerilen)) check('K1', ref, r.onerilen, M.onerilenKg(rm, r.pct_1rm, cfg.roundBase));
+      const frenM = /Q(\d+)>(\d+(?:\.\d+)?)/.exec(r.onerilen_formula ?? '');                      // K25: Excel'de RPE freni kalıbı
+      const plan = M.onerilenKg(rm, r.pct_1rm, cfg.roundBase);
+      const prev = frenM ? rows.find(x => x.row === +frenM[1]) : null;
+      const hesap = frenM ? M.rpeFreni(prev?.gercek_rpe, prev?.yapilan_kg, plan, +frenM[2]) : plan;
+      if (rm !== null && M.isNum(r.onerilen)) check(frenM ? 'K25' : 'K1', ref, r.onerilen, hesap);
       else res.skip++;
       if (prog === 'Alper' && r.egzersiz === 'Bench Press' && M.isNum(r.onerilen_alper))
         check('K2', ref, r.onerilen_alper, M.onerilenKg(fx.meta.inputs_setup.bench_1rm_alper_kg, r.pct_1rm, cfg.roundBase));
@@ -57,7 +61,7 @@ for (const [prog, key] of [['Deadlift', 'deadlift'], ['Alper', 'alper'], ['Diger
   // K17/K12/K19 Weekly
   const bh = fx.meta_sheet?.blok_haritasi ?? []; const hdr = fx.meta_sheet?.blok_haritasi_header ?? {};
   const col = name => Object.keys(hdr).find(k => hdr[k] === name);
-  const cH = col('Hafta'), cD = col('Dolu');
+  const cH = col('Hafta') ?? 'B', cD = col('Dolu') ?? 'I';   // Alper/Diger _meta başlık satırı adsız (yalnız idx/key) → sabit B/I; Deadlift adlı
   const doluGun = h => bh.filter(b => b[cH]?.value === h && b[cD]?.value === 1).length;
   for (const w of fx.weekly.haftalik) {
     const h = w['Hafta']?.value; if (!M.isNum(h)) continue;

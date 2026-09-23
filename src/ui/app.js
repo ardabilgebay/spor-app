@@ -22,6 +22,15 @@ const STRES_AD = ['çok iyi', 'iyi', 'normal', 'yorgun', 'bitkin'];
 const KG_ADIM = 2.5;
 const sinyalRenk = s => !s || s === '—' ? 'dim' : s.startsWith('🔴') ? 'red' : s.startsWith('🔵') ? 'blue' : s.startsWith('⏳') ? 'warn' : s.startsWith('⏸') ? 'dim' : 'ok';
 const mmss = k => `${Math.floor(k / 60)}:${String(k % 60).padStart(2, '0')}`;
+/** K25 — RPE freni gerekçesi (App-G21: öneri sessizce değişmez, nedeni görünür). */
+function frenNotu(r) {
+  const f = r.fren; if (!f) return null;
+  const txt = f.uygulandi
+    ? `RPE freni: geçen hafta ${fmt(f.prevKg)} kg RPE ${fmt(f.prevRpe)} (>8) → plan ${fmt(f.plan)} yerine ${fmt(r.onerilen)} kg tekrar`
+    : (f.prevRpe === null ? `RPE freni hazır: geçen hafta kayıt yok → plan ${fmt(f.plan)} kg` : `RPE freni: geçen hafta RPE ${fmt(f.prevRpe)} ≤ 8 → plan ${fmt(f.plan)} kg`);
+  return el('div', { class: 'small tab ' + (f.uygulandi ? 'warn' : 'dim2'), style: 'margin-top:2px' }, txt + (f.snapshot ? ' (1RM tanımsız — Excel anlık görüntüsü)' : ''));
+}
+
 const fmt = M.fmt;
 /** Basılı tutunca hızlanan düğme: hemen 1 adım; 400 ms sonra 150 ms'de bir; 1,5 sn sonra ×4 adım. Bitiş belge düzeyinde yakalanır (düğme kaybolsa da durur). */
 function hold(btn, fn) {
@@ -146,6 +155,7 @@ export class App {
     return el(onclick ? 'button' : 'div', { class: cls, onclick },
       el('div', { class: 'h' }, el('div', { class: 'ex' }, r.egzersiz), el('div', { class: 'mod ' + (r.renk === 'yuksek' ? 'warn' : r.renk === 'dusuk' ? 'blue' : now ? 'acc' : '') }, durum)),
       el('div', { class: 'hedef tab' }, r.hedef?.replace(/^.*\n/, '') ?? ''),
+      frenNotu(r),
       alp ? el('div', { class: 'small blue tab', style: 'margin-top:2px' }, alp) : null,
       yap ? el('div', { class: 'yap tab' }, yap) : null,
       (open || !r.tamam) && prev ? el('div', { class: 'prev' }, 'Geçen: ' + prev) : null,
@@ -240,6 +250,7 @@ export class App {
     repIn.addEventListener('change', () => { d.reps = M.parseKg(repIn.value); saveDraft(); paint(); });
     const rpeBtns = RPE_LIST.map(n => el('button', { class: 'tab', onclick: () => { d.rpe = d.rpe === n ? null : n; saveDraft(); paint(); } }, fmt(n)));
     // set-set modu: kayıtlı setler listesi
+    const fn = frenNotu(r); if (fn) body.append(fn);
     const setList = el('div', { class: 'sets hidden' });
     body.append(setList);
     const setFld = el('div', { class: 'fld' }, el('div', { class: 'lbl' }, 'Set'), el('div', { class: 'opts' }, ...setBtns)); body.append(setFld);
@@ -314,7 +325,7 @@ export class App {
   geriBildirim(kind = 'ok') {
     try { navigator.vibrate?.(kind === 'ok' ? 12 : [80, 60, 80]); } catch {}
     const f = el('div', { class: 'flash ' + kind }); document.body.append(f); setTimeout(() => f.remove(), 420);
-    if (kind === 'alarm') this.bip();
+    // Arda 23 Eyl: sayaç bitiminde yalnız görsel flaş (bip yok)
   }
   bip() {
     try { const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return; this.ac ??= new AC(); const o = this.ac.createOscillator(), g = this.ac.createGain(); o.frequency.value = 880; g.gain.value = 0.08; o.connect(g); g.connect(this.ac.destination); o.start(); o.stop(this.ac.currentTime + 0.18); const o2 = this.ac.createOscillator(); o2.frequency.value = 1175; o2.connect(g); o2.start(this.ac.currentTime + 0.22); o2.stop(this.ac.currentTime + 0.4); } catch {}

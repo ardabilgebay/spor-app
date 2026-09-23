@@ -32,6 +32,28 @@ export function onerilenKg(oneRm, pct, roundBase, guard = true) {
   return mround(oneRm * pct, roundBase);
 }
 
+/** K25 — RPE FRENİ (23 Eyl, Diğer Cuma OHP): önceki haftanın aynı satırında gerçek RPE > eşik ve kg sayı ise
+ *  önerilen = MIN(önceki kg, plan); aksi halde plan. Excel: IF(AND(ISNUMBER(Q),Q>8,ISNUMBER(L)),MIN(L,plan),plan). */
+export function rpeFreni(prevRpe, prevKg, planKg, esik = 8, prevSkipped = false) {
+  prevRpe = nz(prevRpe); prevKg = nz(prevKg);
+  if (!isNum(planKg)) return null;
+  // KIRMIZI TAKIM (23 Eyl): atlanan set (kg=0) Excel'de boş hücredir → fren yok; kg≤0 asla "önceki kg" sayılmaz (0 kg önerisi imkânsız).
+  if (prevSkipped || !isNum(prevKg) || prevKg <= 0) return planKg;
+  if (isNum(prevRpe) && prevRpe > esik) return Math.min(prevKg, planKg);
+  return planKg;
+}
+
+/** K26 — Satırın 1RM kaynağı (programdef.config). Eşleşme yoksa null (öneri sabit kalır). */
+export const ONE_RM_KEY = {
+  Deadlift: () => 'deadlift_1rm_kg',
+  Alper: egz => (egz === 'Bench Press' ? 'bench_1rm_arda_kg' : null),
+  Diger: egz => ({ 'Squat': 'squat_1rm_kg', 'Front Squat': 'front_squat_1rm_kg', 'Bench Press': 'bench_1rm_cuma_ek_kg', 'Standing Barbell OHP': 'ohp_1rm_kg' })[egz] ?? null,
+};
+export function oneRmFor(program, egzersiz, config) {
+  const k = ONE_RM_KEY[program]?.(egzersiz); const v = k ? config?.[k] : null;
+  return isNum(v) ? v : null;
+}
+
 /** K3 — Isınma rampası basamakları (%40/60/75/87). AL/DG'de rampRoundBase sabit 2.5 (config). */
 export const ISINMA_YUZDELERI = [0.4, 0.6, 0.75, 0.87];
 export function isinmaBasamaklari(topKg, rampRoundBase) {
