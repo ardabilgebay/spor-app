@@ -65,7 +65,7 @@ export class App {
     window.visualViewport?.addEventListener('resize', () => { const vv = window.visualViewport; this.root.style.height = vv.height + 'px'; this.root.style.transform = `translateY(${vv.offsetTop}px)`; });
     await this.render();
   }
-  go(tab) { if (this.tab === tab) return; this.tab = tab; this.main.scrollTop = 0; this.render(); }
+  go(tab) { if (this.tab === tab) return; this.tab = tab; this.main.scrollTop = 0; this.main.classList.remove('vin'); void this.main.offsetWidth; this.main.classList.add('vin'); this.render(); }
   async pickProgram() {
     const today = P.todayKey(); const saved = await S.getMeta('prog');
     for (const p of PROGS) { const c = await this.ctx(p); if (c.v && c.v.day === today && c.v.tamamlanan < c.v.rows.length) return p; }
@@ -88,7 +88,7 @@ export class App {
     // program şeridi (üstte)
     this.strip.replaceChildren(...PROGS.map(p => el('button', { class: p === this.prog ? 'sel' : '', onclick: () => this.setProg(p) }, el('span', { class: 'dot' }), PROG_AD[p])));
     this.strip.classList.toggle('hidden', this.tab === 'ayarlar' || this.tab === 'aletler' || (this.tab === 'bugun' && ['isinma', 'log', 'ozet'].includes(c.seans?.faz)));
-    this.hR.replaceChildren(); this.foot.replaceChildren(); this.foot.className = 'hidden';
+    this.hR.replaceChildren(); this.foot.replaceChildren(); this.foot.className = 'hidden'; this.root.classList.remove('has-foot');
     const top = this.main.scrollTop; this.main.replaceChildren();
     const fn = { bugun: this.rBugun, program: this.rProgram, ilerleme: this.rIlerleme, aletler: this.rAletler, ayarlar: this.rAyarlar }[this.tab];
     await fn.call(this, c);
@@ -96,7 +96,7 @@ export class App {
     this.renderSheet();
   }
   head(k, t, ...right) { this.hK.textContent = k; this.hT.textContent = t; this.hR.replaceChildren(...right.filter(Boolean)); this.hdr.classList.remove('one'); }
-  footer(cls, ...kids) { this.foot.className = cls; this.foot.replaceChildren(...kids.filter(Boolean)); }
+  footer(cls, ...kids) { this.foot.className = cls; this.foot.replaceChildren(...kids.filter(Boolean)); this.root.classList.toggle('has-foot', cls !== 'hidden'); }
   banners() {
     const out = []; const st = this.sync?.last;
     if (this.persist === false) out.push(el('div', { class: 'banner warn' }, 'Kalıcı depolama izni yok — ana ekrandan açınca iOS verir. Kayıtlar cihazda; senkron/yedek önemli.'));
@@ -151,7 +151,8 @@ export class App {
     const durum = r.tamam ? (r.arda.skipped ? 'ATLANDI' : r.renk === 'yuksek' ? 'RPE ↑' : r.renk === 'dusuk' ? 'RPE ↓' : 'KAYITLI') : (now ? 'ŞİMDİ' : (r.modifier ?? (P.kolBilgi(r) ? 'Kol' : /clean|snatch/i.test(r.egzersiz) ? 'Teknik' : (r.pct_1rm ? '' : 'Aksesuar'))));
     const cls = 'card mark ' + (r.tamam ? (r.arda.skipped ? 'skip' : r.renk === 'yuksek' ? 'hi' : r.renk === 'dusuk' ? 'lo' : 'done') : now ? 'now' : '') + (onclick ? ' tap' : '');
     const yap = r.tamam && !r.arda.skipped ? (r.arda.sets_detail?.length ? P.detayMetni(r.arda.sets_detail) : `${fmt(r.arda.kg)}×${fmt(r.arda.sets)}×${r.arda.reps ?? r.arda.reps_text ?? ''}${r.arda.rpe ? ` · RPE${fmt(r.arda.rpe)}` : ''}`) + (r.arda.note ? ` — ${r.arda.note}` : '') : null;
-    const alp = r.alper && M.isNum(r.alper.kg) ? `Alper: ${fmt(r.alper.kg)}×${fmt(r.alper.sets)}×${r.alper.reps ?? ''}` : (r.onerilen_alper !== null && r.onerilen_alper !== undefined ? `Alper ${fmt(r.onerilen_alper)} kg` : null);
+    const prevA = c.def.program === 'Alper' ? P.prevMetni(P.prevEntry(c.stateAll, r, c.v, c.def.cycle, 'alper')) : null;
+    const alp = r.alper && M.isNum(r.alper.kg) ? `Alper: ${fmt(r.alper.kg)}×${fmt(r.alper.sets)}×${r.alper.reps ?? ''}` : (r.onerilen_alper !== null && r.onerilen_alper !== undefined ? `Alper ${fmt(r.onerilen_alper)} kg${prevA ? ` · geçen ${prevA}` : ''}` : null);
     return el(onclick ? 'button' : 'div', { class: cls, onclick },
       el('div', { class: 'h' }, el('div', { class: 'ex' }, r.egzersiz), el('div', { class: 'mod ' + (r.renk === 'yuksek' ? 'warn' : r.renk === 'dusuk' ? 'blue' : now ? 'acc' : '') }, durum)),
       el('div', { class: 'hedef tab' }, r.hedef?.replace(/^.*\n/, '') ?? ''),
@@ -205,13 +206,27 @@ export class App {
   /** Seans şeridi (çubuğun tepesi): tutamaç · geçen süre · dinlenme rozeti · Bitir. */
   seansBar(c) {
     const sure = el('span', { class: 'chip tab', id: 'sure' }, this.sureMetni(c.seans.started_at)); this.tickSure();
-    const grab = el('button', { class: 'grab', title: this.logCollapsed ? 'Aç' : 'Katla', onclick: () => { this.logCollapsed = !this.logCollapsed; this.applyCollapse(); } }, el('span', { class: 'gl' }), el('span', { class: 'gt' }, this.logCollapsed ? '▴  aç' : '▾  katla'));
+    const grab = el('button', { class: 'grab', title: this.logCollapsed ? 'Aç' : 'Katla', onclick: () => { if (this.dragMoved) { this.dragMoved = false; return; } this.logCollapsed = !this.logCollapsed; this.applyCollapse(); } }, el('span', { class: 'gl' }), el('span', { class: 'gt' }, this.logCollapsed ? '▴  aç' : '▾  katla'));
+    this.grabDrag(grab);
     return el('div', { class: 'sbar' }, grab, el('div', { class: 'srow' }, sure, this.kronoPill(), el('span', { style: 'flex:1' }), el('button', { class: 'pill acc', style: 'border-color:var(--acc-line)', onclick: () => this.fazSet('ozet') }, 'Bitir')));
+  }
+  /** Tutamaç parmağı izler: panel dirençle (rubber band) kayar, pill uzar; eşik (36 px) geçilirse katlanır/açılır, yoksa yaylanıp döner. */
+  grabDrag(grab) {
+    let y0 = null, dy = 0; const gl = grab.querySelector('.gl');
+    const panel = () => this.foot;
+    const move = e => { if (y0 === null) return; dy = e.clientY - y0; const dir = this.logCollapsed ? -1 : 1; const d = dy * dir; const eff = d > 0 ? Math.min(d, 120) * 0.55 : -Math.min(-d, 60) * 0.18;   // aynı yön: takip; ters yön: hafif direnç
+      panel().style.transform = `translateY(${eff * dir}px)`; gl.style.transform = `scaleX(${1 + Math.min(Math.abs(d), 120) / 160})`; if (Math.abs(d) > 8) this.dragMoved = true; };
+    const end = () => { if (y0 === null) return; const d = dy * (this.logCollapsed ? -1 : 1); y0 = null; panel().classList.remove('dragging'); grab.classList.remove('on'); gl.style.transform = '';
+      if (d > 36) { panel().style.transform = ''; this.logCollapsed = !this.logCollapsed; this.applyCollapse(); }
+      else { panel().style.transform = ''; }
+      document.removeEventListener('pointermove', move); document.removeEventListener('pointerup', end); document.removeEventListener('pointercancel', end); };
+    grab.addEventListener('pointerdown', e => { y0 = e.clientY; dy = 0; this.dragMoved = false; panel().classList.add('dragging'); grab.classList.add('on'); document.addEventListener('pointermove', move); document.addEventListener('pointerup', end); document.addEventListener('pointercancel', end); });
+    grab.style.touchAction = 'none';
   }
   applyCollapse() {
     const f = this.foot; const c = this.logCollapsed;
     f.querySelector('.body')?.classList.toggle('hidden', c); f.querySelector('.hh')?.classList.toggle('hidden', c);
-    f.querySelector('.oz')?.classList.toggle('hidden', !c); f.querySelector('.kmini')?.classList.toggle('hidden', !c);
+    f.querySelector('.oz')?.classList.toggle('hidden', !c); f.querySelector('.kmini')?.classList.toggle('hidden', !c); f.querySelector('.modeb')?.classList.toggle('hidden', c);
     const g = f.querySelector('.grab .gt'); if (g) g.textContent = c ? '▴  aç' : '▾  katla';
   }
   async logBar(c, r) {
@@ -220,8 +235,9 @@ export class App {
     d.mode ??= 'satir'; d.detail ??= [];
     const planKg = () => d.actor === 'alper' ? r.onerilen_alper : r.onerilen;
     const cur = () => d.actor === 'alper' ? r.alper : r.arda;
-    const prevE = P.prevEntry(c.stateAll, r, v, def.cycle);
-    const fill = () => { const q = cur(); d.kg = q?.kg ?? planKg() ?? (d.actor === 'arda' ? prevE?.kg ?? null : null); d.sets = q?.sets ?? r.set ?? null; d.reps = q?.reps ?? r.tekrar ?? null; d.rpe = q?.rpe ?? null; d.note = q?.note ?? null; };
+    const prevE = P.prevEntry(c.stateAll, r, v, def.cycle); const prevA = def.program === 'Alper' ? P.prevEntry(c.stateAll, r, v, def.cycle, 'alper') : null;
+    const prevOf = () => d.actor === 'alper' ? prevA : prevE;
+    const fill = () => { const q = cur(); d.kg = q?.kg ?? planKg() ?? prevOf()?.kg ?? null; d.sets = q?.sets ?? r.set ?? null; d.reps = q?.reps ?? r.tekrar ?? null; d.rpe = q?.rpe ?? null; d.note = q?.note ?? null; };
     if (d.kg === null && d.sets === null) fill();
     const saveDraft = () => S.setMeta(draftKey, d);
     const ozet = () => d.mode === 'set' ? (d.detail.length ? `${d.detail.length} set · ${P.detayMetni(d.detail.slice(-2))}` : 'set set · henüz set yok') : `${d.kg === null ? '—' : fmt(d.kg)}×${d.sets ?? '—'}×${d.reps ?? r.tekrar_metin ?? '—'}${d.rpe ? ` R${fmt(d.rpe)}` : ''}`;
@@ -280,7 +296,7 @@ export class App {
     };
     const paint = () => {
       kgIn.value = d.kg === null ? '' : fmt(d.kg);
-      const pk = planKg(); kgSub.textContent = (r.bw ? 'toplam yük · BW + ek' : (pk !== null && pk !== undefined ? `plan ${fmt(pk)}` : prevE ? `geçen ${fmt(prevE.kg)}` : 'plan yok')) + (r.barli && d.kg ? ` · ${P.plakaMetni(d.kg)?.replace('bir tarafa ', 'yan ') ?? ''}` : '') + ' · ✎ yaz';
+      const pk = planKg(); kgSub.textContent = (r.bw ? 'toplam yük · BW + ek' : (pk !== null && pk !== undefined ? `plan ${fmt(pk)}` : prevOf() ? `geçen ${fmt(prevOf().kg)}` : 'plan yok')) + (prevOf() && pk !== null && pk !== undefined ? ` · geçen ${fmt(prevOf().kg)}` : '') + (r.barli && d.kg ? ` · ${P.plakaMetni(d.kg)?.replace('bir tarafa ', 'yan ') ?? ''}` : '') + ' · ✎ yaz';
       segBtns.forEach(b => b.classList.toggle('sel', b.textContent.toLowerCase() === d.actor));
       setBtns.forEach((b, i) => b.classList.toggle('sel', d.sets === i + 1));
       repBtns.forEach((b, i) => b.classList.toggle('sel', d.reps === reps[i]));

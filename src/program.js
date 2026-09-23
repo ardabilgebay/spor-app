@@ -156,8 +156,8 @@ export function weekly(def, state, overrides = null) {
 }
 
 /** Önceki seans: aynı row_key (egzersiz|modifier) için bu seanstan ÖNCEKİ en son arda girişi (tüm cycle'lar). Mockup `e.prev`. */
-export function prevEntry(stateAll, r, sess, cycle) {
-  const cand = stateAll.filter(s => s.row_key === r.row_key && s.actor === 'arda' && !s.deleted && M.isNum(s.kg) && !s.skipped
+export function prevEntry(stateAll, r, sess, cycle, actor = 'arda') {
+  const cand = stateAll.filter(s => s.row_key === r.row_key && s.actor === actor && !s.deleted && M.isNum(s.kg) && !s.skipped
     && !(s.cycle === cycle && s.week === sess.week && s.day === sess.day));
   if (!cand.length) return null;
   cand.sort((a, b) => a.ts < b.ts ? 1 : -1);

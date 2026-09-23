@@ -215,3 +215,47 @@ button.sel{animation:selpop .16s ease}
 .flash{position:fixed;inset:0;pointer-events:none;z-index:50;animation:flash .42s ease-out}
 .flash.ok{background:rgba(111,207,151,.10)}.flash.alarm{background:rgba(240,122,122,.18)}
 @keyframes flash{from{opacity:1}to{opacity:0}}
+
+/* ══ A10 · CİLA TURU (23 Eyl, Arda saha notları) ══
+   1) Üst başlık üste yakın; 2) sekmeler ekranın altına yapışık, cam (blur) katman, içerik altından kayar;
+   3) log paneli zeminden farklı + cam; 4) SET/TKR/RPE/aksiyonlar kompakt; 5) log ile sekmeler arasında boşluk yok;
+   6) tutamaç parmağı izler (damla/uzama), eşik geçilince katlanır/açılır; 7) görünüm geçişleri yumuşak. */
+:root{--tabh:calc(50px + env(safe-area-inset-bottom));--glass:rgba(18,19,29,.74);--glass-hi:rgba(28,30,43,.86)}
+.hdr{padding-top:calc(6px + env(safe-area-inset-top))}
+@media (display-mode: standalone){.hdr{padding-top:max(calc(6px + env(safe-area-inset-top)),48px)}}
+/* sekmeler: mutlak, altta, cam */
+.tabs{position:absolute;left:0;right:0;bottom:0;z-index:20;padding:4px 6px max(env(safe-area-inset-bottom),6px);background:var(--glass);-webkit-backdrop-filter:blur(22px) saturate(160%);backdrop-filter:blur(22px) saturate(160%);box-shadow:0 -1px 0 rgba(255,255,255,.06)}
+.tabs button{min-height:40px;gap:1px;transition:color .18s ease,transform .18s cubic-bezier(.2,.8,.3,1.2)}
+.tabs button.sel{transform:translateY(-1px)}
+.tabs svg{width:21px;height:21px}
+main{padding-bottom:var(--tabh)}
+#app.has-foot main{padding-bottom:8px}
+#app.has-foot .foot,#app.has-foot .log{margin-bottom:var(--tabh)}
+/* log paneli: zeminden ayrık, cam, yumuşak üst köşe */
+.log{background:var(--glass-hi);-webkit-backdrop-filter:blur(20px) saturate(150%);backdrop-filter:blur(20px) saturate(150%);border-radius:var(--r-lg) var(--r-lg) 0 0;box-shadow:0 0 0 1px rgba(255,255,255,.07),0 -14px 32px rgba(0,0,0,.45);padding:0 14px 8px;will-change:transform;transition:transform .34s cubic-bezier(.2,.9,.25,1.15)}
+.log.dragging{transition:none}
+.sbar{gap:5px;padding-top:5px}
+.grab{min-height:30px;background:transparent;border-color:transparent;gap:8px}.grab .gl{width:40px;height:5px;transition:transform .2s cubic-bezier(.2,.9,.3,1.3),background-color .2s}.grab .gt{font-size:11.5px;color:var(--dim)}
+.grab:active{background:transparent}.grab:active .gl,.grab.on .gl{background:var(--acc)}
+/* kompakt giriş */
+.kgrow{margin-top:4px}.kgrow button{width:40px;height:40px;font-size:20px}.kgrow button.plk-ic{width:36px}.kgrow input{font-size:26px}
+.fld{margin-top:4px;gap:5px}.fld .lbl{width:34px;font-size:9px}
+.fld .opts{gap:5px}.fld .opts button{min-width:34px;min-height:34px;font-size:14px;border-radius:7px}
+.fld .opts.rpe button{min-width:32px;min-height:36px;font-size:12.5px}
+.fld input[type=text]{min-height:34px;font-size:13.5px}
+.acts{margin-top:6px;gap:5px}.acts .skip{min-height:40px;padding:0 10px;font-size:13px}.acts .pri,.acts .setk{min-height:40px;font-size:15px}
+.acts .note-ic{width:40px;min-height:40px;padding:0}
+.log .ttl{min-height:26px;margin-top:2px}.log .ttl .n{font-size:15px}
+/* görünüm geçişi */
+main.vin{animation:vin .22s cubic-bezier(.2,.8,.3,1)}
+@keyframes vin{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.card.mark.now{animation:nowin .4s cubic-bezier(.2,.9,.3,1.2)}
+@keyframes nowin{from{transform:scale(.985);box-shadow:0 0 0 0 var(--acc-tint)}to{transform:none;box-shadow:0 0 0 1px var(--acc-line)}}
+button{transition:transform .12s ease,background-color .16s ease,border-color .16s ease}
+button:active{transform:scale(.97)}
+.veil{z-index:40}.sheet{-webkit-backdrop-filter:blur(18px);backdrop-filter:blur(18px);background:rgba(28,30,43,.92)}
+/* App-G14: bilgi kırpma yok — hareket adı sarılır, "…" yok */
+.log .ttl{flex-wrap:wrap;row-gap:2px}.log .ttl .n{white-space:normal;overflow:visible;text-overflow:clip;flex:1 1 auto;line-height:1.2}.log .ttl .hh{flex:none;max-width:none}
+.pgrid .cell .m{white-space:normal;overflow:visible;text-overflow:clip;line-height:1.15}
+.kgrow .sub{white-space:normal;overflow:visible;text-overflow:clip;line-height:1.25}
+.log .ttl .oz,.log .ttl .kmini{flex:none}
