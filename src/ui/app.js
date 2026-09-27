@@ -317,11 +317,16 @@ export class App {
     const enYakin = () => { const c = track.scrollTop + track.clientHeight / 2; let b = 0, bd = Infinity; items.forEach((it, i) => { const x = Math.abs(mz(it) - c); if (x < bd) { bd = x; b = i; } }); return b; };
     const boya = () => { const c = track.scrollTop + track.clientHeight / 2; const A = adim(); for (const it of items) { const k = Math.max(-2.2, Math.min(2.2, (mz(it) - c) / A)); const a = Math.abs(k);
       it.style.transform = `perspective(520px) rotateX(${-k * aci}deg) scale(${1 - a * 0.07})`; it.style.opacity = String(Math.max(0.1, 1 - a * 0.45)); it.classList.toggle('on', a < 0.5); } };
-    let raf = 0, user = false; clearTimeout(this[tmr]);
-    for (const ev of ['touchstart', 'pointerdown', 'wheel']) track.addEventListener(ev, () => { user = true; }, { passive: true });
-    track.addEventListener('scroll', () => { if (!raf) raf = requestAnimationFrame(() => { raf = 0; boya(); }); clearTimeout(this[tmr]); if (user && track.isConnected) this[tmr] = setTimeout(() => { if (track.isConnected) sec(enYakin()); }, 130); }, { passive: true });
-    items.forEach((it, i) => it.addEventListener('click', () => { user = true; track.scrollTo({ top: mz(it) - track.clientHeight / 2, behavior: 'smooth' }); }));
-    this.sonra(() => { const it = items[Math.max(0, Math.min(items.length - 1, ilk))]; if (it) track.scrollTop = mz(it) - track.clientHeight / 2; boya(); });
+    // 29 Eyl (Arda: "set kaydedince hareket değişiyor"): seçim yalnız BU çarka son 2,5 sn içinde parmak/tekerlek değdiyse yapılır;
+    // programatik konumlamadan sonraki 400 ms'lik kaydırma olayları (iOS snap yeniden hizalaması) yok sayılır; seçilen kart zaten seçiliyse hiçbir şey olmaz.
+    let raf = 0, dokunus = 0, sessizBit = 0; clearTimeout(this[tmr]);
+    const dokundu = () => { dokunus = Date.now(); };
+    for (const ev of ['touchstart', 'touchmove', 'pointerdown', 'wheel']) track.addEventListener(ev, dokundu, { passive: true });
+    track.addEventListener('scroll', () => { if (!raf) raf = requestAnimationFrame(() => { raf = 0; boya(); }); clearTimeout(this[tmr]);
+      if (!dokunus || !track.isConnected || (Date.now() < sessizBit && dokunus < sessizBit - 400)) return;
+      this[tmr] = setTimeout(() => { if (track.isConnected && Date.now() - dokunus < 2500) sec(enYakin()); }, 130); }, { passive: true });
+    items.forEach(it => it.addEventListener('click', () => { dokundu(); track.scrollTo({ top: mz(it) - track.clientHeight / 2, behavior: 'smooth' }); }));
+    this.sonra(() => { const it = items[Math.max(0, Math.min(items.length - 1, ilk))]; sessizBit = Date.now() + 400; if (it) track.scrollTop = mz(it) - track.clientHeight / 2; boya(); });
   }
   /** T1 odak kartı: hareket, ekipman işareti (T5), plan, plaka, geçen, fren gerekçesi, Alper planı. */
   odakKart(c, r, { baslik = true } = {}) {
