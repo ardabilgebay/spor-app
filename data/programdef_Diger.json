@@ -940,7 +940,7 @@
    "row_key": "Weighted Chin-Up -> Negatif Chin-Up|",
    "rpe_freni": null,
    "set": 3,
-   "sistem_notu": "Kol · Biceps · varyant B — alternatifler icin dropdown",
+   "sistem_notu": "Kol · Biceps · varyant B (başlıktan)",
    "tekrar": 7,
    "tekrar_metin": null,
    "week": 1
@@ -961,7 +961,7 @@
    "row_key": "Spider Curl|",
    "rpe_freni": null,
    "set": 2,
-   "sistem_notu": "Kol · Biceps · varyant B — alternatifler icin dropdown",
+   "sistem_notu": "Kol · Biceps · varyant B (başlıktan)",
    "tekrar": 11,
    "tekrar_metin": null,
    "week": 1
@@ -982,7 +982,7 @@
    "row_key": "Incline Dumbbell Curl|",
    "rpe_freni": null,
    "set": 2,
-   "sistem_notu": "Kol · Biceps · varyant B — alternatifler icin dropdown",
+   "sistem_notu": "Kol · Biceps · varyant B (başlıktan)",
    "tekrar": 11,
    "tekrar_metin": null,
    "week": 1
@@ -1003,7 +1003,7 @@
    "row_key": "Standing Dumbbell Curl|",
    "rpe_freni": null,
    "set": 1,
-   "sistem_notu": "Kol · Biceps · varyant B — alternatifler icin dropdown",
+   "sistem_notu": "Kol · Biceps · varyant B (başlıktan)",
    "tekrar": null,
    "tekrar_metin": "Trap Set",
    "week": 1
@@ -1129,7 +1129,7 @@
    "row_key": "Single Heavy DB Incline Crusher|",
    "rpe_freni": null,
    "set": 3,
-   "sistem_notu": null,
+   "sistem_notu": "Kol · Triceps · varyant B (başlıktan)",
    "tekrar": 7,
    "tekrar_metin": null,
    "week": 1
@@ -1150,7 +1150,7 @@
    "row_key": "Dumbbell Triceps Kickback|",
    "rpe_freni": null,
    "set": 2,
-   "sistem_notu": null,
+   "sistem_notu": "Kol · Triceps · varyant B (başlıktan)",
    "tekrar": 11,
    "tekrar_metin": null,
    "week": 1
@@ -2970,7 +2970,7 @@
  },
  "source": {
   "file": "Diger_Gunler_Tracker.xlsx",
-  "sha256": "3c6235212a36ac59147e29c521d5732ef9e89fbff00de7c5e89230593da47291",
+  "sha256": "c8d4c71c4fead51d0d75dd0208a8778d84cf67d6089cdcf4220b39b338d45b7b",
   "sheet": "Program"
  }
 }

@@ -7,6 +7,8 @@ import { Sync } from './sync/sync.js';
 import defD from '../data/programdef_Deadlift.json';
 import defA from '../data/programdef_Alper.json';
 import defG from '../data/programdef_Diger.json';
+import DEGISIKLIK from '../data/degisiklikler.json';
+import { degisiklikUygula } from './program.js';
 
 const VERSION = __APP_VERSION__;
 const CFG = { clientId: import.meta.env.VITE_MSAL_CLIENT_ID ?? '', tenantId: import.meta.env.VITE_MSAL_TENANT_ID ?? '', redirectUri: new URL(import.meta.env.BASE_URL, location.origin).href };
@@ -15,8 +17,8 @@ async function boot() {
   // 1) kalıcı depolama (iOS best-effort silmeye karşı) — sonucu kaydet, UI uyarır
   if (navigator.storage?.persist) { try { const ok = await navigator.storage.persist(); await S.setMeta('persist_granted', ok); } catch { await S.setMeta('persist_granted', false); } }
   // 2) program tanımları (paketle gelen; sürüm hash'i farklıysa güncelle)
-  const defs = { Deadlift: defD, Alper: defA, Diger: defG };
-  for (const d of Object.values(defs)) { const cur = await S.getProgramDef(d.program, d.cycle); if (!cur || cur.source?.sha256 !== d.source?.sha256) await S.putProgramDef(d); }
+  const defs = Object.fromEntries([defD, defA, defG].map(d => [d.program, degisiklikUygula(d, DEGISIKLIK.degisiklikler)]));   // K2: taban + değişiklikler
+  for (const d of Object.values(defs)) await S.putProgramDef(d);
   // 3) ilk açılışta migrasyon olaylarını yükle (paketle gelir; idempotent)
   if (!(await S.getMeta('migrasyon_yuklendi'))) {
     try { const r = await fetch(new URL('events.ndjson', new URL(import.meta.env.BASE_URL, location.origin))).then(x => x.ok ? x.text() : ''); if (r) { const res = await S.importNdjson(r, { fromRemote: true }); await S.setMeta('migrasyon_yuklendi', res); } } catch {}

@@ -82,11 +82,13 @@ t('C1 telefon durumu: Deadlift aktif 9, Diğer 4 (Excel P3 ile aynı)', before.D
 const rr = await S.replaceMigration(mig);
 t(`C1 göç yenile: ${rr.dusurulen} eski göç düşürüldü, ${rr.written} yeni yazıldı, 0 bozuk`, rr.dusurulen === 238 && rr.written === N_MIG - 2 && rr.skipped === 2 && rr.bad === 0, JSON.stringify(rr));
 t('C1 hiçbir olay silinmedi (eski göç + yeni göç + app + 1 düşürme olayı)', (await S.db.events.count()) === nPh + (N_MIG - 2) + 1, await S.db.events.count());
-const supEv = (await S.db.events.where('type').equals('migration.superseded').toArray())[0]; t('C1 düşürme olayı keep_ids = yeni göç (248 göç cihazlı; 2 pano stres hariç) taşır', supEv?.data.keep_ids?.length === 248 && supEv.data.dropped_count === 238, JSON.stringify(supEv?.data && { k: supEv.data.keep_count, d: supEv.data.dropped_count }));
+const supEv = (await S.db.events.where('type').equals('migration.superseded').toArray())[0]; t('C1 düşürme olayı keep_ids = yeni göç (248 göç cihazlı; 2 pano stres hariç) taşır', supEv?.data.keep_ids?.length === mig.trim().split('\n').filter(l => JSON.parse(l).device === 'migration').length && supEv.data.dropped_count === 238, JSON.stringify(supEv?.data && { k: supEv.data.keep_count, d: supEv.data.dropped_count }));
 t('C1 app olaylarının hepsi duruyor', (await S.db.events.bulkGet(appIds)).every(Boolean));
 const after = await snapshot();
-t('C1 yenileme sonrası Deadlift aktif 9, Diğer 4 (değişmedi)', after.Deadlift.idx === 9 && after.Diger.idx === 4, JSON.stringify([after.Deadlift.idx, after.Diger.idx]));
-for (const p of Object.keys(defs)) t(`C1 ${p} durum sayısı çiftlenmedi (${before[p].n} → ${after[p].n})`, after[p].n <= before[p].n + 4, `${before[p].n} → ${after[p].n}`);
+t('C1 yenileme sonrası Deadlift aktif 10 (Excel 28 Eyl H3 Cuma işlendi), Diğer 4', after.Deadlift.idx === 10 && after.Diger.idx === 4, JSON.stringify([after.Deadlift.idx, after.Diger.idx]));
+{ const oldMigIds = new Set(ph.trim().split('\n').map(l => JSON.parse(l)).filter(e => e.device === 'migration').map(e => e.id)); const sts = await S.db.set_state.toArray();
+  t('C1 hiçbir durum düşürülmüş eski göç olayından gelmiyor (çiftleme yok)', !sts.some(x => oldMigIds.has(x.event_id)), sts.filter(x => oldMigIds.has(x.event_id)).length);
+  const keys = sts.map(x => x.key); t('C1 durum anahtarları tekil', new Set(keys).size === keys.length); }
 const htA = (await S.stateFor('Deadlift', 'W2')).find(s => s.week === 3 && s.day === 'Car' && s.row_key === 'Hip Thrust|Agir');
 t('C1 Hip Thrust H3 Çar: 200 kg, kazanan app kaydı', htA?.kg === 200 && appIds.includes(htA.event_id), JSON.stringify(htA));
 // ikinci kez yenile → düşürülecek eski göç yok (yeni göç düşürülmez çünkü aynı dosya → 0 yeni; düşürülen = yeni göçün 250'si, içerik yeniden yüklenir)
@@ -104,6 +106,24 @@ t('C1 bozuk dosya reddedilir, durum aynı', !!bad1.hata && !!bad2.hata && same(a
 // dışa aktar → temiz cihaz → aynı (düşürme olayı yedekte taşınır)
 const dump = await S.exportNdjson(); await S.db.events.clear(); await S.db.set_state.clear(); await S.db.sync_state.clear(); await S.rebuildState();
 await S.importNdjson(dump); t('C1 yedek → temiz cihaz: düşürme dahil birebir', same(await snapshot(), after));
+
+// ── C5 CUTOVER 28 EYL: telefon 27 Eyl dışa aktarımı + cutover dosyası (göç 28 Eyl Excel + 7 düzeltme olayı) ──
+await S.db.events.clear(); await S.db.set_state.clear(); await S.db.sync_state.clear(); await S.db.meta.clear(); await S.rebuildState();
+const ph27 = readFileSync(new URL('../../faz1/fixtures/telefon_20260927.ndjson', import.meta.url), 'utf8'); await S.importNdjson(ph27);
+const appIds27 = ph27.trim().split('\n').map(l => JSON.parse(l)).filter(e => e.device !== 'migration').map(e => e.id);
+const cut = readFileSync(new URL('../../faz1/migrasyon/out/cutover_20260928.ndjson', import.meta.url), 'utf8');
+const rc = await S.replaceMigration(cut); t(`C5 cutover dosyası: ${rc.dusurulen} eski göç düşürüldü, 0 bozuk`, !rc.hata && rc.bad === 0 && rc.dusurulen > 0, JSON.stringify(rc));
+t('C5 app olaylarının hepsi duruyor', (await S.db.events.bulkGet(appIds27)).every(Boolean));
+const stG5 = await S.stateFor('Diger', 'C2'); const g = rk => stG5.find(s => s.week === 1 && s.day === 'Cum' && s.row_key === rk && s.actor === 'arda');
+t('C5 Diğer H1 Cuma Crusher = Excel 40×2×11, Kickback = 20×2×11', g('Single Heavy DB Incline Crusher|')?.kg === 40 && g('Dumbbell Triceps Kickback|')?.kg === 20, JSON.stringify([g('Single Heavy DB Incline Crusher|')?.kg, g('Dumbbell Triceps Kickback|')?.kg]));
+t('C5 eski omuz slotları silindi (yetim kayıt yok)', g('Machine Shoulder Press|')?.deleted === true && g('Dumbbell Lateral Raise|')?.deleted === true);
+t('C5 Diğer H1 Cuma OHP (app) korunur: double 60 R9, triple 50 R7.5', g('Standing Barbell OHP|Top Double')?.kg === 60 && g('Standing Barbell OHP|Top Triple')?.rpe === 7.5, JSON.stringify([g('Standing Barbell OHP|Top Double'), g('Standing Barbell OHP|Top Triple')?.rpe]));
+const finD = await S.finishedSessions('Deadlift', 'W2'); t('C5 Deadlift W2 H4 Pzt artık "bitmiş" değil', !finD.has('4|Pzt'), [...finD].join(','));
+const ddf = defs.Deadlift; const idxD = P.activeSessionIdx(ddf, await S.stateFor('Deadlift', 'W2'), null, finD, new Date(2026, 8, 28, 12));
+t('C5 Deadlift aktif seans H4 Pzt (S10)', idxD === 10, idxD);
+const stresG = await S.stressFor('Diger', 'C2'), stresD = await S.stressFor('Deadlift', 'W2');
+t('C5 ileri tarihli stres temizlendi (Diğer H2, Deadlift H4); H1 stresleri duruyor', !stresG.has(2) && !stresD.has(4) && stresG.get(1) === 1, JSON.stringify([[...stresG], [...stresD]]));
+const st5A = await S.stateFor('Alper', 'C2'); t('C5 Alper H1 Pzt yarım seans korunur (Bench TS 107.5, Fly var, omuz yok)', st5A.find(s => s.week === 1 && s.day === 'Pzt' && s.row_key === 'Bench Press|Top Single' && s.actor === 'arda')?.kg === 107.5 && !!st5A.find(s => s.week === 1 && s.day === 'Pzt' && s.row_key === 'Single Cable Fly|' && !s.deleted));
 
 console.log(`\n  ${ok}/${ok + fail} geçti — ${fail ? 'KABUL TESTİ BASARISIZ' : 'KABUL TESTİ GECTI'} (taban ≥ 20 kontrol: ${ok + fail >= 20 ? 'ok' : 'TABAN ALTI'})`);
 process.exit(fail || ok + fail < 20 ? 1 : 0);

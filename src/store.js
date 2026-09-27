@@ -227,7 +227,7 @@ export async function appSessions(program, cycle) {
 }
 export async function stressFor(program, cycle) {
   const evs = await db.events.where('type').equals('stress.logged').filter(e => e.data.program === program && e.data.cycle === cycle).sortBy('ts');
-  const m = new Map(); for (const e of evs) { if (await isSuperseded(e)) continue; m.set(e.data.week, e.data.value); } return m;   // kırmızı takım #2: düşürülmüş göç stresi sayılmaz
+  const m = new Map(); for (const e of evs) { if (await isSuperseded(e)) continue; if (e.data.value === null || e.data.value === undefined) m.delete(e.data.week); else m.set(e.data.week, e.data.value); } return m;   // cutover 28 Eyl: value null = stres kaydını temizle (olay silinmez)   // kırmızı takım #2: düşürülmüş göç stresi sayılmaz
 }
 export async function putProgramDef(def) { await db.program_defs.put({ key: `${def.program}|${def.cycle}`, program: def.program, cycle: def.cycle, def }); }
 export async function getProgramDef(program, cycle) { return (await db.program_defs.get(`${program}|${cycle}`))?.def ?? null; }

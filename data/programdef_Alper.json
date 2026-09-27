@@ -874,7 +874,7 @@
    "row_key": "Bench Press|Backoff",
    "rpe_freni": null,
    "set": 2,
-   "sistem_notu": "RPE8 hedefine kadar set ekle, max 4 set",
+   "sistem_notu": null,
    "tekrar": 6,
    "tekrar_metin": null,
    "week": 1
@@ -895,7 +895,7 @@
    "row_key": "Single Cable Fly|",
    "rpe_freni": null,
    "set": 3,
-   "sistem_notu": "Fly slotu · Setup'tan veya buradan degistir",
+   "sistem_notu": null,
    "tekrar": 11,
    "tekrar_metin": null,
    "week": 1
@@ -1063,7 +1063,7 @@
    "row_key": "Cable Row|",
    "rpe_freni": null,
    "set": 3,
-   "sistem_notu": "Aksesuar slotu · Setup'tan veya buradan degistir",
+   "sistem_notu": null,
    "tekrar": 11,
    "tekrar_metin": null,
    "week": 1
@@ -1083,7 +1083,7 @@
    "row": 19,
    "row_key": "High Pull|",
    "rpe_freni": null,
-   "set": "2",
+   "set": 2,
    "sistem_notu": "Aksesuar slotu · Setup'tan veya buradan degistir",
    "tekrar": 11,
    "tekrar_metin": null,
@@ -1461,7 +1461,7 @@
    "row": 46,
    "row_key": "High Pull|",
    "rpe_freni": null,
-   "set": "2",
+   "set": 2,
    "sistem_notu": "Aksesuar slotu · Setup'tan veya buradan degistir",
    "tekrar": 11,
    "tekrar_metin": null,
@@ -1818,7 +1818,7 @@
    "row": 73,
    "row_key": "High Pull|",
    "rpe_freni": null,
-   "set": "2",
+   "set": 2,
    "sistem_notu": "Aksesuar slotu · Setup'tan veya buradan degistir",
    "tekrar": 11,
    "tekrar_metin": null,
@@ -2196,7 +2196,7 @@
    "row": 100,
    "row_key": "High Pull|",
    "rpe_freni": null,
-   "set": "2",
+   "set": 2,
    "sistem_notu": "Aksesuar slotu · Setup'tan veya buradan degistir",
    "tekrar": 11,
    "tekrar_metin": null,
@@ -2553,7 +2553,7 @@
    "row": 129,
    "row_key": "High Pull|",
    "rpe_freni": null,
-   "set": "2",
+   "set": 2,
    "sistem_notu": "Aksesuar slotu · Setup'tan veya buradan degistir",
    "tekrar": 11,
    "tekrar_metin": null,
@@ -3063,7 +3063,7 @@
  },
  "source": {
   "file": "Alper_Gunleri_Tracker.xlsx",
-  "sha256": "67c7e1895a605d118c7c9b190540cdf277b2f9471097dc53d741c10bda01b2bc",
+  "sha256": "b895b09c20d431b1c9f93b4c4bac53d812fbb5261a8f9be0a13921c0fdc90e92",
   "sheet": "Program"
  }
 }

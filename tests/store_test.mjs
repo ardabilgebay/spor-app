@@ -33,7 +33,7 @@ const w1 = await S.setsFor('Deadlift', 'W1', 2, 'Pzt'); t('W1 H2 Pzt setleri gel
 const out = await S.exportNdjson(); t('export satır sayısı = olay sayısı', out.trim().split('\n').length === N_MIG + 5, out.trim().split('\n').length);
 // rebuild
 const n = await S.rebuildState(); const st2 = (await S.setsFor('Diger', 'C2', 1, 'Sal')).find(s => s.row_key === 'Squat|Top Single');
-t('rebuild sonrası aynı LWW', st2.kg === 122.5 && st2.count === 2);
+t('rebuild sonrası aynı LWW (28 Eyl: göçte bu satırın Excel kaydı da var → count 3)', st2.kg === 122.5 && st2.count === 3, JSON.stringify([st2.kg, st2.count]));
 // sync durumu
 const pend = await S.pendingEvents(); t('bekleyen = yerel olaylar (migrasyon dahil, uzak değil)', pend.length === N_MIG + 5, pend.length);
 await S.markUploaded(pend.map(e => e.id)); t('işaretlendi → bekleyen 0', (await S.pendingEvents()).length === 0);

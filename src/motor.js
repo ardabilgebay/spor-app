@@ -88,8 +88,10 @@ export function beklenenMax(metod, onerilen, set, tekrar, repeatMaxSets = 4, max
   return beklenenHacim(onerilen, set, tekrar);
 }
 /** K8 — Gerçek hacim: üçü de dolu olmalı (OR(...="")); metin tekrar → null (port kararı, spec K8 BELİRSİZ notu). */
+/** Excel aritmetik zorlaması: "2" gibi sayı metni çarpmada sayıya döner (ISNUMBER("2") ise YANLIŞ kalır). 28 Eyl: Alper High Pull set "2" metin. */
+const xn = v => (typeof v === 'string' && /^\s*-?\d+(\.\d+)?\s*$/.test(v) ? Number(v) : v);
 export function gercekHacim(kg, set, tekrar) {
-  kg = nz(kg); set = nz(set); tekrar = nz(tekrar);
+  kg = xn(nz(kg)); set = xn(nz(set)); tekrar = xn(nz(tekrar));
   if (kg === null || set === null || tekrar === null) return null;
   if (!isNum(kg) || !isNum(set) || !isNum(tekrar)) return null;
   return mul3(kg, set, tekrar);
@@ -102,7 +104,7 @@ export function gercekHacimDetay(detail) {
 }
 /** K9 — Alper hacim: Q × (Y||N) × (Z||O). */
 export function alperHacim(q, y, z, n, o) {
-  q = nz(q); y = nz(y); z = nz(z); n = nz(n); o = nz(o);
+  q = xn(nz(q)); y = xn(nz(y)); z = xn(nz(z)); n = xn(nz(n)); o = xn(nz(o));
   if (q === null) return null;
   const s = y ?? n, t = z ?? o;
   if (s === null || t === null || !isNum(q) || !isNum(s) || !isNum(t)) return null;

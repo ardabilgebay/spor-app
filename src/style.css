@@ -383,3 +383,9 @@ main.vin{animation:vin .28s var(--ease-out)}
 .deck .sc.d1{transform:scale(.95);opacity:.72}.deck .sc.d2{transform:scale(.9);opacity:.46}.deck .sc.d3{transform:scale(.85);opacity:.28}
 .deck .sc.done.on{transform:scale(1.01);opacity:1}
 .deck .sc.done{box-shadow:inset 0 1px 0 rgba(255,255,255,.12),0 10px 22px rgba(0,0,0,.45)}
+
+/* nabız paneli dinlenmede hep görünür (kompakt); pil büyüyünce açıklama da görünür */
+.sbar .kpanel{grid-template-columns:1fr 1fr 1.1fr;padding:6px 8px;gap:6px;animation:none}
+.sbar .kpanel .hazir{grid-column:auto;min-height:34px;font-size:13px}
+.sbar .kpanel .kalt{display:none}.sbar .kpanel.big .kalt{display:block}
+.kpanel .hr{flex-direction:column;align-items:stretch;gap:2px;font-size:10px}.kpanel .hr input{min-height:30px;font-size:15px}

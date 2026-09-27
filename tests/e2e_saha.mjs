@@ -4,6 +4,8 @@ import { chromium } from 'playwright';
 const URL = 'http://localhost:4173/spor-app/';
 const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });
 const ctx = await b.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, locale: 'tr-TR' });
+// E2E sabit veriyle koşar (21 Eyl göçü, 240 olay) — yayındaki public/events.ndjson güncellense de senaryo değişmez
+{ const { readFileSync } = await import('node:fs'); const fx = readFileSync(new globalThis.URL('./fixtures/e2e_events.ndjson', import.meta.url), 'utf8'); await ctx.route('**/events.ndjson', r => r.fulfill({ status: 200, contentType: 'application/x-ndjson', body: fx })); }
 const p = await ctx.newPage(); p.on('dialog', d => d.accept()); const logs = []; p.on('console', m => logs.push(m.type() + ': ' + m.text())); p.on('pageerror', e => logs.push('PAGEERROR ' + e.message));
 let ok = 0, fail = 0; const t = (n, c, d = '') => { c ? ok++ : (fail++, console.log('  ✗', n, d)); };
 const tab = name => p.locator('.tabs button', { hasText: name }).click();

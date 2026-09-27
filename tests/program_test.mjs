@@ -9,8 +9,8 @@ await S.importNdjson(readFileSync(new URL('../../faz1/migrasyon/out/events.ndjso
 const dd = load('Deadlift'); const stD = await S.stateFor('Deadlift', 'W2');
 t('Deadlift seans sayısı 18', P.sessions(dd).length === 18, P.sessions(dd).length);
 const t21 = new Date(2026, 8, 21, 12), t22 = new Date(2026, 8, 22, 6);   // pano girişleri 21 Eyl sabahı (S7) — sabit tarihle deterministik
-t('Deadlift aktif seans = 9 (Excel P3, 23 Eyl)', P.activeSessionIdx(dd, stD, null, new Set(), t22) === 9, P.activeSessionIdx(dd, stD, null, new Set(), t22));
-t('A1: 21 Eyl\'de de 9 (S8 Excel\'den, ts_kind=estimated → işaretçiyi tutmaz; S7 dolu ve geçmiş)', P.activeSessionIdx(dd, stD, null, new Set(), t21) === 9, P.activeSessionIdx(dd, stD, null, new Set(), t21));
+t('Deadlift aktif seans = 10 (Excel P3, 28 Eyl: H3 Cuma işlendi)', P.activeSessionIdx(dd, stD, null, new Set(), t22) === 10, P.activeSessionIdx(dd, stD, null, new Set(), t22));
+t('A1: 21 Eyl\'de de 9 (S8 Excel\'den, ts_kind=estimated → işaretçiyi tutmaz; S7 dolu ve geçmiş)', P.activeSessionIdx(dd, stD, null, new Set(), t21) === 10, P.activeSessionIdx(dd, stD, null, new Set(), t21));
 const v7 = P.sessionView(dd, stD, 7);
 t('S7 = H3 Pzt, 5 satır, 5 tamam', v7.week === 3 && v7.day === 'Pzt' && v7.rows.length === 5 && v7.tamamlanan === 5, JSON.stringify([v7.week, v7.day, v7.rows.length, v7.tamamlanan]));
 t('S7 Chin-up kg 95 (bw toplam)', v7.rows.find(r => r.egzersiz === 'Chin-up').arda.kg === 95);
@@ -22,7 +22,7 @@ t('S8 HEDEF metni', v8.rows[0].hedef === 'Agir\n4×5 · RPE8', JSON.stringify(v8
 // Weekly Deadlift W2 vs Excel: H1 min 3592.5 max 5032.5 gercek 4312.5, uyum "120% • BANT ICI", H3 "87% • kismi (2/3 gun)" (S7+S8 dolu)
 const w = P.weekly(dd, stD);
 t('W2 H1 weekly birebir', w[0].min === 3592.5 && w[0].max === 5032.5 && w[0].gercek === 4312.5 && w[0].uyum === '120% • BANT ICI' && w[0].sinyal === '🟢 PLANDA', JSON.stringify(w[0]));
-t('W2 H3 weekly kısmi', w[2].uyum === '87% • kismi (2/3 gun)', w[2].uyum);
+t('W2 H3 weekly kısmi', w[2].uyum === '100% • BANT ICI', w[2].uyum);
 // Diger C2: 22 Eyl H1 Cum (S3) Excel'de loglu → aktif seans 4 (H2 Sal)
 const dg = load('Diger'); const stG = await S.stateFor('Diger', 'C2');
 t('Diger aktif seans 4', P.activeSessionIdx(dg, stG) === 4, P.activeSessionIdx(dg, stG));
@@ -63,6 +63,15 @@ t('P5 Diğer Sal: Clean 40 → Squat 120, boş bar yok, basamaklar >40', rS1?.eg
 t('P5 Diğer Per: Snatch 40 → Front Squat 65: 50 · 57.5', rS2?.egz === 'Front Squat' && JSON.stringify(rS2.basamak) === '[50,57.5]', JSON.stringify(rS2));
 const ddS = P.sessions(dd).find(s => s.week === 4 && s.day === 'Car'); const rHT = P.sessionView(dd, stD, ddS.idx).rampa;
 t('Hip Thrust Ağır rampası: geçen 200 → 80 · 120 · 150 · 175 · 200 (boş bar ile)', rHT?.egz === 'Hip Thrust' && rHT.kg === 200 && rHT.kaynak === 'agir' && rHT.bosBar && JSON.stringify(rHT.basamak) === '[80,120,150,175]', JSON.stringify(rHT));
+// K2 değişiklik katmanı (27 Eyl P2/P4)
+const DG = JSON.parse(readFileSync(new URL('../data/degisiklikler.json', import.meta.url), 'utf8')).degisiklikler;
+const ddK = P.degisiklikUygula(dd, DG), dgK = P.degisiklikUygula(dg, DG), daK = P.degisiklikUygula(da, DG);
+const cum = (d, w) => d.rows.filter(r => r.week === w && r.day === 'Cum').map(r => r.row_key);
+t('P4 Deadlift H4/H5 Cuma: Pull-up/Face Pull yok; H3 geçmişi duruyor', !cum(ddK, 4).some(k => /Pull-up|Face Pull/.test(k)) && !cum(ddK, 5).some(k => /Face Pull/.test(k)) && cum(ddK, 3).includes('Pull-up|Light'), JSON.stringify([cum(ddK, 4), cum(ddK, 5)]));
+t('P4 Diğer H2–H5 Cuma sonunda Face Pull 2×15; H1 yok', [2, 3, 4, 5].every(w => cum(dgK, w).at(-1) === 'Face Pull|Light') && !cum(dgK, 1).includes('Face Pull|Light') && dgK.rows.find(r => r.week === 2 && r.row_key === 'Face Pull|Light')?.tekrar === 15);
+t('P2 hedef RPE: Diğer/Alper Top Single 9, Top Triple 8; Deadlift değişmedi', dgK.rows.filter(r => r.modifier === 'Top Single').every(r => r.hedef_rpe === 9) && daK.rows.filter(r => r.modifier === 'Top Triple').every(r => r.hedef_rpe === 8) && ddK.rows.every(r => r.hedef_rpe === (dd.rows.find(b => b.row === r.row)?.hedef_rpe ?? null)));
+t('K2 taban değişmedi (saf fonksiyon), seans sayıları aynı', dd.rows.length === 64 && P.sessions(ddK).length === P.sessions(dd).length && P.sessions(dgK).length === P.sessions(dg).length, [dd.rows.length, P.sessions(ddK).length]);
+t('K2 idempotent (iki kez uygula = bir kez)', JSON.stringify(P.degisiklikUygula(dgK, DG).rows) === JSON.stringify(dgK.rows));
 t('A1: kilit 6 kazanır', P.activeSessionIdx(dg, stG2, 6) === 6);
 // K22 / BUGÜN!I36 — kol varyant override (Diğer H1 Per: Biceps takvim B → A)
 const per1 = P.sessions(dg).find(s => s.week === 1 && s.day === 'Per');

@@ -445,7 +445,7 @@ export class App {
     const k = this.krono; if (!k) return null; const kalan = this.kronoKalan();
     // Dynamic Island deseni: pil dokununca yaylanarak büyür (büyük sayaç + hareket adı + Geç), tekrar dokununca küçülür; süre bitince nabız verir ve kendiliğinden küçülür.
     const pill = el('button', { id: 'kpill', class: 'kpill' + (kalan < 0 ? ' over' : '') + (this.kronoBig ? ' big' : ''), title: this.kronoBig ? 'Küçült' : 'Büyüt',
-        onclick: () => { this.kronoBig = !this.kronoBig; pill.classList.toggle('big', this.kronoBig); pill.title = this.kronoBig ? 'Küçült' : 'Büyüt'; pill.querySelector('.kx').textContent = this.kronoBig ? 'Geç' : '×'; this.foot.querySelector('#kpanel')?.classList.toggle('hidden', !this.kronoBig); } },
+        onclick: () => { this.kronoBig = !this.kronoBig; pill.classList.toggle('big', this.kronoBig); pill.title = this.kronoBig ? 'Küçült' : 'Büyüt'; pill.querySelector('.kx').textContent = this.kronoBig ? 'Geç' : '×'; this.foot.querySelector('#kpanel')?.classList.toggle('big', this.kronoBig); } },
       el('span', { class: 'ring', style: `--pct:${kalan >= 0 ? Math.round((1 - kalan / k.sn) * 100) : 100}%` }),
       el('span', { class: 'kbody' }, el('span', { class: 'kt tab' }, this.kronoMetin(kalan)), el('span', { class: 'kad' }, `${k.ad ?? 'dinlenme'} · plan ${this.kronoMetin(k.sn)}`)),
       el('span', { class: 'kx', title: 'Dinlenmeyi geç', onclick: e => { e.stopPropagation(); this.krono = null; this.kronoBig = false; clearInterval(this.kronoIv); this.render(); } }, this.kronoBig ? 'Geç' : '×'));
@@ -458,7 +458,8 @@ export class App {
     const gecen = () => Math.round((Date.now() - k.start) / 1000);
     const hz = el('button', { class: 'hazir' + (M.isNum(k.hazirS) ? ' on' : ''), id: 'khazir', disabled: !M.isNum(k.hazirS) && gecen() < k.altSn, onclick: () => { if (gecen() < k.altSn) return; k.hazirS = gecen(); hz.classList.add('on'); hz.textContent = `Hazır ✓ ${this.kronoMetin(k.hazirS)}`; this.geriBildirim(); } },
       M.isNum(k.hazirS) ? `Hazır ✓ ${this.kronoMetin(k.hazirS)}` : 'Hazırım');
-    return el('div', { class: 'kpanel' + (this.kronoBig ? '' : ' hidden'), id: 'kpanel' }, hr('♥ set sonrası', 'hrSonra'), hr('♥ şimdi', 'hrOnce'), hz,
+    // Arda 28 Eyl: nabız alanı görünmüyordu → dinlenme sürerken hep açık
+    return el('div', { class: 'kpanel' + (this.kronoBig ? ' big' : ''), id: 'kpanel' }, hr('♥ set sonrası', 'hrSonra'), hr('♥ şimdi', 'hrOnce'), hz,
       el('div', { class: 'kalt xs dim2' }, k.altSn ? 'Nabız <100 (ideal 90–95) + zihin taze → Hazırım · alt sınır 3:00' : 'Nabız ve zihin tazeyse → Hazırım'));
   }
   /** Dinlenme uyumu: rest_s/rest_plan_s olan girişler → {n, ort_oran, uyumlu, erken, gec} (±15% bant). */

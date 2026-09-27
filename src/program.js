@@ -217,3 +217,31 @@ export function oncesiDinlenmeSn(r) { return DINLENME_SN[dinlenmeKategori(r)]; }
 export function dinlenmeSn(rows, r) { const n = sonrakiSatir(rows, r); return n ? oncesiDinlenmeSn(n) : null; }
 /** Kartta gösterilecek kısa dinlenme metni: Excel metninin ilk parçası (• / >> sonrası not). */
 export function dinlenmeKisa(t) { return t ? String(t).split(/\s*(?:•|>>)\s*/)[0].trim() : null; }
+
+/** K2 (cutover sonrası): taban programdef (Excel son hâli) + `data/degisiklikler.json` → çalışma programı. Saf; tabanı değiştirmez.
+ *  islem: satir_sil {day, week_min, week_max, row_key_in} · satir_ekle {day, week_min, week_max} + satir (günün sonuna) · alan_doldur {modifier_in, bos_alan} + degerler{modifier: değer}. */
+export function degisiklikUygula(def, liste) {
+  const out = { ...def, rows: def.rows.map(r => ({ ...r })), degisiklik: [] };
+  const hafta = (f, w) => (f.week_min == null || w >= f.week_min) && (f.week_max == null || w <= f.week_max);
+  for (const d of liste ?? []) {
+    if (d.program !== '*' && d.program !== def.program) continue;
+    const f = d.filtre ?? {}; let n = 0;
+    if (d.islem === 'satir_sil') { const once = out.rows.length; out.rows = out.rows.filter(r => !(r.day === f.day && hafta(f, r.week) && (f.row_key_in ?? []).includes(r.row_key))); n = once - out.rows.length; }
+    else if (d.islem === 'satir_ekle') {
+      const weeks = [...new Set(out.rows.filter(r => r.day === f.day && hafta(f, r.week)).map(r => r.week))];
+      for (const w of weeks) {
+        const s = d.satir; const row_key = `${s.egzersiz}|${s.modifier ?? ''}`;
+        if (out.rows.some(r => r.week === w && r.day === f.day && r.row_key === row_key)) continue;   // idempotent
+        const son = out.rows.map((r, i) => [r, i]).filter(([r]) => r.week === w && r.day === f.day).pop()[1];
+        out.rows.splice(son + 1, 0, { row: 90000 + w * 10 + (f.day === 'Cum' ? 5 : 0), week: w, day: f.day, row_key, egzersiz: s.egzersiz, modifier: s.modifier ?? null, pct_1rm: null, onerilen: null, onerilen_alper: null,
+          set: s.set ?? null, tekrar: s.tekrar ?? null, tekrar_metin: null, hedef_rpe: s.hedef_rpe ?? null, metod: null, dinlenme: s.dinlenme ?? null, is_percentage_based: false, bw: false, sistem_notu: s.sistem_notu ?? null, rpe_freni: null, degisiklik: d.id });
+        n++;
+      }
+    } else if (d.islem === 'alan_doldur') {
+      for (const r of out.rows) if ((f.modifier_in ?? []).includes(r.modifier) && (r[f.bos_alan] === null || r[f.bos_alan] === undefined) && d.degerler?.[r.modifier] != null) { r[f.bos_alan] = d.degerler[r.modifier]; n++; }
+    }
+    out.degisiklik.push({ id: d.id, n });
+  }
+  return out;
+}
+

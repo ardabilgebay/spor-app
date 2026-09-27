@@ -1,0 +1,13 @@
+{
+  "aciklama": "K2 (cutover sonrası program değişikliği yolu): Excel donduruldu (28 Eyl). Taban programdef_*.json = Excel'in son hâli (golden/oracle ile doğrulanır); bu dosyadaki değişiklikler çalışma anında üstüne uygulanır. Her kayıt: id, tarih, kaynak (Arda kararı), islem, filtre. Sıra önemlidir.",
+  "degisiklikler": [
+    { "id": "P4-DL-CUMA", "tarih": "2026-09-27", "kaynak": "Arda 27 Eyl: Deadlift Cuma yalnız Sumo Double; Pull-up ve Face Pull çıkar (hemen, H4 Cuma 2 Eki)", "program": "Deadlift", "islem": "satir_sil",
+      "filtre": { "day": "Cum", "week_min": 4, "week_max": 5, "row_key_in": ["Pull-up|Light", "Face Pull|Light"] } },
+    { "id": "P4-DG-CUMA-FP", "tarih": "2026-09-27", "kaynak": "Arda 27 Eyl: Diğer Cuma sonuna Face Pull 2×15 (Deadlift Cuma'dan taşındı)", "program": "Diger", "islem": "satir_ekle",
+      "filtre": { "day": "Cum", "week_min": 2, "week_max": 5 },
+      "satir": { "egzersiz": "Face Pull", "modifier": "Light", "set": 2, "tekrar": 15, "dinlenme": "60-90 sn", "sistem_notu": "P4 (27 Eyl): Deadlift Cuma'dan taşındı · 15 kg'da kal, tekrar büyüt; RPE 8'i geçme" } },
+    { "id": "P2-HEDEF-RPE", "tarih": "2026-09-27", "kaynak": "Arda 27 Eyl: Top Single hedef RPE 9, Top Triple hedef RPE 8 (yalnız boş olanlar)", "program": "*", "islem": "alan_doldur",
+      "filtre": { "modifier_in": ["Top Single", "Top Triple"], "bos_alan": "hedef_rpe" },
+      "degerler": { "Top Single": 9, "Top Triple": 8 } }
+  ]
+}
