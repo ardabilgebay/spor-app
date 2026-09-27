@@ -389,3 +389,98 @@ main.vin{animation:vin .28s var(--ease-out)}
 .sbar .kpanel .hazir{grid-column:auto;min-height:34px;font-size:13px}
 .sbar .kpanel .kalt{display:none}.sbar .kpanel.big .kalt{display:block}
 .kpanel .hr{flex-direction:column;align-items:stretch;gap:2px;font-size:10px}.kpanel .hr input{min-height:30px;font-size:15px}
+
+/* ══ A18 · KOMPLE MAKYAJ (28 Eyl, Arda: "eski gözüken yer kalmasın") — tek dil: cam yüzey, yay, derinlik ══ */
+:root{--surf-g:linear-gradient(180deg,rgba(255,255,255,.075),rgba(255,255,255,.025));--edge:inset 0 1px 0 rgba(255,255,255,.13),inset 0 -1px 0 rgba(0,0,0,.25);--lift:0 10px 26px rgba(0,0,0,.34);--r2:14px;--r3:18px}
+/* yüzeyler */
+.card,.sig,.list,.krobox,.pgrid .cell,.pgrid .wl,.isirow,.banner,.seg,.pills .p,.plates .p,.strip button,.kpill,.chip{background:var(--surf-g);-webkit-backdrop-filter:blur(16px) saturate(150%);backdrop-filter:blur(16px) saturate(150%);border:1px solid var(--g-bd);box-shadow:var(--edge)}
+.card{border-radius:var(--r2);padding:12px 14px;box-shadow:var(--edge),var(--lift)}
+.card.mark.now{border-color:rgba(157,143,240,.5);box-shadow:var(--edge),0 0 0 1px rgba(157,143,240,.25),var(--lift)}
+.card.mark.done{border-color:rgba(111,207,151,.28)}.card.mark.hi{border-color:rgba(245,182,122,.35)}.card.mark.lo{border-color:rgba(122,180,245,.35)}
+.card.tap{transition:transform .28s var(--spring),box-shadow .2s}.card.tap:active{transform:scale(.975)}
+.card .ex{font-size:16px;font-weight:600;letter-spacing:-.015em}
+.sig{border-radius:var(--r2);padding:10px 12px}
+.sigrow .sig{border-radius:var(--r2)}
+.banner{border-radius:var(--r2)}
+.strip button{border-radius:999px}.strip button.sel{background:linear-gradient(180deg,rgba(157,143,240,.34),rgba(157,143,240,.16));border-color:rgba(157,143,240,.6);color:#fff;box-shadow:inset 0 1px 0 rgba(255,255,255,.25),0 6px 16px rgba(110,90,220,.25)}
+.pills .p{border-radius:10px}.pills .p.top{background:linear-gradient(180deg,rgba(157,143,240,.32),rgba(157,143,240,.14));border-color:rgba(157,143,240,.6);color:#fff}
+.seg{border-radius:12px;padding:3px}.seg button{border-radius:9px;transition:background-color .2s,color .2s,transform .3s var(--spring)}
+.seg button.sel{background:linear-gradient(180deg,rgba(157,143,240,.36),rgba(157,143,240,.18));border-color:rgba(157,143,240,.6);color:#fff;box-shadow:inset 0 1px 0 rgba(255,255,255,.22)}
+button.pri:not(.bitir){background:linear-gradient(180deg,#b1a5ff,#8b7ce8);border:0;color:#120f2a;font-weight:700;box-shadow:inset 0 1px 0 rgba(255,255,255,.5),0 10px 26px rgba(139,124,232,.38)}
+button.pri:not(.bitir):disabled{filter:saturate(.4);opacity:.5}
+button.sec{background:var(--surf-g);border:1px solid var(--g-bd);box-shadow:var(--edge);color:var(--ink2)}
+.foot{background:linear-gradient(to top,rgba(22,24,38,.92) 55%,rgba(22,24,38,0))}
+/* ısınma satırları */
+.isirow{border-radius:var(--r2);min-height:60px;transition:transform .3s var(--spring),background-color .2s,border-color .2s}
+.isirow:active{transform:scale(.98)}
+.isirow.on{background:linear-gradient(180deg,rgba(111,207,151,.18),rgba(111,207,151,.06));border-color:rgba(111,207,151,.45)}
+.isirow .tik{box-shadow:inset 0 2px 4px rgba(0,0,0,.5);background:rgba(0,0,0,.25)}
+.isirow.on .tik{background:var(--ok);color:#0c1a12;animation:selpop .35s var(--spring)}
+/* Program ızgarası */
+.pgrid .cell{border-radius:12px;border-left:3px solid transparent;transition:transform .3s var(--spring),border-color .2s}
+.pgrid .cell:active{transform:scale(.96)}
+.pgrid .cell.done{border-left-color:var(--ok);background:linear-gradient(180deg,rgba(111,207,151,.12),rgba(255,255,255,.02))}
+.pgrid .cell.now{border-left-color:var(--acc);border-color:rgba(157,143,240,.55);box-shadow:var(--edge),0 0 0 1px rgba(157,143,240,.25),0 8px 20px rgba(110,90,220,.22)}
+.pgrid .cell.sel{background:linear-gradient(180deg,rgba(157,143,240,.22),rgba(157,143,240,.06))}
+.pgrid .wl{border-radius:10px}
+/* İlerleme */
+.bars .col{border-radius:8px 8px 3px 3px;background:linear-gradient(180deg,rgba(157,143,240,.75),rgba(157,143,240,.25));box-shadow:inset 0 1px 0 rgba(255,255,255,.3);transform-origin:bottom;animation:barup .6s var(--spring) both}
+.bars .col.ok{background:linear-gradient(180deg,rgba(111,207,151,.85),rgba(111,207,151,.25))}.bars .col.lo{background:linear-gradient(180deg,rgba(240,122,122,.8),rgba(240,122,122,.25))}
+.bars .b:nth-child(2) .col{animation-delay:.04s}.bars .b:nth-child(3) .col{animation-delay:.08s}.bars .b:nth-child(4) .col{animation-delay:.12s}.bars .b:nth-child(5) .col{animation-delay:.16s}.bars .b:nth-child(6) .col{animation-delay:.2s}
+@keyframes barup{from{transform:scaleY(0)}}
+/* Ayarlar listesi */
+.list{border-radius:var(--r3);overflow:hidden;gap:0}
+.list .it{background:transparent;border-bottom:1px solid rgba(255,255,255,.06)}.list .it:last-child{border-bottom:0}
+/* Aletler: sayaç + plaka */
+.krobox{border-radius:var(--r3);padding:20px 16px}
+.krobox .big{font-size:52px;font-weight:600;background:linear-gradient(180deg,#fff,#b9b2ef);-webkit-background-clip:text;background-clip:text;color:transparent}
+.krobox .big.over{background:linear-gradient(180deg,#ffb4b4,#f07a7a);-webkit-background-clip:text;background-clip:text}
+.krobtns button{border-radius:12px;background:var(--surf-g);border:1px solid var(--g-bd);box-shadow:var(--edge)}
+.krobtns button.sel{background:linear-gradient(180deg,rgba(157,143,240,.36),rgba(157,143,240,.16));border-color:rgba(157,143,240,.6);color:#fff}
+.plk button{border-radius:14px;background:var(--surf-g);border:1px solid var(--g-bd);box-shadow:var(--edge)}
+.plk button.plus{background:linear-gradient(180deg,rgba(157,143,240,.4),rgba(157,143,240,.18));border-color:rgba(157,143,240,.6);color:#fff}
+.plk .mid{border-radius:16px;padding:6px 8px;background:linear-gradient(180deg,#3a3268,#231f44);border:1px solid rgba(157,143,240,.45);box-shadow:inset 0 1px 0 rgba(255,255,255,.22),inset 0 -2px 6px rgba(0,0,0,.35),0 6px 18px rgba(80,60,180,.28)}
+.plk input.big{color:#fff;font-weight:600;border:0}.plk .sub{color:#c8c2f2;opacity:.85}
+/* bar görseli */
+.barviz{position:relative;display:flex;align-items:center;justify-content:center;height:112px;margin-top:14px;padding:0 4px}
+.barviz .shaft{position:relative;flex:0 0 38%;height:12px;border-radius:6px;background:linear-gradient(180deg,#e6e8ef,#8d92a3 55%,#5a5f70);box-shadow:0 2px 6px rgba(0,0,0,.5)}
+.barviz .shaft em{position:absolute;left:50%;top:-26px;transform:translateX(-50%);font-style:normal;font-size:13px;font-weight:600;color:var(--ink2);white-space:nowrap}
+.barviz .sleeve{flex:1;display:flex;align-items:center;gap:2px;height:100%;position:relative}
+.barviz .sleeve::before{content:'';position:absolute;top:50%;left:0;right:0;height:16px;transform:translateY(-50%);border-radius:4px;background:linear-gradient(180deg,#d9dce5,#7c8193);z-index:0}
+.barviz .sleeve.l{justify-content:flex-end}.barviz .sleeve.r{justify-content:flex-start}
+.barviz .pl{position:relative;z-index:1;flex:none;width:14px;border-radius:4px;display:flex;align-items:center;justify-content:center;box-shadow:inset 0 1px 0 rgba(255,255,255,.35),inset 0 -2px 3px rgba(0,0,0,.35),0 3px 8px rgba(0,0,0,.45);animation:plin .45s var(--spring) both;animation-delay:calc(var(--i) * 45ms)}
+.barviz .pl b{font-size:8px;font-weight:700;color:rgba(0,0,0,.6);writing-mode:vertical-rl;transform:rotate(180deg)}
+.barviz .w25{height:100%;background:linear-gradient(90deg,#b8322b,#e2483f,#b8322b)}.barviz .w20{height:92%;background:linear-gradient(90deg,#1f55b0,#3a78e0,#1f55b0)}
+.barviz .w15{height:80%;background:linear-gradient(90deg,#c9a41d,#f0cd3c,#c9a41d)}.barviz .w10{height:68%;background:linear-gradient(90deg,#2b8a45,#43b460,#2b8a45)}
+.barviz .w5{height:52%;width:11px;background:linear-gradient(90deg,#c9cbd4,#f4f4f8,#c9cbd4)}.barviz .w2_5{height:42%;width:10px;background:linear-gradient(90deg,#26262e,#44444f,#26262e)}.barviz .w2_5 b{color:#ccc}
+.barviz .w1_25{height:34%;width:8px;background:linear-gradient(90deg,#9aa0ad,#d5d8e0,#9aa0ad)}
+.barviz .w5 b,.barviz .w1_25 b{font-size:7px}
+@keyframes plin{from{transform:translateY(-14px) scale(.85);opacity:0}}
+.sleeve.l .pl{animation-name:plinL}@keyframes plinL{from{transform:translateX(-18px);opacity:0}}
+.sleeve.r .pl{animation-name:plinR}@keyframes plinR{from{transform:translateX(18px);opacity:0}}
+.plates{justify-content:center}.plates .p{border-radius:10px}
+/* sheet ve veil */
+.sheet{border-radius:26px 26px 0 0;background:linear-gradient(180deg,rgba(44,42,68,.92),rgba(26,26,40,.96));-webkit-backdrop-filter:blur(26px) saturate(170%);backdrop-filter:blur(26px) saturate(170%);border:1px solid rgba(255,255,255,.12);border-bottom:0;box-shadow:inset 0 1px 0 rgba(255,255,255,.18),0 -20px 50px rgba(0,0,0,.5)}
+.sheet::before{content:'';display:block;width:38px;height:5px;border-radius:3px;background:rgba(255,255,255,.3);margin:-8px auto 12px}
+.stres button{border-radius:14px;background:var(--surf-g);border:1px solid var(--g-bd);box-shadow:var(--edge);transition:transform .3s var(--spring)}
+.stres button:active{transform:scale(.94)}.stres button.sel{background:linear-gradient(180deg,rgba(157,143,240,.4),rgba(157,143,240,.16));border-color:rgba(157,143,240,.6)}
+/* özet kutucukları */
+.grid.g3>*{border-radius:var(--r2)}
+/* sekme çubuğu: kayan cam baloncuk */
+.tabs{position:absolute}
+.tabs .tabind{position:absolute;left:6px;top:4px;height:44px;width:calc((100% - 12px) / 5);border-radius:16px;background:linear-gradient(180deg,rgba(157,143,240,.26),rgba(157,143,240,.1));border:1px solid rgba(157,143,240,.35);box-shadow:inset 0 1px 0 rgba(255,255,255,.22),0 6px 16px rgba(90,70,200,.25);transition:transform .45s var(--spring);pointer-events:none;z-index:0}
+.tabs button{position:relative;z-index:1}
+main.swiping{transition:none!important}
+main{transition:transform .42s var(--spring),opacity .25s ease}
+/* set çarkı */
+.deck{height:auto!important;margin:12px 6px 0;position:relative}
+.wheel-track{height:174px;overflow-y:auto;scroll-snap-type:y mandatory;scrollbar-width:none;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;
+  -webkit-mask-image:linear-gradient(180deg,transparent 0,#000 26%,#000 74%,transparent 100%);mask-image:linear-gradient(180deg,transparent 0,#000 26%,#000 74%,transparent 100%)}
+.wheel-track::-webkit-scrollbar{display:none}
+.wheel-track .wsp{height:58px}
+.wc{height:52px;margin:3px 8px;border-radius:14px;padding:0 14px;display:flex;align-items:center;gap:10px;scroll-snap-align:center;will-change:transform,opacity;transform-origin:50% 50%}
+.wc .n{flex:none;width:44px;font-size:11px;color:var(--dim)}.wc .v{flex:1;font-size:16px}.wc .r{font-size:10.5px;color:var(--dim);max-width:44%;text-align:right;white-space:normal;line-height:1.2}
+.wc.on{border-color:rgba(157,143,240,.6);box-shadow:inset 0 1px 0 rgba(255,255,255,.22),0 0 0 1px rgba(157,143,240,.3),0 12px 26px rgba(0,0,0,.45)}.wc.on .v{color:#fff}
+.wc.done .r{color:var(--ok)}
+.wsel{position:absolute;left:0;right:0;top:61px;height:52px;border-radius:16px;pointer-events:none;box-shadow:0 0 0 1px rgba(255,255,255,.06)}
+.deck .deckplan{position:static;text-align:right;margin-top:2px}

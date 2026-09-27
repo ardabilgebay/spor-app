@@ -42,11 +42,11 @@ await p.locator('.log .setk').click(); await p.waitForTimeout(400);
 t('1. set listede, sayaç Clean kategorisi (1:30)', (await p.$$('.log .srow-set')).length === 1 && /^1:2\d|1:30/.test(await p.textContent('.log #kpill .kt')), await p.textContent('.log #kpill'));
 await p.locator('.log .setk').click(); await p.waitForTimeout(300);
 await kg().fill('45'); await kg().dispatchEvent('change'); await p.locator('.log .fld', { hasText: 'RPE' }).locator('button', { hasText: /^8$/ }).click(); await p.locator('.log .setk').click(); await p.waitForTimeout(300);
-t('T1 odak: pager 2 sayfa, odak kart Clean, yığında 3 bitmiş set + şimdi', (await p.$$('main .pager > .pg')).length === 2 && (await p.textContent('main .focus .ex')) === 'Clean' && (await p.$$('#deck .sc.done')).length === 3 && (await p.$$('#deck .sc.now')).length === 1);
-await p.locator('#deck .sc.done').last().click(); await p.waitForTimeout(150);
-t('T1: bitmiş sete dokun → "Set 1\'i güncelle" + Sil', (await p.textContent('.log .setk')) === "Set 1'i güncelle" && await p.locator('.log .acts button[title="Bu seti sil"]').isVisible(), await p.textContent('.log .setk'));
-await p.locator('#deck .sc.now').click(); await p.waitForTimeout(150);
-t('T1: şimdi kartı → "Set 4\'i kaydet"', (await p.textContent('.log .setk')) === "Set 4'i kaydet", await p.textContent('.log .setk'));
+t('T1 odak: pager 2 sayfa, odak kart Clean, yığında 3 bitmiş set + şimdi', (await p.$$('main .pager > .pg')).length === 2 && (await p.textContent('main .focus .ex')) === 'Clean' && (await p.$$('#deck .wc.done')).length === 3 && (await p.$$('#deck .wc.now')).length === 1);
+await p.locator('#deck .wheel-track').evaluate(t => { t.dispatchEvent(new Event('pointerdown')); t.scrollTo({ top: 0 }); }); await p.waitForTimeout(500);   // çarkı en üste kaydır (set 1)
+t('T1+: çark set 1\'de durdu → "Set 1\'i güncelle" + Sil', (await p.textContent('.log .setk')) === "Set 1'i güncelle" && await p.locator('.log .acts button[title="Bu seti sil"]').isVisible(), await p.textContent('.log .setk'));
+await p.locator('#deck .wheel-track').evaluate(t => { t.dispatchEvent(new Event('pointerdown')); t.scrollTo({ top: t.scrollHeight }); }); await p.waitForTimeout(500);   // en alta (şimdi)
+t('T1+: çark en altta → "Set 4\'i kaydet" (bekleyen değer geri)', (await p.textContent('.log .setk')) === "Set 4'i kaydet", await p.textContent('.log .setk'));
 await p.screenshot({ path: '/tmp/claude-0/-home-claude/bea8c8c8-fd92-5557-9f37-af05fa048467/scratchpad/t1_log.png' });
 t('3 set listede, bitir düğmesi "(3 set)"', (await p.$$('.log .srow-set')).length === 3 && (await p.textContent('.log .acts .pri:not(.setk)')).includes('3 set'));
 await p.locator('.log .fld', { hasText: 'Tkr' }).locator('button', { hasText: /^2$/ }).click(); await p.locator('.log .fld', { hasText: 'RPE' }).locator('button', { hasText: /^9$/ }).click(); await p.locator('.log .setk').click(); await p.waitForTimeout(600);
@@ -90,7 +90,7 @@ done = await p.$$eval('main .card.mark.done .yap', a => a.map(x => x.textContent
 t('Top Single tek setle bitti, not kayıtta: 122.5×1 R9 — sırt sıkı', done.some(x => x.includes('122.5×1 R9') && x.includes('sırt sıkı')), done.join(' | '));
 // T1 kırmızı takım: bitmiş hareket (Clean) geçmiş kartından yeniden açılınca kayıtlı 4 set yığında
 await p.locator('main .st-past .sc3', { hasText: 'Clean' }).click({ position: { x: 60, y: 8 } }); await p.waitForTimeout(300);
-t('T1: bitmiş Clean yeniden açıldı → yığında 4 kayıtlı set', (await p.textContent('main .focus .ex')) === 'Clean' && (await p.$$('#deck .sc.done')).length === 3 && (await p.textContent('#deck .deckplan')).includes('4 kayıtlı'), await p.textContent('#deck'));
+t('T1: bitmiş Clean yeniden açıldı → yığında 4 kayıtlı set', (await p.textContent('main .focus .ex')) === 'Clean' && (await p.$$('#deck .wc.done')).length === 4 && (await p.textContent('#deck .deckplan')).includes('4 kayıtlı'), await p.textContent('#deck'));
 await p.locator('main .pager .pg').nth(1).locator('.card', { hasText: 'Top Triple' }).click(); await p.waitForTimeout(300);
 t('T1: sayfa 2\'den Top Triple açıldı, odak sayfasına dönüldü', (await p.textContent('main .focus .row')).includes('Top Triple'), await p.textContent('main .focus'));
 // Top Triple (1 set)
@@ -144,6 +144,13 @@ await p.evaluate(() => { const a = document.querySelector('#app'); }); await p.w
 // İlerleme
 await tab('İlerleme'); await p.waitForTimeout(300);
 t('İlerleme: 1RM kartları + 6 çubuk', (await p.$$('main .bars .b')).length === 6 && (await p.textContent('main')).includes('Tahmini 1RM'));
+// 28 Eyl: parmakla sekme geçişi (touch) — İlerleme → sola kaydır → Aletler
+{ const box = await p.locator('main').boundingBox(); const y = box.y + 300;
+  await p.evaluate(async ({ y }) => { const m = document.querySelector('main'); const T = (type, x) => { const t = new Touch({ identifier: 1, target: m, clientX: x, clientY: y }); m.dispatchEvent(new TouchEvent(type, { touches: type === 'touchend' ? [] : [t], changedTouches: [t], bubbles: true, cancelable: true })); };
+    T('touchstart', 320); for (let x = 300; x >= 150; x -= 30) { T('touchmove', x); await new Promise(r => setTimeout(r, 16)); } T('touchend', 150); }, { y });
+  await p.waitForTimeout(700); t('sekme kaydırma: İlerleme → Aletler', (await p.locator('.tabs button.sel').textContent()).includes('Aletler'), await p.locator('.tabs button.sel').textContent());
+  t('Aletler: bar görseli plakalarla', (await p.$$('main .barviz .pl')).length >= 2, (await p.$$('main .barviz .pl')).length);
+  await tab('İlerleme'); await p.waitForTimeout(300); }
 // uçak modu: offline → açılış + Alper S1 kayıt
 await ctx.setOffline(true); await p.reload(); await p.waitForSelector('.hdr .t', { timeout: 15000 }); await p.waitForTimeout(300);
 await tab('Bugün'); await strip('Alper Günleri'); await p.waitForTimeout(300);

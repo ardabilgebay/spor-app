@@ -62,8 +62,10 @@ export class App {
     const r = this.root; r.replaceChildren();
     this.hdr = el('div', { class: 'hdr' }, el('div', { style: 'min-width:0' }, this.hK = el('div', { class: 'k' }), this.hT = el('div', { class: 't' })), this.hR = el('div', { class: 'right' }));
     this.strip = el('div', { class: 'strip' }); this.main = el('main'); this.foot = el('div'); this.veil = el('div');
-    this.tabbar = el('div', { class: 'tabs' }, ...TABS.map(([id, ad]) => el('button', { 'data-tab': id, onclick: () => this.go(id) }, svg(ICON[id]), el('span', {}, ad))));
+    this.tabInd = el('span', { class: 'tabind' });
+    this.tabbar = el('div', { class: 'tabs' }, this.tabInd, ...TABS.map(([id, ad]) => el('button', { 'data-tab': id, onclick: () => this.go(id) }, svg(ICON[id]), el('span', {}, ad))));
     r.append(this.hdr, this.strip, this.main, this.foot, this.tabbar, this.veil);
+    this.sekmeKaydir();
     let lastY = 0; this.main.addEventListener('scroll', () => { const y = this.main.scrollTop, dy = y - lastY; lastY = y; if (this.root.classList.contains('has-foot')) return this.tabsShow(true);   // seans sırasında sekmeler sabit
       const atEnd = y + this.main.clientHeight >= this.main.scrollHeight - 24; if (dy > 6 && y > 40 && !atEnd) this.tabsShow(false); else if (dy < -4 || y <= 40 || atEnd) this.tabsShow(true); }, { passive: true });
     // alt kenara dokunuş → dock gibi geri gelir
@@ -73,9 +75,30 @@ export class App {
     window.visualViewport?.addEventListener('resize', () => { const vv = window.visualViewport; this.root.style.height = vv.height + 'px'; this.root.style.transform = `translateY(${vv.offsetTop}px)`; });
     await this.render();
   }
-  go(tab) { if (this.tab === tab) return; this.tab = tab; this.main.scrollTop = 0; this.tabsShow(true);
+  /** Sekme baloncuğu: seçili sekmenin altında; sürüklerken kesirli konuma kayar. */
+  tabIndKonum(f = null) { const i = f ?? TABS.findIndex(([id]) => id === this.tab); this.tabInd.style.transform = `translateX(${i * 100}%)`; }
+  /** 28 Eyl (Arda): sekmeler arası parmakla geçiş — içerik parmağı izler, baloncuk kayar; eşik/hız geçilirse yandaki sekmeye yayla oturur. */
+  sekmeKaydir() {
+    const m = this.main; let sx = null, sy = 0, dx = 0, lock = null, t0 = 0;
+    const idx = () => TABS.findIndex(([id]) => id === this.tab);
+    m.addEventListener('touchstart', e => { if (e.touches.length !== 1 || this.sheet || e.target.closest('input,textarea,.pager,.strip,.pills,.krobtns,.wheel-track,.plk,.barviz,.kgrow')) { sx = null; return; }
+      sx = e.touches[0].clientX; sy = e.touches[0].clientY; dx = 0; lock = null; t0 = Date.now(); }, { passive: true });
+    m.addEventListener('touchmove', e => { if (sx === null) return; const x = e.touches[0].clientX - sx, y = e.touches[0].clientY - sy;
+      if (!lock && (Math.abs(x) > 12 || Math.abs(y) > 12)) lock = Math.abs(x) > Math.abs(y) * 1.3 ? 'x' : 'y';
+      if (lock !== 'x') return; e.preventDefault(); const i = idx(); const kenar = (x > 0 && i === 0) || (x < 0 && i === TABS.length - 1);
+      dx = kenar ? x * 0.25 : x; m.classList.add('swiping'); m.style.transform = `translateX(${dx}px)`; m.style.opacity = String(1 - Math.min(0.35, Math.abs(dx) / 700));
+      this.tabIndKonum(Math.max(0, Math.min(TABS.length - 1, i - dx / (m.clientWidth || 390)))); }, { passive: false });
+    const bit = () => { if (sx === null) return; sx = null; if (lock !== 'x') return; const v = dx / Math.max(1, Date.now() - t0); const i = idx();
+      const hedef = (dx < -70 || v < -0.45) ? i + 1 : (dx > 70 || v > 0.45) ? i - 1 : i; m.classList.remove('swiping');
+      if (hedef !== i && hedef >= 0 && hedef < TABS.length) { const yon = hedef > i ? 1 : -1; m.style.transform = `translateX(${-yon * 40}vw)`; m.style.opacity = '0';
+        setTimeout(() => { m.classList.add('swiping'); m.style.transform = `translateX(${yon * 30}vw)`; this.go(TABS[hedef][0], true);
+          requestAnimationFrame(() => requestAnimationFrame(() => { m.classList.remove('swiping'); m.style.transform = ''; m.style.opacity = ''; })); }, 140); }
+      else { m.style.transform = ''; m.style.opacity = ''; this.tabIndKonum(); } };
+    m.addEventListener('touchend', bit); m.addEventListener('touchcancel', bit);
+  }
+  go(tab, kaydirma = false) { if (this.tab === tab) return; this.tab = tab; this.main.scrollTop = 0; this.tabsShow(true); this.tabIndKonum();
     const paint = () => { this.main.classList.remove('vin'); void this.main.offsetWidth; this.main.classList.add('vin'); return this.render(); };
-    paint(); }   // View Transitions denendi (A13) → iOS 27 standalone'da hayalet görüntü; kaldırıldı, yalnız main.vin
+    if (kaydirma) { this.render(); return; } paint(); }   // View Transitions denendi (A13) → iOS 27 standalone'da hayalet görüntü; kaldırıldı, yalnız main.vin
   /** Dock davranışı: aşağı kaydırırken sekmeler gizlenir, yukarı kaydırınca / alt kenara yaklaşınca geri gelir. */
   tabsShow(on) { this.tabbar.classList.toggle('hide', !on); }
   async pickProgram() {
@@ -96,7 +119,7 @@ export class App {
   }
   async render() {
     const c = this.c = await this.ctx(this.prog);
-    for (const b of this.tabbar.children) b.classList.toggle('sel', b.dataset.tab === this.tab);
+    for (const b of this.tabbar.querySelectorAll('button')) b.classList.toggle('sel', b.dataset.tab === this.tab); this.tabIndKonum();
     // program şeridi (üstte)
     this.strip.replaceChildren(...PROGS.map(p => el('button', { class: p === this.prog ? 'sel' : '', onclick: () => this.setProg(p) }, el('span', { class: 'dot' }), PROG_AD[p])));
     this.strip.classList.toggle('hidden', this.tab === 'ayarlar' || this.tab === 'aletler' || (this.tab === 'bugun' && ['isinma', 'log', 'ozet'].includes(c.seans?.faz)));
@@ -350,6 +373,29 @@ export class App {
       this.geriBildirim();
       paint(); this.render();   // seans şeridindeki rozet yenilensin (çubuk yerinde kalır, taslak meta'dan gelir)
     };
+    /** T1+ (28 Eyl, Arda: "yığınlar kaydırılabilir olsun, dokun-geç değil"): set yığını iOS çark gibi — native kaydırma momentumu + snap,
+     *  kartlar merkeze uzaklığa göre 3D döner/küçülür/solar; hangi kart ortada durursa o seçilir (bitmiş set → düzenle, en alt → yeni set). */
+    const MOL = x => x && M.isNum(x.rest_s) ? `mola ${mmss(x.rest_s)}${M.isNum(x.hr_sonra_onceki) || M.isNum(x.hr_once) ? ` · ♥${x.hr_sonra_onceki ?? '—'}→${x.hr_once ?? '—'}` : ''}` : '';
+    this.cizDeck = () => {
+      const deck = this.main.querySelector('#deck'); if (!deck) return;
+      const ITEM = 58; const ed = M.isNum(d.editIdx) && d.detail[d.editIdx] ? d.editIdx : null;
+      const kart = (i, n, v, r, cls) => el('div', { class: 'wc glass ' + cls, 'data-i': i }, el('span', { class: 'n' }, n), el('span', { class: 'v tab' }, v), el('span', { class: 'r' }, r));
+      const items = [...d.detail.map((x, i) => kart(i, `set ${i + 1}`, `${fmt(x.kg)} × ${x.reps ?? '?'}${M.isNum(x.rpe) ? ' · R' + fmt(x.rpe) : ''}`, MOL(x) || 'kaydı', 'done')),
+        kart(d.detail.length, `set ${d.detail.length + 1}`, ed !== null && d.yeni ? `${d.yeni.kg === null ? '—' : fmt(d.yeni.kg)} × ${d.yeni.reps ?? '?'}` : `${d.kg === null ? '—' : fmt(d.kg)} × ${d.reps ?? '?'} · ${d.rpe ? 'R' + fmt(d.rpe) : 'R?'}`, 'şimdi', 'now')];
+      const track = el('div', { class: 'wheel-track' }, el('div', { class: 'wsp' }), ...items, el('div', { class: 'wsp' }));
+      deck.replaceChildren(track, el('div', { class: 'wsel' }), el('div', { class: 'deckplan xs dim2' }, `plan ${r.set ?? '?'} set · ${d.detail.length} kayıtlı`));
+      const boya = () => { const c = track.scrollTop + track.clientHeight / 2; for (const it of items) { const y = it.offsetTop + it.offsetHeight / 2; const k = Math.max(-2.2, Math.min(2.2, (y - c) / ITEM)); const a = Math.abs(k);
+        it.style.transform = `perspective(520px) rotateX(${-k * 24}deg) scale(${1 - a * 0.07})`; it.style.opacity = String(Math.max(0.12, 1 - a * 0.42)); it.classList.toggle('on', a < 0.5); } };
+      const sec = () => { const idx = Math.max(0, Math.min(items.length - 1, Math.round(track.scrollTop / ITEM)));
+        if (idx === d.detail.length) { if (M.isNum(d.editIdx)) { if (d.yeni) Object.assign(d, d.yeni); d.editIdx = null; d.yeni = null; } }
+        else if (d.editIdx !== idx) { if (!M.isNum(d.editIdx)) d.yeni = { kg: d.kg, reps: d.reps, rpe: d.rpe }; const x = d.detail[idx]; d.editIdx = idx; d.kg = x.kg; d.reps = x.reps; d.rpe = x.rpe ?? null; }
+        this._wheelBusy = true; paint(); this._wheelBusy = false; };
+      let raf = 0, el_user = false; clearTimeout(this._wheelTmr);   // yalnız kullanıcı kaydırması seçim yapar (programatik ilk konum ve eski izler seçmez)
+      for (const ev of ['touchstart', 'pointerdown', 'wheel']) track.addEventListener(ev, () => { el_user = true; }, { passive: true });
+      track.addEventListener('scroll', () => { if (!raf) raf = requestAnimationFrame(() => { raf = 0; boya(); }); clearTimeout(this._wheelTmr); if (el_user && track.isConnected) this._wheelTmr = setTimeout(() => { if (track.isConnected) sec(); }, 120); }, { passive: true });
+      for (const it of items) it.addEventListener('click', () => { el_user = true; track.scrollTo({ top: +it.dataset.i * ITEM, behavior: 'smooth' }); });
+      requestAnimationFrame(() => { track.scrollTop = (ed ?? d.detail.length) * ITEM; boya(); });
+    };
     const paint = () => {
       kgIn.value = d.kg === null ? '' : fmt(d.kg);
       const pk = planKg(); kgSub.textContent = (eq === 'db' && d.kg ? `tek el ${fmt(d.kg / 2)} · toplam ${fmt(d.kg)} · ` : eq === 'bw' && d.kg ? `BW ${BW_KG} ${d.kg >= BW_KG ? '+ ek ' + fmt(Math.round((d.kg - BW_KG) * 100) / 100) : '− destek ' + fmt(Math.round((BW_KG - d.kg) * 100) / 100)} · ` : '') + (r.bw ? 'toplam yük' : (pk !== null && pk !== undefined ? `plan ${fmt(pk)}` : prevOf() ? `geçen ${fmt(prevOf().kg)}` : 'plan yok')) + (prevOf() && pk !== null && pk !== undefined ? ` · geçen ${fmt(prevOf().kg)}` : '') + (r.barli && d.kg ? ` · ${P.plakaMetni(d.kg)?.replace('bir tarafa ', 'yan ') ?? ''}` : '') + ' · ✎ yaz';
@@ -366,20 +412,7 @@ export class App {
         setMode ? el('div', { class: 'xs dim2', style: 'margin:2px 0 4px' }, d.detail.length ? `sıradaki set ${d.detail.length + 1} · plan ${r.set ?? '?'} set` : `set ${1} · plan ${r.set ?? '?'} set · her setten sonra "Set kaydet"`) : null);
       const ed = M.isNum(d.editIdx) && d.detail[d.editIdx] ? d.editIdx : null;
       setKaydet.textContent = ed !== null ? `Set ${ed + 1}'i güncelle` : `Set ${d.detail.length + 1}'i kaydet`; delBtn.classList.toggle('hidden', ed === null); skipBtn.classList.toggle('hidden', ed !== null);
-      const deck = this.main.querySelector('#deck');
-      if (deck) {
-        const mol = x => x && M.isNum(x.rest_s) ? `mola ${mmss(x.rest_s)}${M.isNum(x.rest_plan_s) ? ' · plan ' + mmss(x.rest_plan_s) : ''}${M.isNum(x.hr_sonra_onceki) || M.isNum(x.hr_once) ? ` · ♥ ${x.hr_sonra_onceki ?? '—'} → ${x.hr_once ?? '—'}` : ''}` : null;
-        const son = d.detail[d.detail.length - 1];
-        const onCard = el('button', { class: 'sc glass now' + (ed === null ? ' on' : ''), onclick: () => { if (M.isNum(d.editIdx) && d.yeni) Object.assign(d, d.yeni); d.editIdx = null; d.yeni = null; paint(); } }, el('span', { class: 'n' }, `set ${d.detail.length + 1}`), el('span', { class: 'v tab' }, `${d.kg === null ? '—' : fmt(d.kg)} × ${d.reps ?? '?'} · ${d.rpe ? 'R' + fmt(d.rpe) : 'R?'}`), el('span', { class: 'r' }, ed === null ? 'şimdi' : 'yeni set'));
-        const bitmis = d.detail.map((x, i) => ({ x, i })).reverse().slice(0, 3);
-        deck.replaceChildren(
-          mol(son) ? el('div', { class: 'restchip glass tab' }, mol(son)) : null,
-          onCard,
-          ...bitmis.map(({ x, i }, k) => el('button', { class: `sc glass done d${k + 1}` + (ed === i ? ' on' : ''), onclick: () => { if (!M.isNum(d.editIdx)) d.yeni = { kg: d.kg, reps: d.reps, rpe: d.rpe }; d.editIdx = i; d.kg = x.kg; d.reps = x.reps; d.rpe = x.rpe ?? null; paint(); } },
-            el('span', { class: 'n' }, `set ${i + 1}`), el('span', { class: 'v tab' }, `${fmt(x.kg)} × ${x.reps ?? '?'}${M.isNum(x.rpe) ? ' · R' + fmt(x.rpe) : ''}`), el('span', { class: 'r' }, ed === i ? 'düzenleniyor' : 'dokun · düzenle'))),
-          el('div', { class: 'deckplan xs dim2' }, `plan ${r.set ?? '?'} set${d.detail.length > 3 ? ` · ${d.detail.length} kayıtlı` : ''}`));
-        deck.style.setProperty('--n', String(Math.min(3, d.detail.length)));
-      }
+      if (!this._wheelBusy) this.cizDeck?.();
       const q = cur(); kaydet.textContent = setMode ? (d.detail.length ? `Hareketi bitir (${d.detail.length} set)` : 'Hareketi bitir') : (q && !q.skipped ? 'Güncelle' : 'Kaydet'); skipBtn.textContent = q?.skipped ? 'Geri al' : 'Atla';
       kaydet.disabled = (setMode && !d.detail.length) || ed !== null; kaydet.classList.toggle('bitir', setMode);
       if (setMode && !d.detail.length) kaydet.title = 'Önce en az bir set kaydet'; else kaydet.title = '';
@@ -596,14 +629,19 @@ export class App {
   plakaBlok(kg0, onChange, aktar = null) {
     let kg = kg0; const big = el('input', { type: 'text', inputmode: 'decimal', class: 'big tab', autocomplete: 'off', enterkeyhint: 'done' }); const plates = el('div', { class: 'plates' }); const not = el('div', { class: 'xs dim2', style: 'margin-top:6px' });
     big.addEventListener('change', () => { const v = M.parseKg(big.value); if (v !== null) set(v); else paint(); }); big.addEventListener('keydown', e => { if (e.key === 'Enter') big.blur(); });
-    const paint = () => { big.value = fmt(kg); const t = P.plakaMetni(kg); plates.replaceChildren(); not.textContent = '';
+    const viz = el('div', { class: 'barviz' });
+    const cizBar = t => { const m = t && /bir tarafa [\d.]+: (.*?)(?:\s*\(|$)/.exec(t); const ps = [];
+      if (m) for (const x of m[1].split(' + ')) { const mm = /^(?:(\d+)×)?([\d.]+)$/.exec(x.trim()); if (mm) for (let i = 0; i < (+mm[1] || 1); i++) ps.push(+mm[2]); }
+      const pl = (w, i) => el('i', { class: 'pl w' + String(w).replace('.', '_'), style: `--i:${i}` }, el('b', {}, fmt(w)));
+      viz.replaceChildren(el('span', { class: 'sleeve l' }, ...ps.slice().reverse().map((w, i) => pl(w, ps.length - 1 - i))), el('span', { class: 'shaft' }, el('em', {}, `${fmt(kg)} kg`)), el('span', { class: 'sleeve r' }, ...ps.map((w, i) => pl(w, i)))); };
+    const paint = () => { big.value = fmt(kg); const t = P.plakaMetni(kg); cizBar(t); plates.replaceChildren(); not.textContent = '';
       if (!t) { not.textContent = 'kg gir'; return; }
       if (t.startsWith('sadece') || t.startsWith('bar altı')) { plates.append(el('span', { class: 'p' }, t)); return; }
       const [, yan, rest] = /bir tarafa ([\d.]+): (.*)$/.exec(t) ?? []; const parts = (rest ?? '').replace(/\s*\(.*\)$/, '').split(' + ');
       plates.append(el('span', { class: 'p n' }, `tek taraf ${yan}`), ...parts.map(x => el('span', { class: 'p' }, x))); const ek = /\((.*)\)/.exec(t); not.textContent = ek ? `Tek tarafta ${ek[1].replace('−', '')} açık kalıyor (plaka seti 25/20/15/10/5/2.5/1.25).` : 'Bar 20 kg dahil.'; };
     const set = v => { kg = Math.max(0, Math.round(v * 100) / 100); onChange?.(kg); paint(); };
     paint();
-    return el('div', {}, el('div', { class: 'plk' }, hold(el('button', {}, '−'), k => set(kg - KG_ADIM * k)), el('div', { class: 'mid' }, big, el('div', { class: 'sub' }, 'bar 20 kg · çift taraf · ✎ sayıya dokun-yaz')), hold(el('button', { class: 'plus' }, '+'), k => set(kg + KG_ADIM * k))), plates, not,
+    return el('div', {}, el('div', { class: 'plk' }, hold(el('button', {}, '−'), k => set(kg - KG_ADIM * k)), el('div', { class: 'mid' }, big, el('div', { class: 'sub' }, 'bar 20 kg · çift taraf · ✎ sayıya dokun-yaz')), hold(el('button', { class: 'plus' }, '+'), k => set(kg + KG_ADIM * k))), viz, plates, not,
       aktar ? el('div', { class: 'btnrow', style: 'margin-top:14px' }, el('button', { class: 'sec', onclick: () => { this.sheet = null; this.renderSheet(); } }, 'Kapat'), el('button', { class: 'pri', style: 'min-height:48px;font-size:14px', onclick: () => { aktar(kg); this.sheet = null; this.renderSheet(); } }, `${fmt(kg)} kg'yi aktar`)) : null);
   }
   // ── AYARLAR ──────────────────────────────────────────────────────
