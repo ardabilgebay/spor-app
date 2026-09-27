@@ -325,3 +325,61 @@ main.vin{animation:vin .28s var(--ease-out)}
 .kpanel .hazir{grid-column:1/-1;min-height:40px;border-radius:10px;border:1px solid var(--acc-line);background:transparent;color:var(--acc-ink);font-weight:600}
 .kpanel .hazir:disabled{opacity:.5}.kpanel .hazir.on{background:#16261d;border-color:#2f5a40;color:var(--ok)}
 .kpanel .kalt{grid-column:1/-1;line-height:1.3}
+
+/* ══ A16 · T1 ODAK MODU (27 Eyl, Arda onayı) — 3D yığın + liquid glass ══ */
+:root{--g-hi:rgba(255,255,255,.14);--g-bd:rgba(255,255,255,.12)}
+#app{background:radial-gradient(120% 55% at 15% 8%,rgba(92,70,190,.28) 0%,rgba(92,70,190,0) 60%),radial-gradient(90% 45% at 95% 70%,rgba(30,100,160,.22) 0%,rgba(30,100,160,0) 60%),var(--bg)}
+.glass{background:linear-gradient(180deg,rgba(255,255,255,.085),rgba(255,255,255,.03));-webkit-backdrop-filter:blur(20px) saturate(165%);backdrop-filter:blur(20px) saturate(165%);border:1px solid var(--g-bd);box-shadow:inset 0 1px 0 var(--g-hi),inset 0 -1px 0 rgba(0,0,0,.25),0 14px 34px rgba(0,0,0,.4)}
+.pgdots{display:flex;gap:6px;justify-content:center;margin:2px 0 6px}.pgdots i{width:6px;height:6px;border-radius:3px;background:rgba(255,255,255,.22);transition:width .3s var(--spring),background-color .2s}.pgdots i.on{width:16px;background:var(--acc)}
+.pager{display:flex;overflow-x:auto;overflow-y:visible;scroll-snap-type:x mandatory;scrollbar-width:none;-webkit-overflow-scrolling:touch;margin:0 calc(-1 * var(--pad));padding:0 0 8px}
+.pager::-webkit-scrollbar{display:none}
+.pager>.pg{flex:0 0 100%;scroll-snap-align:start;padding:0 var(--pad);min-width:0}
+.stage{perspective:900px;perspective-origin:50% 35%}
+.st-past{position:relative;height:58px;transform-style:preserve-3d}
+.sc3{display:block;width:100%;text-align:left;border-radius:16px;padding:8px 14px;color:var(--ink);min-height:0}
+.sc3 .mod{font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim)}.sc3 .mod.ok{color:var(--ok)}.sc3 .ex{font-size:14px;margin-top:1px;white-space:normal}
+.sc3.past{position:absolute;left:10px;right:10px}
+.sc3.past.p1{top:18px;transform:translateZ(-60px) rotateX(10deg);opacity:.42;z-index:2}
+.sc3.past.p2{top:-2px;transform:translateZ(-140px) rotateX(20deg);opacity:.18;z-index:1}
+.focus{position:relative;z-index:5;border-radius:20px;padding:14px 16px;margin-top:2px;box-shadow:inset 0 1px 0 rgba(255,255,255,.2),0 0 0 1px rgba(157,143,240,.28),0 18px 40px rgba(0,0,0,.45)}
+.focus .row{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.focus .ex{font-size:22px;font-weight:600;letter-spacing:-.025em;line-height:1.15}
+.focus .tag{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--dim);text-align:right}
+.focus .plan{font-size:15px;color:var(--ink2);margin-top:6px}.focus .prev{font-size:12.5px;color:var(--dim);margin-top:5px;line-height:1.35}
+.deck{position:relative;margin:12px 14px 0;transform-style:preserve-3d;height:calc(56px + var(--n,0) * 34px + 22px);transition:height .35s var(--spring)}
+.deck .sc{position:absolute;left:0;right:0;height:50px;border-radius:14px;padding:0 14px;display:flex;align-items:center;gap:10px;color:var(--ink);text-align:left;min-height:0}
+.deck .sc .n{flex:none;width:42px;font-size:11px;color:var(--dim)}.deck .sc .v{flex:1;font-size:16px}.deck .sc .r{font-size:10.5px;color:var(--dim)}
+.deck .sc.now{top:6px;z-index:5;transform:translateZ(0)}
+.deck .sc.now.on{border-color:rgba(157,143,240,.6);box-shadow:inset 0 1px 0 rgba(255,255,255,.22),0 0 0 1px rgba(157,143,240,.35),0 14px 30px rgba(0,0,0,.45)}.deck .sc.now.on .v{color:var(--acc-ink)}
+.deck .sc.done{transition:transform .35s var(--spring),opacity .25s}
+.deck .sc.d1{top:44px;z-index:4;transform:translateZ(-30px) scale(.95);opacity:.7}
+.deck .sc.d2{top:78px;z-index:3;transform:translateZ(-60px) scale(.9);opacity:.45}
+.deck .sc.d3{top:110px;z-index:2;transform:translateZ(-90px) scale(.85);opacity:.28}
+.deck .sc.done.on{z-index:6;transform:translateZ(10px) scale(1.01);opacity:1;border-color:rgba(157,143,240,.6)}
+.deck .restchip{position:absolute;left:50%;top:-10px;transform:translateX(-50%);z-index:7;font-size:10.5px;color:var(--ink2);padding:2px 10px;border-radius:999px;white-space:nowrap}
+.deck .deckplan{position:absolute;right:2px;bottom:0}
+.st-fut{margin-top:10px;transform-style:preserve-3d}
+.sc3.fut.f1{transform:translateZ(-50px) rotateX(-8deg);opacity:.34;transform-origin:50% 0}
+.sc3.fut.f2{margin-top:-4px;transform:translateZ(-120px) rotateX(-16deg);opacity:.16;transform-origin:50% 0}
+/* giriş paneli: cam + 3D ve temaya uyumlu kg kutusu (Arda: siyah değil) */
+.log{background:linear-gradient(180deg,rgba(40,38,62,.82),rgba(24,24,38,.9))}
+.kgrow .mid.well{border-radius:16px;padding:6px 8px 4px;background:linear-gradient(180deg,#3a3268,#231f44);border:1px solid rgba(157,143,240,.45);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.22),inset 0 -2px 6px rgba(0,0,0,.35),0 6px 18px rgba(80,60,180,.28)}
+.kgrow .mid.well input{border-bottom:0;color:#fff;font-size:30px;font-weight:600;text-shadow:0 1px 0 rgba(0,0,0,.35)}
+.kgrow .mid.well input:focus{border-bottom:0;outline:none}
+.kgrow .mid.well .sub{color:#c8c2f2;opacity:.85;white-space:normal}
+.kgrow button{background:linear-gradient(180deg,rgba(255,255,255,.08),rgba(255,255,255,.02));border-color:var(--g-bd);box-shadow:inset 0 1px 0 var(--g-hi)}
+.acts .setk{background:linear-gradient(180deg,#b1a5ff,#8b7ce8);border:0;color:#120f2a;font-weight:700;box-shadow:inset 0 1px 0 rgba(255,255,255,.5),0 8px 22px rgba(139,124,232,.4)}
+.fld .opts button{background:rgba(255,255,255,.045);border-color:rgba(255,255,255,.1)}
+.fld .opts button.sel{background:rgba(157,143,240,.28);border-color:rgba(157,143,240,.6);color:#fff;box-shadow:inset 0 1px 0 rgba(255,255,255,.22)}
+.st-past:empty{height:0}
+.deck{height:calc(58px + var(--n,0) * 38px + 20px)}
+.deck .sc.d1{top:50px}.deck .sc.d2{top:88px}.deck .sc.d3{top:126px}
+/* hit-test: negatif Z'li kartlar ebeveynin arkasına düşüyordu → her yığın kendi perspektifiyle düz (flat) çizilir, dokunuşlar karta gider */
+.stage,.st-past,.st-fut,.deck{transform-style:flat}
+.st-past,.st-fut{perspective:700px;perspective-origin:50% 50%}
+.deck{perspective:600px;perspective-origin:50% 0}
+.deck{perspective:none}
+.deck .sc.d1{transform:scale(.95);opacity:.72}.deck .sc.d2{transform:scale(.9);opacity:.46}.deck .sc.d3{transform:scale(.85);opacity:.28}
+.deck .sc.done.on{transform:scale(1.01);opacity:1}
+.deck .sc.done{box-shadow:inset 0 1px 0 rgba(255,255,255,.12),0 10px 22px rgba(0,0,0,.45)}

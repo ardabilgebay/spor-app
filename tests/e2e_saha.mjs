@@ -40,6 +40,12 @@ await p.locator('.log .setk').click(); await p.waitForTimeout(400);
 t('1. set listede, sayaç Clean kategorisi (1:30)', (await p.$$('.log .srow-set')).length === 1 && /^1:2\d|1:30/.test(await p.textContent('.log #kpill .kt')), await p.textContent('.log #kpill'));
 await p.locator('.log .setk').click(); await p.waitForTimeout(300);
 await kg().fill('45'); await kg().dispatchEvent('change'); await p.locator('.log .fld', { hasText: 'RPE' }).locator('button', { hasText: /^8$/ }).click(); await p.locator('.log .setk').click(); await p.waitForTimeout(300);
+t('T1 odak: pager 2 sayfa, odak kart Clean, yığında 3 bitmiş set + şimdi', (await p.$$('main .pager > .pg')).length === 2 && (await p.textContent('main .focus .ex')) === 'Clean' && (await p.$$('#deck .sc.done')).length === 3 && (await p.$$('#deck .sc.now')).length === 1);
+await p.locator('#deck .sc.done').last().click(); await p.waitForTimeout(150);
+t('T1: bitmiş sete dokun → "Set 1\'i güncelle" + Sil', (await p.textContent('.log .setk')) === "Set 1'i güncelle" && await p.locator('.log .acts button[title="Bu seti sil"]').isVisible(), await p.textContent('.log .setk'));
+await p.locator('#deck .sc.now').click(); await p.waitForTimeout(150);
+t('T1: şimdi kartı → "Set 4\'i kaydet"', (await p.textContent('.log .setk')) === "Set 4'i kaydet", await p.textContent('.log .setk'));
+await p.screenshot({ path: '/tmp/claude-0/-home-claude/bea8c8c8-fd92-5557-9f37-af05fa048467/scratchpad/t1_log.png' });
 t('3 set listede, bitir düğmesi "(3 set)"', (await p.$$('.log .srow-set')).length === 3 && (await p.textContent('.log .acts .pri:not(.setk)')).includes('3 set'));
 await p.locator('.log .fld', { hasText: 'Tkr' }).locator('button', { hasText: /^2$/ }).click(); await p.locator('.log .fld', { hasText: 'RPE' }).locator('button', { hasText: /^9$/ }).click(); await p.locator('.log .setk').click(); await p.waitForTimeout(600);
 t('H2+P5: Squat sırası gelince ısınma açıldı — Clean 45 üstünden 4 basamak, boş bar yok', (await p.$$('main .isirow')).length === 4 && !(await p.textContent('main')).includes('boş bar'), (await p.$$('main .isirow')).length);
@@ -80,6 +86,11 @@ t('ısınmadan log fazına geri: taslak 122.5 duruyor', await kg().inputValue() 
 await p.locator('.log .fld', { hasText: 'RPE' }).locator('button', { hasText: /^9$/ }).click(); await p.locator('.log .setk').click(); await p.waitForTimeout(600);
 done = await p.$$eval('main .card.mark.done .yap', a => a.map(x => x.textContent));
 t('Top Single tek setle bitti, not kayıtta: 122.5×1 R9 — sırt sıkı', done.some(x => x.includes('122.5×1 R9') && x.includes('sırt sıkı')), done.join(' | '));
+// T1 kırmızı takım: bitmiş hareket (Clean) geçmiş kartından yeniden açılınca kayıtlı 4 set yığında
+await p.locator('main .st-past .sc3', { hasText: 'Clean' }).click({ position: { x: 60, y: 8 } }); await p.waitForTimeout(300);
+t('T1: bitmiş Clean yeniden açıldı → yığında 4 kayıtlı set', (await p.textContent('main .focus .ex')) === 'Clean' && (await p.$$('#deck .sc.done')).length === 3 && (await p.textContent('#deck .deckplan')).includes('4 kayıtlı'), await p.textContent('#deck'));
+await p.locator('main .pager .pg').nth(1).locator('.card', { hasText: 'Top Triple' }).click(); await p.waitForTimeout(300);
+t('T1: sayfa 2\'den Top Triple açıldı, odak sayfasına dönüldü', (await p.textContent('main .focus .row')).includes('Top Triple'), await p.textContent('main .focus'));
 // Top Triple (1 set)
 await kg().fill('107,5'); await kg().dispatchEvent('change'); await p.locator('.log .fld', { hasText: 'RPE' }).locator('button', { hasText: /^8$/ }).click(); await p.locator('.log .setk').click(); await p.waitForTimeout(600);
 const yapT = await p.$$eval('main .card.mark.done .yap', a => a.map(x => x.textContent));
