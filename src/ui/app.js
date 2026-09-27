@@ -217,7 +217,7 @@ export class App {
     const sure = el('span', { class: 'chip tab', id: 'sure' }, this.sureMetni(c.seans.started_at)); this.tickSure();
     const grab = el('button', { class: 'grab', title: this.logCollapsed ? 'Aç' : 'Katla', onclick: () => { if (this.dragMoved) { this.dragMoved = false; return; } this.logCollapsed = !this.logCollapsed; this.applyCollapse(); } }, el('span', { class: 'gl' }), el('span', { class: 'gt' }, this.logCollapsed ? '▴  aç' : '▾  katla'));
     this.grabDrag(grab);
-    return el('div', { class: 'sbar' }, grab, el('div', { class: 'srow' }, sure, this.kronoPill(), el('span', { style: 'flex:1' }), el('button', { class: 'pill acc', style: 'border-color:var(--acc-line)', onclick: () => this.fazSet('ozet') }, 'Bitir')));
+    return el('div', { class: 'sbar' }, grab, el('div', { class: 'srow' }, sure, this.kronoPill(), el('span', { style: 'flex:1' }), el('button', { class: 'pill', title: 'Isınma rampasına dön', onclick: () => this.fazSet('isinma') }, 'Isınma'), el('button', { class: 'pill acc', style: 'border-color:var(--acc-line)', onclick: () => this.fazSet('ozet') }, 'Bitir')));
   }
   /** Tutamaç parmağı izler: panel dirençle (rubber band) kayar, pill uzar; eşik (36 px) geçilirse katlanır/açılır, yoksa yaylanıp döner. */
   grabDrag(grab) {
@@ -241,20 +241,20 @@ export class App {
   }
   async logBar(c, r) {
     const { def, v, p } = c; const draftKey = `draft:${p}|${def.cycle}|${v.week}|${v.day}|${r.row_key}`;
-    const d = (await S.getMeta(draftKey)) ?? { actor: 'arda', kg: null, sets: null, reps: null, rpe: null, note: null, mode: await S.getMeta('log_mode', 'satir'), detail: [] };
-    d.mode ??= 'satir'; d.detail ??= [];
+    const d = (await S.getMeta(draftKey)) ?? { actor: 'arda', kg: null, sets: null, reps: null, rpe: null, note: null, mode: 'set', detail: [] };
+    d.mode = 'set'; d.detail ??= []; d.notes ??= { arda: d.note ?? null, alper: null };   // T4 (26 Eyl): set-set tek mod; H1: not kişi başına
     const planKg = () => d.actor === 'alper' ? r.onerilen_alper : r.onerilen;
     const cur = () => d.actor === 'alper' ? r.alper : r.arda;
     const prevE = P.prevEntry(c.stateAll, r, v, def.cycle); const prevA = def.program === 'Alper' ? P.prevEntry(c.stateAll, r, v, def.cycle, 'alper') : null;
     const prevOf = () => d.actor === 'alper' ? prevA : prevE;
-    const fill = () => { const q = cur(); d.kg = q?.kg ?? planKg() ?? prevOf()?.kg ?? null; d.sets = q?.sets ?? r.set ?? null; d.reps = q?.reps ?? r.tekrar ?? null; d.rpe = q?.rpe ?? null; d.note = q?.note ?? null; };
+    const fill = () => { const q = cur(); d.kg = q?.kg ?? planKg() ?? prevOf()?.kg ?? null; d.sets = q?.sets ?? r.set ?? null; d.reps = q?.reps ?? r.tekrar ?? null; d.rpe = q?.rpe ?? null; d.notes[d.actor] = q?.note ?? d.notes[d.actor] ?? null; d.note = d.notes[d.actor]; };
     if (d.kg === null && d.sets === null) fill();
     const saveDraft = () => S.setMeta(draftKey, d);
     const ozet = () => d.mode === 'set' ? (d.detail.length ? `${d.detail.length} set · ${P.detayMetni(d.detail.slice(-2))}` : 'set set · henüz set yok') : `${d.kg === null ? '—' : fmt(d.kg)}×${d.sets ?? '—'}×${d.reps ?? r.tekrar_metin ?? '—'}${d.rpe ? ` R${fmt(d.rpe)}` : ''}`;
     // başlık + katla/aç
     const ozetS = el('span', { class: 'oz tab' + (this.logCollapsed ? '' : ' hidden') });
     const kaydetMini = el('button', { class: 'pill sel kmini' + (this.logCollapsed ? '' : ' hidden'), onclick: () => commit() }, 'Kaydet');
-    const modeBtn = el('button', { class: 'pill modeb' + (this.logCollapsed ? ' hidden' : ''), title: 'Giriş biçimi', onclick: async () => { d.mode = d.mode === 'set' ? 'satir' : 'set'; await S.setMeta('log_mode', d.mode); saveDraft(); paint(); } });
+    const modeBtn = el('button', { class: 'pill modeb hidden', title: 'Giriş biçimi', onclick: async () => { d.mode = d.mode === 'set' ? 'satir' : 'set'; await S.setMeta('log_mode', d.mode); saveDraft(); paint(); } });
     const ttl = el('div', { class: 'ttl' }, el('div', { class: 'n' }, r.egzersiz + (r.modifier ? ` · ${r.modifier}` : '')), el('div', { class: 'hh tab' + (this.logCollapsed ? ' hidden' : '') }, r.hedef?.replace(/^.*\n/, '').replace(/\n.*$/s, '').replace(/\s*[▸⚠].*$/, '') ?? ''), modeBtn, ozetS, kaydetMini);
     const body = el('div', { class: 'body' + (this.logCollapsed ? ' hidden' : '') });
     // kişi
@@ -283,14 +283,12 @@ export class App {
     body.append(el('div', { class: 'fld' }, el('div', { class: 'lbl' }, 'Tkr'), el('div', { class: 'opts' }, ...repBtns, repIn)));
     body.append(el('div', { class: 'fld' }, el('div', { class: 'lbl' }, 'RPE' + (r.hedef_rpe ? ` ${fmt(r.hedef_rpe)}` : '')), el('div', { class: 'opts rpe' }, ...rpeBtns)));
     // not (isteğe bağlı, düğmeyle açılır)
-    const notIn = el('input', { type: 'text', value: d.note ?? '', placeholder: 'not — his, aksaklık, gelecek haftaya…', enterkeyhint: 'done', class: d.note ? '' : 'hidden', style: 'margin-top:7px;min-height:40px' });
-    notIn.addEventListener('change', () => { d.note = notIn.value.trim() || null; saveDraft(); paint(); });
-    body.append(notIn);
+    const notOf = () => d.notes[d.actor] ?? null;
     // eylemler
     const hint = el('div', { class: 'xs warn hidden', style: 'margin-top:6px' });
     const kaydet = el('button', { class: 'pri', onclick: () => commit() });
     const skipBtn = el('button', { class: 'skip', onclick: () => commit({ skipped: true }) });
-    const notBtn = el('button', { class: 'skip', title: 'Not', onclick: () => { notIn.classList.remove('hidden'); notIn.focus(); } }, '✎');
+    const notBtn = el('button', { class: 'skip', title: 'Not', onclick: () => { this.sheet = { kind: 'not', kisi: d.actor, deger: notOf(), onSave: v => { d.notes[d.actor] = v; d.note = v; saveDraft(); paint(); } }; this.renderSheet(); } }, '✎');
     const setKaydet = el('button', { class: 'pri setk hidden', onclick: () => setEkle() }, 'Set kaydet');
     body.append(el('div', { class: 'acts' }, skipBtn, notBtn, setKaydet, kaydet), hint);
     /** Set-set: bir seti taslağa ekle; öncesindeki gerçek mola = önceki set/kayıt/ısınmadan bu yana; sayaç = bu hareketin kendi kategorisi (setler arası). */
@@ -300,6 +298,7 @@ export class App {
       const last = d.detail.length ? new Date(d.detail[d.detail.length - 1].ts).getTime() : (c.seans?.last_save_at ? new Date(c.seans.last_save_at).getTime() : (c.seans?.isinma_bitti_at ? new Date(c.seans.isinma_bitti_at).getTime() : null));
       d.detail.push({ n: d.detail.length + 1, kg: d.kg, reps: d.reps, rpe: d.rpe, rest_s: last ? Math.round((now - last) / 1000) : null, rest_plan_s: P.oncesiDinlenmeSn(r), ts: new Date(now).toISOString() });
       d.rpe = null; hint.classList.add('hidden'); await saveDraft();
+      if (M.isNum(r.set) && d.detail.length >= r.set) { this.geriBildirim(); return commit(); }   // H3 (26 Eyl): plan set sayısı doldu → hareket otomatik biter (tek setlikte sıradaki set açılmaz)
       this.kronoBaslat(c.seansKey, P.oncesiDinlenmeSn(r), `${r.egzersiz} · set ${d.detail.length + 1}`);
       this.geriBildirim();
       paint(); this.render();   // seans şeridindeki rozet yenilensin (çubuk yerinde kalır, taslak meta'dan gelir)
@@ -312,7 +311,7 @@ export class App {
       repBtns.forEach((b, i) => b.classList.toggle('sel', d.reps === reps[i]));
       repIn.value = d.reps !== null && !reps.includes(d.reps) ? String(d.reps) : ''; repIn.classList.toggle('sel', d.reps !== null && !reps.includes(d.reps));
       rpeBtns.forEach((b, i) => b.classList.toggle('sel', d.rpe === RPE_LIST[i]));
-      notBtn.classList.toggle('sel', !!d.note);
+      notBtn.classList.toggle('sel', !!notOf()); notBtn.textContent = notOf() ? '✎ not' : '✎';
       const setMode = d.mode === 'set';
       modeBtn.textContent = setMode ? 'Set set' : 'Tek satır'; modeBtn.classList.toggle('sel', setMode);
       setFld.classList.toggle('hidden', setMode); setList.classList.toggle('hidden', !setMode); setKaydet.classList.toggle('hidden', !setMode);
@@ -332,8 +331,8 @@ export class App {
       // gerçek dinlenme: bu seansta önceki kayıttan bu yana geçen süre; plan: bir önceki kayıtta kurulan sayaç
       const now = Date.now(); const last = c.seans?.last_save_at ? new Date(c.seans.last_save_at).getTime() : (c.seans?.isinma_bitti_at ? new Date(c.seans.isinma_bitti_at).getTime() : null);
       const rest_s = setMode ? (d.detail[0].rest_s ?? null) : (last ? Math.round((now - last) / 1000) : null); const rest_plan_s = P.oncesiDinlenmeSn(r);   // bu hareketin ÖNCESİ (set-set: ilk setin molası)
-      const data = setMode ? { kg: null, sets: null, reps: null, reps_text: null, rpe: null, note: d.note, sets_detail: d.detail.map(x => ({ n: x.n, kg: x.kg, reps: x.reps, rpe: x.rpe, rest_s: x.rest_s, rest_plan_s: x.rest_plan_s, ts: x.ts })) }
-        : { kg: d.kg, sets: d.sets, reps: d.reps, reps_text: r.tekrar_metin && d.reps === null ? r.tekrar_metin : null, rpe: d.rpe, note: d.note };
+      const data = setMode ? { kg: null, sets: null, reps: null, reps_text: null, rpe: null, note: notOf(), sets_detail: d.detail.map(x => ({ n: x.n, kg: x.kg, reps: x.reps, rpe: x.rpe, rest_s: x.rest_s, rest_plan_s: x.rest_plan_s, ts: x.ts })) }
+        : { kg: d.kg, sets: d.sets, reps: d.reps, reps_text: r.tekrar_metin && d.reps === null ? r.tekrar_metin : null, rpe: d.rpe, note: notOf() };
       try { await S.logSet({ ref: r.ref, actor: d.actor, ...data, skipped, supersedes: q?.event_id ?? null, rest_s: skipped ? null : rest_s, rest_plan_s: skipped ? null : rest_plan_s }); }
       catch (e) { hint.textContent = 'Kaydedilemedi: ' + e.message; hint.classList.remove('hidden'); this.logCollapsed = false; this.applyCollapse(); return; }
       await S.setMeta(draftKey, null); this.sync?.schedule(); this.geriBildirim();
@@ -414,6 +413,7 @@ export class App {
       const dur = c.seans?.started_at ? Math.round((Date.now() - new Date(c.seans.started_at)) / 1000) : null;
       await S.logSession('finished', { program: c.p, cycle: c.def.cycle, week: v.week, day: v.day, duration_s: dur, note: (this.ozet?.note ?? '').trim() || null });
       await S.setMeta(c.seansKey, null); this.ozet = null; this.krono = null; this.sync?.schedule(); this.main.scrollTop = 0;
+      if (this.kilit[c.p]) { delete this.kilit[c.p]; await S.setMeta('kilit', this.kilit); }   // H5 (26 Eyl): kilitli seans bitince kilit kalkar → sıradaki seans
       if (this.needRefresh) { setTimeout(() => this.needRefresh(), 400); }
       this.render();
     } }, 'Kaydet ve kapat'));
@@ -579,6 +579,11 @@ export class App {
       box.append(el('div', { class: 't' }, 'Hayat stresi'), el('div', { class: 'sub' }, `Hafta ${c.v.week} için genel yorgunluk/stres. Formüle girmez; haftalık sinyalin yanında not olarak durur.`));
       box.append(el('div', { class: 'stres' }, ...[1, 2, 3, 4, 5].map(n => el('button', { class: val === n ? 'sel' : '', onclick: async () => { await S.logStress({ program: c.p, cycle: c.def.cycle, week: c.v.week, value: n }); this.sync?.schedule(); this.sheet = null; if (sh.sonra) await this.fazSet(c.v.isinmaBasamak ? sh.sonra : 'log'); else this.render(); } }, el('b', {}, n), el('span', {}, STRES_AD[n - 1])))));
       box.append(el('div', { class: 'btnrow', style: 'margin-top:12px' }, el('button', { class: 'sec', onclick: async () => { this.sheet = null; if (sh.sonra) await this.fazSet(c.v.isinmaBasamak ? sh.sonra : 'log'); else this.renderSheet(); } }, sh.sonra ? 'Şimdi değil' : 'Kapat')));
+    } else if (sh.kind === 'not') {
+      const ta = el('textarea', { placeholder: 'his, aksaklık, gelecek haftaya…', enterkeyhint: 'done' }); ta.value = sh.deger ?? '';
+      box.append(el('div', { class: 't' }, `Not · ${sh.kisi === 'alper' ? 'Alper' : 'Arda'}`), el('div', { class: 'sub' }, 'Bu harekete, bu kişiye ait. Kaydet ile birlikte olaya yazılır.'), ta,
+        el('div', { class: 'btnrow' }, el('button', { class: 'sec', onclick: () => { this.sheet = null; this.renderSheet(); } }, 'Vazgeç'), el('button', { class: 'pri', style: 'flex:1', onclick: () => { sh.onSave(ta.value.trim() || null); this.sheet = null; this.renderSheet(); } }, 'Tamam')));
+      setTimeout(() => ta.focus(), 50);
     } else if (sh.kind === 'plaka') {
       box.append(el('div', { class: 'h' }, el('div', { class: 't' }, 'Plaka hesabı'), el('div', { class: 'small dim' }, 'loglama çubuğundan')), this.plakaBlok(sh.kg ?? 20, null, sh.aktar));
     }
