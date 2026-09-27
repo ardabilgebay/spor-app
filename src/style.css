@@ -317,3 +317,11 @@ main.vin{animation:vin .28s var(--ease-out)}
 .kpill.over.big{border-color:#6a3030}
 
 .pills .plbl{flex:none;align-self:center;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--dim);width:38px}.pills.alp{margin-top:6px}.pills.alp .p{color:var(--blue)}.pills.alp .p.top{border-color:#3a5a80;color:var(--blue)}
+
+/* P1 · dinlenme paneli: nabız + Hazırım (Dynamic Island büyük hali) */
+.sbar .kpanel{display:grid;grid-template-columns:1fr 1fr;gap:6px 8px;padding:8px 10px;border-radius:14px;background:rgba(43,39,65,.55);box-shadow:0 0 0 1px var(--acc-line);animation:selpop .32s var(--spring)}
+.kpanel .hr{display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--dim)}.kpanel .hr span{flex:none}
+.kpanel .hr input{min-height:34px;padding:4px 8px;font-size:16px;text-align:center;background:#0e0f18;border:0;border-radius:9px;box-shadow:inset 0 2px 5px rgba(0,0,0,.6)}
+.kpanel .hazir{grid-column:1/-1;min-height:40px;border-radius:10px;border:1px solid var(--acc-line);background:transparent;color:var(--acc-ink);font-weight:600}
+.kpanel .hazir:disabled{opacity:.5}.kpanel .hazir.on{background:#16261d;border-color:#2f5a40;color:var(--ok)}
+.kpanel .kalt{grid-column:1/-1;line-height:1.3}

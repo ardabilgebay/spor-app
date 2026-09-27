@@ -57,6 +57,12 @@ const omuz = h => da.rows.filter(r => r.week === h && r.day === 'Pzt' && /Omuz 1
 t('Alper omuz rotasyonu H1/H2/H3/H5', omuz(1) === 'Heavy Dumbbell Shoulder Press 3×6' && omuz(2) === 'Heavy Cheat Side Raise 3×6' && omuz(3) === 'Heavy OHP 3×6' && omuz(5) === 'Heavy Dumbbell Shoulder Press 3×6', [1,2,3,5].map(omuz).join(' | '));
 const aV1 = P.sessionView(da, await S.stateFor('Alper', da.cycle), 1);
 t('Alper ısınma: Arda 107.5 + Alper 90 rampası', aV1.topKg === 107.5 && aV1.topAlperKg === 90 && JSON.stringify(aV1.isinmaBasamakAlper) === '[35,55,67.5,77.5]', JSON.stringify([aV1.topKg, aV1.topAlperKg, aV1.isinmaBasamakAlper]));
+// Rampa (27 Eyl): P5 olimpik üstünden, H2 başlangıç fazı, Hip Thrust Ağır rampası
+const rS1 = P.sessionView(dg, stG, 1).rampa, rS2 = P.sessionView(dg, stG, 2).rampa;
+t('P5 Diğer Sal: Clean 40 → Squat 120, boş bar yok, basamaklar >40', rS1?.egz === 'Squat' && rS1.kg === 120 && !rS1.bosBar && rS1.olimpik?.kg === 40 && rS1.basamak.every(k => k > 40 && k < 120), JSON.stringify(rS1));
+t('P5 Diğer Per: Snatch 40 → Front Squat 65: 50 · 57.5', rS2?.egz === 'Front Squat' && JSON.stringify(rS2.basamak) === '[50,57.5]', JSON.stringify(rS2));
+const ddS = P.sessions(dd).find(s => s.week === 4 && s.day === 'Car'); const rHT = P.sessionView(dd, stD, ddS.idx).rampa;
+t('Hip Thrust Ağır rampası: geçen 200 → 80 · 120 · 150 · 175 · 200 (boş bar ile)', rHT?.egz === 'Hip Thrust' && rHT.kg === 200 && rHT.kaynak === 'agir' && rHT.bosBar && JSON.stringify(rHT.basamak) === '[80,120,150,175]', JSON.stringify(rHT));
 t('A1: kilit 6 kazanır', P.activeSessionIdx(dg, stG2, 6) === 6);
 // K22 / BUGÜN!I36 — kol varyant override (Diğer H1 Per: Biceps takvim B → A)
 const per1 = P.sessions(dg).find(s => s.week === 1 && s.day === 'Per');

@@ -97,7 +97,31 @@ export function etkinOnerilen(def, state, r) {
 }
 
 /** Seans görünümü: satırlar + plan metni + mevcut girişler + renk + plaka + ısınma. */
-export function sessionView(def, state, idx, overrides = null) {
+/** Uygulama ısınma rampası (Excel K3'ün üstüne; motor paritesi `isinmaBasamak`'ta korunur):
+ *  - hedef: top set (Tekrar≤3); yoksa ilk barlı "Ağır/Heavy" satır (Arda 27 Eyl: Hip Thrust Ağır) — kg = önerilen ?? geçen kayıt
+ *  - P5 (27 Eyl): hedeften önce olimpik kaldırış varsa (Clean/Snatch) rampa onun kilosunun ÜSTÜNDEN başlar, boş bar yok. */
+const OLIMPIK = /^(clean|snatch|power clean|hang clean|hang snatch)\b/i;
+export function rampaHesapla(def, state, sess, stateAll = null, viewRows = null) {
+  const cfg = M.CONFIG[def.program]; const rows = viewRows ?? sess.rows;   // kırmızı takım #4: K25 frenli önerilenle kur
+  const top = M.topSet(rows);
+  let hedef = top.egzersiz ? rows.find(r => r.egzersiz === top.egzersiz && r.onerilen === top.kg && M.isNum(r.tekrar) && r.tekrar <= 3) : null, kg = top.kg || null;
+  if (!hedef) {
+    hedef = rows.find(r => isBarli(r) && /agir|ağır|heavy/i.test(r.modifier ?? ''));
+    if (hedef) kg = M.isNum(hedef.onerilen) ? hedef.onerilen : (prevEntry(stateAll ?? state, hedef, sess, def.cycle)?.kg ?? null);
+  }
+  if (!hedef || !M.isNum(kg) || kg <= 0) return null;
+  const hi = rows.indexOf(hedef);
+  const oly = rows.slice(0, hi).filter(r => OLIMPIK.test(r.egzersiz)).map(r => {
+    const a = state.find(x => x.week === sess.week && x.day === sess.day && x.row_key === r.row_key && x.actor === 'arda' && !x.deleted && !x.skipped);
+    const k = a?.sets_detail?.length ? Math.max(...a.sets_detail.map(d => d.kg)) : (a?.kg ?? r.onerilen);
+    return M.isNum(k) && k > 0 ? { egz: r.egzersiz, kg: k } : null; }).filter(Boolean).sort((a, b) => b.kg - a.kg)[0] ?? null;
+  const tum = M.isinmaBasamaklari(kg, cfg.rampRoundBase) ?? [];
+  const basamak = oly ? tum.filter(k => k > oly.kg && k < kg) : tum;
+  if (!basamak.length && oly) return null;   // olimpik kilo hedefe yakın/üstünde → ek ısınma yok (kırmızı takım #5)
+  return { egz: hedef.egzersiz, rowKey: hedef.row_key, kg, basamak, bosBar: !oly, olimpik: oly, kaynak: top.egzersiz ? 'top' : 'agir' };
+}
+
+export function sessionView(def, state, idx, overrides = null, stateAll = null) {
   const cfg = M.CONFIG[def.program];
   const ss = sessions(def, overrides); const sess = ss.find(s => s.idx === idx); if (!sess) return null;
   const rows = sess.rows.map(r => {
@@ -117,7 +141,7 @@ export function sessionView(def, state, idx, overrides = null) {
   const top = M.topSet(sess.rows);
   // Alper (K3 eşleniği, Excel'de yok — Arda 23 Eyl): Alper'in top seti = aynı satırın onerilen_alper'i; rampa aynı yüzdelerle
   const topAlper = def.program === 'Alper' && top.egzersiz ? (() => { const r = sess.rows.find(x => x.egzersiz === top.egzersiz && x.onerilen === top.kg); const kgA = r?.onerilen_alper; return M.isNum(kgA) && kgA > 0 ? { kg: kgA, egzersiz: top.egzersiz } : null; })() : null;
-  return { ...sess, N: ss.length, rows, topAlperKg: topAlper?.kg ?? null, isinmaBasamakAlper: topAlper ? M.isinmaBasamaklari(topAlper.kg, cfg.rampRoundBase) : null, kol: kolBlok(def, def.rows.filter(r => r.week === sess.week && r.day === sess.day)), isinma: M.isinmaMetni(top.kg, top.egzersiz, cfg.rampRoundBase), isinmaBasamak: M.isinmaBasamaklari(top.kg, cfg.rampRoundBase), topKg: top.kg,
+  return { ...sess, N: ss.length, rows, rampa: rampaHesapla(def, state, sess, stateAll, rows), topAlperKg: topAlper?.kg ?? null, isinmaBasamakAlper: topAlper ? M.isinmaBasamaklari(topAlper.kg, cfg.rampRoundBase) : null, kol: kolBlok(def, def.rows.filter(r => r.week === sess.week && r.day === sess.day)), isinma: M.isinmaMetni(top.kg, top.egzersiz, cfg.rampRoundBase), isinmaBasamak: M.isinmaBasamaklari(top.kg, cfg.rampRoundBase), topKg: top.kg,
     tamamlanan: rows.filter(r => r.tamam).length };
 }
 

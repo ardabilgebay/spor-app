@@ -85,7 +85,7 @@ export class App {
     const def = this.defs[p]; if (!def) return { def: null, v: null };
     const [state, stateAll, ov, finished, stres, sev] = await Promise.all([S.stateFor(p, def.cycle), S.stateAllFor(p), S.armVariants(p, def.cycle), S.finishedSessions(p, def.cycle), S.stressFor(p, def.cycle), S.sessionEvents(p, def.cycle)]);
     const idx = P.activeSessionIdx(def, state, this.kilit[p] ?? null, finished, new Date(), ov);
-    const v = P.sessionView(def, state, idx, ov);
+    const v = P.sessionView(def, state, idx, ov, stateAll);
     const seansKey = v ? `seans:${p}|${def.cycle}|${v.week}|${v.day}` : null;
     const seans = seansKey ? (await S.getMeta(seansKey)) ?? null : null;
     return { p, def, state, stateAll, ov, finished, stres, sev, idx, v, seansKey, seans, wk: P.weekly(def, state, ov) };
@@ -123,12 +123,14 @@ export class App {
     if (this.msg) { m.append(el('div', { class: 'banner ok', style: 'margin:0 0 10px' }, this.msg)); this.msg = null; }
     const skew = await S.getMeta('saat_sapmasi_ms'); if (skew) m.append(el('div', { class: 'banner warn', style: 'margin:0 0 10px' }, `Telefon saati sunucudan ${Math.round(Math.abs(skew) / 60000)} dk ${skew > 0 ? 'geride' : 'ileride'} — kayıt sırası bundan etkilenmesin diye saati otomatik yap.`));
     if (faz === 'onizleme') await this.fOnizleme(c, m);
-    else if (faz === 'isinma') this.fIsinma(c, m);
+    else if (faz === 'isinma') await this.fIsinma(c, m);
     else if (faz === 'log') await this.fLog(c, m);
     else if (faz === 'ozet') await this.fOzet(c, m);
   }
   sureMetni(iso) { const k = Math.max(0, Math.round((Date.now() - new Date(iso)) / 1000)); return mmss(k); }
   tickSure() { clearInterval(this.sureIv); this.sureIv = setInterval(() => { const e = this.foot.querySelector('#sure') ?? this.hR.querySelector('#sure'); if (!e || !this.c?.seans?.started_at) return clearInterval(this.sureIv); e.textContent = this.sureMetni(this.c.seans.started_at); }, 1000); }
+  /** H2 (27 Eyl): rampa, rampanın hareketi sıradaysa gösterilir; seans olimpik kaldırışla başlıyorsa önce log, rampa o hareket gelince. */
+  baslangicFaz(v) { const ilk = v.rows.find(r => !r.tamam); return v.rampa && ilk && ilk.row_key === v.rampa.rowKey ? 'isinma' : 'log'; }
   async fazSet(faz, extra = {}) {
     const c = this.c; const s = { ...(c.seans ?? { tik: [], started_at: null, openKey: null }), faz, ...extra };
     if (faz !== 'onizleme' && !s.started_at) { s.started_at = new Date().toISOString(); await S.logSession('started', { program: c.p, cycle: c.def.cycle, week: c.v.week, day: c.v.day }); }
@@ -175,29 +177,32 @@ export class App {
     m.append(el('div', { style: 'display:flex;align-items:baseline;gap:10px;flex-wrap:wrap' }, el('div', { style: 'font-weight:500;font-size:19px;letter-spacing:-.02em' }, `Seans ${v.idx} / ${v.N}`), el('div', { class: 'small mute tab' }, `${v.rows.length} hareket · ${v.tamamlanan} kayıtlı`)));
     m.append(...[el('div', { class: 'sigrow' }, this.sinyalSatiri(c), this.stresRozet(c)), this.kolSatiri(c)].filter(Boolean));
     if (this.kilit[c.p]) m.append(el('div', { class: 'banner', style: 'display:flex;justify-content:space-between;align-items:center' }, `Seans kilidi: ${this.kilit[c.p]}`, el('button', { class: 'pill', onclick: async () => { delete this.kilit[c.p]; await S.setMeta('kilit', this.kilit); this.render(); } }, 'Kaldır')));
-    if (v.isinmaBasamak) {
-      m.append(el('div', { style: 'margin-top:14px', class: 'h' }, el('div', { class: 'k' }, `Isınma · ${M.topSet(v.rows).egzersiz}`), el('div', { class: 'xs dim2' }, `${v.isinmaBasamak.length + 1} basamak · top set ${fmt(v.topKg)} kg`)));
-      m.append(el('div', { class: 'pills tab' }, v.isinmaBasamakAlper ? el('span', { class: 'plbl' }, 'Arda') : null, el('span', { class: 'p' }, 'boş bar'), ...v.isinmaBasamak.map(k => el('span', { class: 'p' }, fmt(k))), el('span', { class: 'p top' }, `${fmt(v.topKg)} kg`)));
-      if (v.isinmaBasamakAlper) m.append(el('div', { class: 'pills tab alp' }, el('span', { class: 'plbl' }, 'Alper'), el('span', { class: 'p' }, 'boş bar'), ...v.isinmaBasamakAlper.map(k => el('span', { class: 'p' }, fmt(k))), el('span', { class: 'p top' }, `${fmt(v.topAlperKg)} kg`)));
+    const rp = v.rampa;
+    if (rp) {
+      m.append(el('div', { style: 'margin-top:14px', class: 'h' }, el('div', { class: 'k' }, `Isınma · ${rp.egz}`), el('div', { class: 'xs dim2' }, `${rp.basamak.length + (rp.bosBar ? 1 : 0)} basamak · ${rp.kaynak === 'top' ? 'top set' : 'ağır'} ${fmt(rp.kg)} kg${rp.olimpik ? ` · ${rp.olimpik.egz} ${fmt(rp.olimpik.kg)}'tan sonra` : ''}`)));
+      m.append(el('div', { class: 'pills tab' }, v.isinmaBasamakAlper ? el('span', { class: 'plbl' }, 'Arda') : null, rp.bosBar ? el('span', { class: 'p' }, 'boş bar') : null, ...rp.basamak.map(k => el('span', { class: 'p' }, fmt(k))), el('span', { class: 'p top' }, `${fmt(rp.kg)} kg`)));
+      if (v.isinmaBasamakAlper && !rp.olimpik) m.append(el('div', { class: 'pills tab alp' }, el('span', { class: 'plbl' }, 'Alper'), el('span', { class: 'p' }, 'boş bar'), ...v.isinmaBasamakAlper.map(k => el('span', { class: 'p' }, fmt(k))), el('span', { class: 'p top' }, `${fmt(v.topAlperKg)} kg`)));
     }
     m.append(el('div', { class: 'grid', style: 'margin-top:14px' }, ...v.rows.map(r => this.rowCard(c, r, { open: true }))));
     const son = c.sev.filter(e => e.kind === 'finished' && e.note).slice(-1)[0];
     if (son && son.week === v.week && son.day === v.day) m.append(el('div', { class: 'prev', style: 'margin-top:10px' }, 'Seans notu: ' + son.note));
     this.footer('foot', el('button', { class: 'pri', style: 'flex:1', onclick: async () => {
       if (!c.stres.has(v.week)) { this.sheet = { kind: 'stres', sonra: 'isinma' }; this.renderSheet(); return; }
-      await this.fazSet(v.isinmaBasamak && !tamamlandi ? 'isinma' : 'log');
+      await this.fazSet(!tamamlandi ? this.baslangicFaz(v) : 'log');
     } }, tamamlandi ? 'Seansı aç (düzelt)' : v.tamamlanan > 0 ? 'Seansa devam et' : 'Seansa başla'));
   }
-  fIsinma(c, m) {
-    const { v } = c; const tik = new Set(c.seans?.tik ?? []); const top = M.topSet(v.rows);
-    const adim = [['boş bar', 0, 'teknik · 8-10 tekrar'], ...v.isinmaBasamak.map((k, i) => [fmt(k) + ' kg' + (v.isinmaBasamakAlper ? ` · Alper ${fmt(v.isinmaBasamakAlper[i])}` : ''), k, i === v.isinmaBasamak.length - 1 ? 'top set öncesi son basamak' : `rampa ${i + 1}`])];
-    m.append(el('div', { class: 'small mute', style: 'line-height:1.45' }, `${top.egzersiz} için rampa — ${fmt(v.topKg)} kg${v.topAlperKg ? ` (Alper ${fmt(v.topAlperKg)} kg)` : ''} top sete kadar. Her basamağı bitirince dokun; sıra önemli değil.`));
+  async fIsinma(c, m) {
+    const { v } = c; const tik = new Set(c.seans?.tik ?? []); const rp = v.rampa;
+    if (!rp) { await this.fazSet('log', { isinma_gecildi: true }); return; }
+    const alp = !rp.olimpik ? v.isinmaBasamakAlper : null;
+    const adim = [...(rp.bosBar ? [['boş bar', 0, 'teknik · 8-10 tekrar']] : []), ...rp.basamak.map((k, i) => [fmt(k) + ' kg' + (alp ? ` · Alper ${fmt(alp[i])}` : ''), k, i === rp.basamak.length - 1 ? `${rp.kaynak === 'top' ? 'top set' : 'ağır set'} öncesi son basamak` : `rampa ${i + 1}`])];
+    m.append(el('div', { class: 'small mute', style: 'line-height:1.45' }, `${rp.egz} için rampa — ${fmt(rp.kg)} kg${v.topAlperKg && alp ? ` (Alper ${fmt(v.topAlperKg)} kg)` : ''}${rp.olimpik ? ` · ${rp.olimpik.egz} ${fmt(rp.olimpik.kg)} ısınma sayıldı, üstünden başlar` : ''}. Her basamağı bitirince dokun; sıra önemli değil.`));
     const list = el('div', { class: 'grid', style: 'margin-top:14px' }); m.append(list);
     const draw = () => list.replaceChildren(...adim.map(([et, kg, sub], i) => el('button', { class: 'isirow' + (tik.has(i) ? ' on' : ''), onclick: async () => { tik.has(i) ? tik.delete(i) : tik.add(i); await S.setMeta(c.seansKey, { ...c.seans, tik: [...tik] }); c.seans.tik = [...tik]; draw(); } },
       el('span', { class: 'tik' }, tik.has(i) ? '✓' : ''), el('span', { style: 'flex:1;min-width:0' }, el('span', { class: 'big tab' }, et), el('span', { class: 'sub' }, sub)), el('span', { class: 'xs dim2 tab' }, kg ? (P.plakaMetni(kg) ?? '') : ''))));
     draw();
-    const gec = async () => { const ilk = v.rows.find(r => !r.tamam); if (ilk && tik.size) this.kronoBaslat(c.seansKey, P.oncesiDinlenmeSn(ilk), ilk.egzersiz); await this.fazSet('log', { isinma_bitti_at: tik.size ? new Date().toISOString() : null }); };
-    this.footer('foot', el('button', { class: 'sec', style: 'flex:none;min-height:52px', onclick: () => this.fazSet('log') }, 'Atla'), el('button', { class: 'pri', style: 'flex:1', onclick: gec }, 'Hareketlere geç'));
+    const gec = async () => { const ilk = v.rows.find(r => !r.tamam); if (ilk && tik.size) this.kronoBaslat(c.seansKey, P.oncesiDinlenmeSn(ilk), ilk.egzersiz, ilk.row_key); await this.fazSet('log', { isinma_bitti_at: tik.size ? new Date().toISOString() : null, isinma_gecildi: true }); };
+    this.footer('foot', el('button', { class: 'sec', style: 'flex:none;min-height:52px', onclick: () => this.fazSet('log', { isinma_gecildi: true }) }, 'Atla'), el('button', { class: 'pri', style: 'flex:1', onclick: gec }, 'Hareketlere geç'));
   }
   // ── LOG (aktif seans) ─────────────────────────────────────────────
   async fLog(c, m) {
@@ -206,6 +211,7 @@ export class App {
     const nowRow = v.rows.find(r => !r.tamam) ?? null;
     const openKey = c.seans?.openKey && v.rows.some(r => r.row_key === c.seans.openKey) ? c.seans.openKey : nowRow?.row_key ?? null;
     const openRow = v.rows.find(r => r.row_key === openKey) ?? null;
+    if (v.rampa && openRow && openRow === nowRow && openRow.row_key === v.rampa.rowKey && !c.seans?.isinma_gecildi && !(c.seans?.tik ?? []).length) { setTimeout(() => this.fazSet('isinma'), 0); return; }   // H2: rampa, hareketi sıraya gelince
     if (v.kol) m.append(this.kolSatiri(c));
     m.append(el('div', { class: 'grid', style: 'margin-top:10px' }, ...v.rows.map(r => this.rowCard(c, r, { open: r === openRow, now: r === openRow, onclick: async () => { await S.setMeta(c.seansKey, { ...c.seans, openKey: r.row_key }); this.render(); } }))));
     const seansBar = this.seansBar(c);
@@ -217,7 +223,7 @@ export class App {
     const sure = el('span', { class: 'chip tab', id: 'sure' }, this.sureMetni(c.seans.started_at)); this.tickSure();
     const grab = el('button', { class: 'grab', title: this.logCollapsed ? 'Aç' : 'Katla', onclick: () => { if (this.dragMoved) { this.dragMoved = false; return; } this.logCollapsed = !this.logCollapsed; this.applyCollapse(); } }, el('span', { class: 'gl' }), el('span', { class: 'gt' }, this.logCollapsed ? '▴  aç' : '▾  katla'));
     this.grabDrag(grab);
-    return el('div', { class: 'sbar' }, grab, el('div', { class: 'srow' }, sure, this.kronoPill(), el('span', { style: 'flex:1' }), el('button', { class: 'pill', title: 'Isınma rampasına dön', onclick: () => this.fazSet('isinma') }, 'Isınma'), el('button', { class: 'pill acc', style: 'border-color:var(--acc-line)', onclick: () => this.fazSet('ozet') }, 'Bitir')));
+    return el('div', { class: 'sbar' }, grab, el('div', { class: 'srow' }, sure, this.kronoPill(), el('span', { style: 'flex:1' }), el('button', { class: 'pill', title: 'Isınma rampasına dön', onclick: () => this.fazSet('isinma') }, 'Isınma'), el('button', { class: 'pill acc', style: 'border-color:var(--acc-line)', onclick: () => this.fazSet('ozet') }, 'Bitir')), this.kronoPanel());
   }
   /** Tutamaç parmağı izler: panel dirençle (rubber band) kayar, pill uzar; eşik (36 px) geçilirse katlanır/açılır, yoksa yaylanıp döner. */
   grabDrag(grab) {
@@ -296,10 +302,10 @@ export class App {
       if (d.kg === null || d.kg <= 0) { hint.textContent = d.kg === 0 ? '0 kg set kaydedilmez — kg gir.' : 'kg gir.'; hint.classList.remove('hidden'); return; }
       const now = Date.now();
       const last = d.detail.length ? new Date(d.detail[d.detail.length - 1].ts).getTime() : (c.seans?.last_save_at ? new Date(c.seans.last_save_at).getTime() : (c.seans?.isinma_bitti_at ? new Date(c.seans.isinma_bitti_at).getTime() : null));
-      d.detail.push({ n: d.detail.length + 1, kg: d.kg, reps: d.reps, rpe: d.rpe, rest_s: last ? Math.round((now - last) / 1000) : null, rest_plan_s: P.oncesiDinlenmeSn(r), ts: new Date(now).toISOString() });
+      d.detail.push({ n: d.detail.length + 1, kg: d.kg, reps: d.reps, rpe: d.rpe, rest_s: last ? Math.round((now - last) / 1000) : null, rest_plan_s: P.oncesiDinlenmeSn(r), ts: new Date(now).toISOString(), ...this.kronoDinlenmeVerisi(c.seansKey, r.row_key) });
       d.rpe = null; hint.classList.add('hidden'); await saveDraft();
       if (M.isNum(r.set) && d.detail.length >= r.set) { this.geriBildirim(); return commit(); }   // H3 (26 Eyl): plan set sayısı doldu → hareket otomatik biter (tek setlikte sıradaki set açılmaz)
-      this.kronoBaslat(c.seansKey, P.oncesiDinlenmeSn(r), `${r.egzersiz} · set ${d.detail.length + 1}`);
+      this.kronoBaslat(c.seansKey, P.oncesiDinlenmeSn(r), `${r.egzersiz} · set ${d.detail.length + 1}`, r.row_key);
       this.geriBildirim();
       paint(); this.render();   // seans şeridindeki rozet yenilensin (çubuk yerinde kalır, taslak meta'dan gelir)
     };
@@ -331,13 +337,13 @@ export class App {
       // gerçek dinlenme: bu seansta önceki kayıttan bu yana geçen süre; plan: bir önceki kayıtta kurulan sayaç
       const now = Date.now(); const last = c.seans?.last_save_at ? new Date(c.seans.last_save_at).getTime() : (c.seans?.isinma_bitti_at ? new Date(c.seans.isinma_bitti_at).getTime() : null);
       const rest_s = setMode ? (d.detail[0].rest_s ?? null) : (last ? Math.round((now - last) / 1000) : null); const rest_plan_s = P.oncesiDinlenmeSn(r);   // bu hareketin ÖNCESİ (set-set: ilk setin molası)
-      const data = setMode ? { kg: null, sets: null, reps: null, reps_text: null, rpe: null, note: notOf(), sets_detail: d.detail.map(x => ({ n: x.n, kg: x.kg, reps: x.reps, rpe: x.rpe, rest_s: x.rest_s, rest_plan_s: x.rest_plan_s, ts: x.ts })) }
+      const data = setMode ? { kg: null, sets: null, reps: null, reps_text: null, rpe: null, note: notOf(), sets_detail: d.detail.map(x => ({ n: x.n, kg: x.kg, reps: x.reps, rpe: x.rpe, rest_s: x.rest_s, rest_plan_s: x.rest_plan_s, ts: x.ts, ...(M.isNum(x.hr_sonra_onceki) ? { hr_sonra_onceki: x.hr_sonra_onceki } : {}), ...(M.isNum(x.hr_once) ? { hr_once: x.hr_once } : {}), ...(M.isNum(x.hazir_s) ? { hazir_s: x.hazir_s } : {}) })) }
         : { kg: d.kg, sets: d.sets, reps: d.reps, reps_text: r.tekrar_metin && d.reps === null ? r.tekrar_metin : null, rpe: d.rpe, note: notOf() };
       try { await S.logSet({ ref: r.ref, actor: d.actor, ...data, skipped, supersedes: q?.event_id ?? null, rest_s: skipped ? null : rest_s, rest_plan_s: skipped ? null : rest_plan_s }); }
       catch (e) { hint.textContent = 'Kaydedilemedi: ' + e.message; hint.classList.remove('hidden'); this.logCollapsed = false; this.applyCollapse(); return; }
       await S.setMeta(draftKey, null); this.sync?.schedule(); this.geriBildirim();
       const rowsAfter = v.rows.map(x => x === r ? { ...x, tamam: true } : x); const nxt = P.sonrakiSatir(rowsAfter, rowsAfter[v.rows.indexOf(r)]);
-      if (!skipped && nxt) this.kronoBaslat(c.seansKey, P.oncesiDinlenmeSn(nxt), nxt.egzersiz); else if (!skipped) { this.krono = null; clearInterval(this.kronoIv); }
+      if (!skipped && nxt) this.kronoBaslat(c.seansKey, P.oncesiDinlenmeSn(nxt), nxt.egzersiz, nxt.row_key); else if (!skipped) { this.krono = null; clearInterval(this.kronoIv); }
       await S.setMeta(c.seansKey, { ...c.seans, openKey: null, last_save_at: skipped ? c.seans?.last_save_at ?? null : new Date(now).toISOString() });
       this.render();
     };
@@ -359,7 +365,11 @@ export class App {
   async wakeLock(on) {
     try { if (on && !this.wl && navigator.wakeLock) { this.wl = await navigator.wakeLock.request('screen'); this.wl.addEventListener('release', () => { this.wl = null; }); } else if (!on && this.wl) { await this.wl.release(); this.wl = null; } } catch {}
   }
-  kronoBaslat(key, sn, ad) { clearInterval(this.kronoIv); this.krono = { key, end: Date.now() + sn * 1000, sn, ad, start: Date.now() }; this.kronoIv = setInterval(() => this.kronoTick(), 500); }
+  /** P1 (Arda 27 Eyl): sayaç süreleri kalır; ağır/top/backoff setlerde "Hazırım" 3:00'ten önce açılmaz (alt sınır); set sonrası ve set öncesi nabız elle (isteğe bağlı).
+   *  Bu dinlenme verisi bir SONRAKİ sete yazılır: {hr_sonra_onceki, hr_once, hazir_s}. Bellekte tutulur (uygulama yenilenirse bu dinlenmenin nabzı kaybolur — set kayıtları kaybolmaz). */
+  kronoBaslat(key, sn, ad, rowKey = null) { clearInterval(this.kronoIv); this.krono = { key, rowKey, end: Date.now() + sn * 1000, sn, ad, start: Date.now(), altSn: sn >= 180 ? 180 : 0, hrSonra: null, hrOnce: null, hazirS: null }; this.kronoIv = setInterval(() => this.kronoTick(), 500); }
+  // kırmızı takım: nabız yalnız sayacın ait olduğu satıra yazılır
+  kronoDinlenmeVerisi(key, rowKey) { const k = this.krono; if (!k || k.key !== key || !k.rowKey || k.rowKey !== rowKey) return {}; const o = {}; if (M.isNum(k.hrSonra)) o.hr_sonra_onceki = k.hrSonra; if (M.isNum(k.hrOnce)) o.hr_once = k.hrOnce; if (M.isNum(k.hazirS)) o.hazir_s = k.hazirS; return o; }
   kronoKalan() { const k = this.krono; return k ? Math.round((k.end - Date.now()) / 1000) : 0; }   // negatif = aşım
   kronoMetin(kalan) { return kalan >= 0 ? mmss(kalan) : '+' + mmss(-kalan); }
   kronoTick() {
@@ -367,6 +377,7 @@ export class App {
     const kalan = this.kronoKalan();
     const pct = kalan >= 0 ? Math.round((1 - kalan / k.sn) * 100) : Math.min(100, Math.round((-kalan / k.sn) * 100));
     const pill = this.foot.querySelector('#kpill') ?? this.hR.querySelector('#kpill'); if (pill) { pill.querySelector('.kt').textContent = this.kronoMetin(kalan); pill.classList.toggle('over', kalan < 0); pill.querySelector('.ring').style.setProperty('--pct', `${pct}%`); }
+    const hz = this.foot.querySelector('#khazir'); if (hz && !M.isNum(k.hazirS)) { const g = Math.round((Date.now() - k.start) / 1000); hz.disabled = g < k.altSn; hz.textContent = g < k.altSn ? `Hazırım · ${this.kronoMetin(k.altSn - g)}` : 'Hazırım'; }
     const big = this.main.querySelector('#krobig'); if (big) { big.textContent = this.kronoMetin(kalan); big.className = 'big tab ' + (kalan >= 0 ? 'on' : 'over'); }
     if (kalan === 0 && !k.bitti) { k.bitti = true; this.geriBildirim('alarm'); if (pill) { pill.classList.add('done'); setTimeout(() => { pill.classList.remove('done'); if (this.kronoBig) { this.kronoBig = false; pill.classList.remove('big'); } }, 1400); } }   // sayaç durmaz: aşım kırmızı sayar; büyükse nabız sonrası küçülür
   }
@@ -375,11 +386,21 @@ export class App {
     const k = this.krono; if (!k) return null; const kalan = this.kronoKalan();
     // Dynamic Island deseni: pil dokununca yaylanarak büyür (büyük sayaç + hareket adı + Geç), tekrar dokununca küçülür; süre bitince nabız verir ve kendiliğinden küçülür.
     const pill = el('button', { id: 'kpill', class: 'kpill' + (kalan < 0 ? ' over' : '') + (this.kronoBig ? ' big' : ''), title: this.kronoBig ? 'Küçült' : 'Büyüt',
-        onclick: () => { this.kronoBig = !this.kronoBig; pill.classList.toggle('big', this.kronoBig); pill.title = this.kronoBig ? 'Küçült' : 'Büyüt'; pill.querySelector('.kx').textContent = this.kronoBig ? 'Geç' : '×'; } },
+        onclick: () => { this.kronoBig = !this.kronoBig; pill.classList.toggle('big', this.kronoBig); pill.title = this.kronoBig ? 'Küçült' : 'Büyüt'; pill.querySelector('.kx').textContent = this.kronoBig ? 'Geç' : '×'; this.foot.querySelector('#kpanel')?.classList.toggle('hidden', !this.kronoBig); } },
       el('span', { class: 'ring', style: `--pct:${kalan >= 0 ? Math.round((1 - kalan / k.sn) * 100) : 100}%` }),
       el('span', { class: 'kbody' }, el('span', { class: 'kt tab' }, this.kronoMetin(kalan)), el('span', { class: 'kad' }, `${k.ad ?? 'dinlenme'} · plan ${this.kronoMetin(k.sn)}`)),
       el('span', { class: 'kx', title: 'Dinlenmeyi geç', onclick: e => { e.stopPropagation(); this.krono = null; this.kronoBig = false; clearInterval(this.kronoIv); this.render(); } }, this.kronoBig ? 'Geç' : '×'));
     return pill;
+  }
+  kronoPanel() {
+    const k = this.krono; if (!k) return null;
+    const hr = (lbl, alan) => { const i = el('input', { type: 'text', inputmode: 'numeric', class: 'tab', placeholder: '—', value: M.isNum(k[alan]) ? String(k[alan]) : '' });
+      i.addEventListener('change', () => { const v = /^\s*\d{2,3}\s*$/.test(i.value) ? parseInt(i.value, 10) : NaN; k[alan] = Number.isFinite(v) && v >= 30 && v <= 230 ? v : null; i.value = M.isNum(k[alan]) ? String(k[alan]) : ''; }); return el('label', { class: 'hr' }, el('span', {}, lbl), i); };
+    const gecen = () => Math.round((Date.now() - k.start) / 1000);
+    const hz = el('button', { class: 'hazir' + (M.isNum(k.hazirS) ? ' on' : ''), id: 'khazir', disabled: !M.isNum(k.hazirS) && gecen() < k.altSn, onclick: () => { if (gecen() < k.altSn) return; k.hazirS = gecen(); hz.classList.add('on'); hz.textContent = `Hazır ✓ ${this.kronoMetin(k.hazirS)}`; this.geriBildirim(); } },
+      M.isNum(k.hazirS) ? `Hazır ✓ ${this.kronoMetin(k.hazirS)}` : 'Hazırım');
+    return el('div', { class: 'kpanel' + (this.kronoBig ? '' : ' hidden'), id: 'kpanel' }, hr('♥ set sonrası', 'hrSonra'), hr('♥ şimdi', 'hrOnce'), hz,
+      el('div', { class: 'kalt xs dim2' }, k.altSn ? 'Nabız <100 (ideal 90–95) + zihin taze → Hazırım · alt sınır 3:00' : 'Nabız ve zihin tazeyse → Hazırım'));
   }
   /** Dinlenme uyumu: rest_s/rest_plan_s olan girişler → {n, ort_oran, uyumlu, erken, gec} (±15% bant). */
   dinlenmeStat(entries) {
@@ -426,6 +447,7 @@ export class App {
     const m = el('div', { class: 'pop' }); this.main.append(m);
     const top = ss.reduce((a, s) => a + s.rows.filter(r => r.tamam).length, 0);
     m.append(el('div', { class: 'small mute', style: 'line-height:1.45' }, `${weeks.length} hafta · ${ss.length} seans · aktif seans ${c.idx}. Bir güne dokun: içerik altta açılır.`));
+    const takvimDisi = s => { const e = c.sev.filter(x => x.week === s.week && x.day === s.day).slice(-1)[0]; return !!e && P.todayKey(new Date(e.ts)) !== s.day; };   // P6
     const grid = el('div', { class: 'pgrid', style: `--n:${gunler.length}` });
     grid.append(el('div', { class: 'hd' }, el('div'), ...gunler.map(g => el('div', {}, P.GUN_AD[g].slice(0, 3)))));
     for (const w of weeks) {
@@ -437,15 +459,18 @@ export class App {
         const dolu = P.isDolu(s, state), tam = P.isTamam(s, state); const main = M.topSet(s.rows).egzersiz ? s.rows.find(r => r.egzersiz === M.topSet(s.rows).egzersiz) : s.rows[0];
         const n = s.rows.filter(r => state.some(x => x.week === s.week && x.day === s.day && x.row_key === r.row_key && x.actor === 'arda' && !x.deleted && M.isNum(x.kg))).length;
         row.append(el('button', { class: 'cell' + (tam ? ' done' : dolu ? ' part' : '') + (s.idx === c.idx ? ' now' : '') + (s.idx === sel ? ' sel' : ''), onclick: () => { this.progSel[p] = s.idx; this.render(); } },
-          el('div', { class: 'd' }, `S${s.idx}`), el('div', { class: 'm' }, main?.egzersiz ?? ''), el('div', { class: 'kg tab' }, main?.onerilen ? `${fmt(main.onerilen)} kg` : ''), el('div', { class: 'st' }, tam ? '✓ tamam' : dolu ? `${n}/${s.rows.length}` : s.idx === c.idx ? 'sırada' : '')));
+          el('div', { class: 'd' }, `S${s.idx}`), el('div', { class: 'm' }, main?.egzersiz ?? ''), el('div', { class: 'kg tab' }, main?.onerilen ? `${fmt(main.onerilen)} kg` : ''), el('div', { class: 'st' }, (tam ? '✓ tamam' : dolu ? `${n}/${s.rows.length}` : s.idx === c.idx ? 'sırada' : '') + (takvimDisi(s) ? ' ↻' : ''))));
       }
       grid.append(row);
     }
     m.append(grid);
     const s = ss.find(x => x.idx === sel);
     if (s) {
-      const v = P.sessionView(def, state, s.idx, c.ov); const sub = { ...c, v };
+      const v = P.sessionView(def, state, s.idx, c.ov, c.stateAll); const sub = { ...c, v };
       const fin = c.sev.filter(e => e.kind === 'finished' && e.week === s.week && e.day === s.day).slice(-1)[0];
+      const bas = c.sev.filter(e => e.kind === 'started' && e.week === s.week && e.day === s.day).slice(-1)[0];
+      const tar = fin ?? bas; if (tar) { const d = new Date(tar.ts); const gk = P.todayKey(d); const disi = gk !== s.day;
+        m.append(el('div', { class: 'xs ' + (disi ? 'warn' : 'dim'), style: 'margin-top:8px' }, `${fin ? 'Yapıldı' : 'Başlandı'}: ${d.toLocaleDateString('tr-TR', { weekday: 'long', day: 'numeric', month: 'short' })} ${d.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}${disi ? ` · takvim dışı (plan ${P.GUN_AD[s.day]})` : ''}`)); }
       m.append(el('div', { class: 'h', style: 'margin-top:16px' }, el('div', { class: 'k' }, `Seans ${s.idx} · Hafta ${s.week} ${P.GUN_AD[s.day]}`), el('div', { class: 'xs dim2 tab' }, `${v.tamamlanan}/${v.rows.length}`)));
       m.append(el('div', { class: 'grid', style: 'margin-top:8px' }, ...v.rows.map(r => this.rowCard(sub, r, { open: true }))));
       if (fin?.note) m.append(el('div', { class: 'prev', style: 'margin-top:8px' }, 'Seans notu: ' + fin.note));
@@ -453,7 +478,7 @@ export class App {
       const appN = v.rows.filter(r => r.tamam).length;
       if (appN) m.append(el('button', { class: 'sec', style: 'width:100%;margin-top:8px;color:var(--red);border-color:#6a3030', onclick: async () => {
         if (!confirm(`Seans ${s.idx} (H${s.week} ${P.GUN_AD[s.day]}) app kayıtları silinsin mi? Göç/Excel verisi silinmez; takvim bu güne geri çekilir. Silme olay olarak yazılır (geri alınabilir değil).`)) return;
-        const n = await S.resetSession(p, def.cycle, s.week, s.day); this.krono = null; this.sync?.schedule(); this.msg = `Seans ${s.idx}: ${n} app kaydı silindi, seans yeniden açıldı.`; this.tab = 'bugun'; delete this.kilit[p]; await S.setMeta('kilit', this.kilit); this.render();
+        const n = await S.resetSession(p, def.cycle, s.week, s.day); await S.setMeta(`seans:${p}|${def.cycle}|${s.week}|${s.day}`, null); this.krono = null; this.sync?.schedule(); this.msg = `Seans ${s.idx}: ${n} app kaydı silindi, seans yeniden açıldı.`; this.tab = 'bugun'; delete this.kilit[p]; await S.setMeta('kilit', this.kilit); this.render();
       } }, 'Bu seansın app kayıtlarını sıfırla'));
     }
   }
@@ -556,7 +581,7 @@ export class App {
       sifirla.append(el('div', { class: 'it' }, el('span', { style: 'min-width:0' }, el('span', { class: 'a' }, PROG_AD[p]), el('span', { class: 's' }, n ? `${ss.length} seansta ${n} app kaydı (göç verisi hariç)` : 'app kaydı yok')),
         n ? el('button', { class: 'pill', style: 'color:var(--red);border-color:#6a3030', onclick: async () => {
           if (!confirm(`${PROG_AD[p]} ${def.cycle}: ${ss.length} seanstaki ${n} app kaydı silinsin, seanslar yeniden açılsın mı? Göç/Excel verisi kalır.`)) return;
-          let t = 0; for (const x of ss) t += await S.resetSession(p, def.cycle, x.week, x.day); this.krono = null; this.sync?.schedule(); this.msg = `${PROG_AD[p]}: ${t} kayıt silindi.`; this.render();
+          let t = 0; for (const x of ss) { t += await S.resetSession(p, def.cycle, x.week, x.day); await S.setMeta(`seans:${p}|${def.cycle}|${x.week}|${x.day}`, null); } this.krono = null; this.sync?.schedule(); this.msg = `${PROG_AD[p]}: ${t} kayıt silindi.`; this.render();
         } }, 'Sıfırla') : el('span', { class: 'v dim2' }, '—')));
     }
     m.append(sifirla, el('div', { class: 'xs dim2', style: 'margin-top:6px;line-height:1.5' }, 'Tek bir seansı geri çekmek için Program sekmesinde o güne dokun → "Bu seansın app kayıtlarını sıfırla". Silme, silme olayı olarak yazılır ve OneDrive\'a yansır.'));
@@ -577,8 +602,8 @@ export class App {
     if (sh.kind === 'stres') {
       const c = this.c; const val = c.stres.get(c.v.week) ?? null;
       box.append(el('div', { class: 't' }, 'Hayat stresi'), el('div', { class: 'sub' }, `Hafta ${c.v.week} için genel yorgunluk/stres. Formüle girmez; haftalık sinyalin yanında not olarak durur.`));
-      box.append(el('div', { class: 'stres' }, ...[1, 2, 3, 4, 5].map(n => el('button', { class: val === n ? 'sel' : '', onclick: async () => { await S.logStress({ program: c.p, cycle: c.def.cycle, week: c.v.week, value: n }); this.sync?.schedule(); this.sheet = null; if (sh.sonra) await this.fazSet(c.v.isinmaBasamak ? sh.sonra : 'log'); else this.render(); } }, el('b', {}, n), el('span', {}, STRES_AD[n - 1])))));
-      box.append(el('div', { class: 'btnrow', style: 'margin-top:12px' }, el('button', { class: 'sec', onclick: async () => { this.sheet = null; if (sh.sonra) await this.fazSet(c.v.isinmaBasamak ? sh.sonra : 'log'); else this.renderSheet(); } }, sh.sonra ? 'Şimdi değil' : 'Kapat')));
+      box.append(el('div', { class: 'stres' }, ...[1, 2, 3, 4, 5].map(n => el('button', { class: val === n ? 'sel' : '', onclick: async () => { await S.logStress({ program: c.p, cycle: c.def.cycle, week: c.v.week, value: n }); this.sync?.schedule(); this.sheet = null; if (sh.sonra) await this.fazSet(this.baslangicFaz(c.v)); else this.render(); } }, el('b', {}, n), el('span', {}, STRES_AD[n - 1])))));
+      box.append(el('div', { class: 'btnrow', style: 'margin-top:12px' }, el('button', { class: 'sec', onclick: async () => { this.sheet = null; if (sh.sonra) await this.fazSet(this.baslangicFaz(c.v)); else this.renderSheet(); } }, sh.sonra ? 'Şimdi değil' : 'Kapat')));
     } else if (sh.kind === 'not') {
       const ta = el('textarea', { placeholder: 'his, aksaklık, gelecek haftaya…', enterkeyhint: 'done' }); ta.value = sh.deger ?? '';
       box.append(el('div', { class: 't' }, `Not · ${sh.kisi === 'alper' ? 'Alper' : 'Arda'}`), el('div', { class: 'sub' }, 'Bu harekete, bu kişiye ait. Kaydet ile birlikte olaya yazılır.'), ta,

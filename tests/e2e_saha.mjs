@@ -22,10 +22,7 @@ t('depolama uyarısı ve "Sonraki" satırı yok', !(await p.textContent('main'))
 await p.locator('.foot button.pri').click(); await p.waitForTimeout(300);
 t('stres sheet açıldı', (await p.$$('.sheet .stres button')).length === 5);
 await p.locator('.sheet .stres button').nth(2).click(); await p.waitForTimeout(400);
-t('ısınma fazı: boş bar + 4 basamak', (await p.$$('main .isirow')).length === 5, (await p.$$('main .isirow')).length);
-await p.locator('main .isirow').nth(0).click(); await p.waitForTimeout(150);
-t('basamak tik', (await p.$$('main .isirow.on')).length === 1);
-await p.locator('.foot button.pri').click(); await p.waitForTimeout(400);
+t('H2: seans Clean ile başlıyor → rampa atlanır, doğrudan log', (await p.$$('main .isirow')).length === 0 && (await p.$$('.log')).length === 1);
 // LOG fazı
 t('log fazı: çubuk açık, Bitir ve süre çubukta, başlık tek satır', (await p.$$('.log')).length === 1 && (await p.textContent('.log .srow')).includes('Bitir') && (await p.$$('.log #sure')).length === 1 && (await p.$$('.hdr.one')).length === 1);
 t('log fazında liste üstte sade (stres rozeti yok)', (await p.$$('main .sig')).length === 0);
@@ -45,6 +42,9 @@ await p.locator('.log .setk').click(); await p.waitForTimeout(300);
 await kg().fill('45'); await kg().dispatchEvent('change'); await p.locator('.log .fld', { hasText: 'RPE' }).locator('button', { hasText: /^8$/ }).click(); await p.locator('.log .setk').click(); await p.waitForTimeout(300);
 t('3 set listede, bitir düğmesi "(3 set)"', (await p.$$('.log .srow-set')).length === 3 && (await p.textContent('.log .acts .pri:not(.setk)')).includes('3 set'));
 await p.locator('.log .fld', { hasText: 'Tkr' }).locator('button', { hasText: /^2$/ }).click(); await p.locator('.log .fld', { hasText: 'RPE' }).locator('button', { hasText: /^9$/ }).click(); await p.locator('.log .setk').click(); await p.waitForTimeout(600);
+t('H2+P5: Squat sırası gelince ısınma açıldı — Clean 45 üstünden 4 basamak, boş bar yok', (await p.$$('main .isirow')).length === 4 && !(await p.textContent('main')).includes('boş bar'), (await p.$$('main .isirow')).length);
+await p.locator('main .isirow').nth(0).click(); await p.waitForTimeout(150); t('basamak tik', (await p.$$('main .isirow.on')).length === 1);
+await p.locator('.foot button.pri').click(); await p.waitForTimeout(500);
 let done = await p.$$eval('main .card.mark.done .yap', a => a.map(x => x.textContent));
 t('H3: 4. set → hareket otomatik bitti; kayıt 42.5×3 R7.5 · 42.5×3 · 45×3 R8 · 45×2 R9', done[0]?.includes('42.5×3 R7.5 · 42.5×3 · 45×3 R8 · 45×2 R9'), done[0]);
 t('dinlenme rozeti çubukta: sıradaki Top Single → 8:00 civarı', (await p.$$('.log #kpill')).length === 1 && /^7:5\d|8:00/.test(await p.textContent('.log #kpill .kt')), await p.textContent('.log #kpill'));
@@ -61,6 +61,10 @@ await p.locator('.log .grab').click(); await p.waitForTimeout(150);
 t('çubuk katlandı: özet "henüz set yok" + mini Kaydet, hedef gizli', !(await p.locator('.log .kgrow').isVisible()) && (await p.textContent('.log .oz')).includes('henüz set yok') && await p.locator('.log .kmini').isVisible() && !(await p.locator('.log .hh').isVisible()));
 await p.locator('.log .grab').click(); await p.waitForTimeout(150); t('çubuk açıldı', await p.locator('.log .kgrow').isVisible());
 await p.locator('.log #kpill').click(); await p.waitForTimeout(500); t('dinlenme pili dokununca büyüdü (Dynamic Island)', await p.locator('.log #kpill.big').isVisible() && (await p.textContent('.log #kpill .kx')).trim() === 'Geç');
+t('P1: panel açık, Hazırım 3:00 dolmadan pasif', await p.locator('.log #kpanel').isVisible() && await p.locator('.log #khazir').isDisabled(), await p.textContent('.log #kpanel'));
+await p.locator('.log #kpanel input').nth(0).fill('128'); await p.locator('.log #kpanel input').nth(0).dispatchEvent('change');
+await p.locator('.log #kpanel input').nth(1).fill('94'); await p.locator('.log #kpanel input').nth(1).dispatchEvent('change');
+t('P1: nabız alanları sayı kabul etti (128 / 94)', (await p.locator('.log #kpanel input').nth(0).inputValue()) === '128' && (await p.locator('.log #kpanel input').nth(1).inputValue()) === '94');
 await p.locator('.log #kpill .kx').click(); await p.waitForTimeout(200); t('dinlenme pili Geç ile gizlendi', (await p.$$('.log #kpill')).length === 0);
 // H1: not sheet, kişi başına
 await p.locator('.log .acts button[title="Not"]').click(); await p.waitForTimeout(300);
