@@ -34,7 +34,12 @@ const setKey = (ref, actor) => [ref.program, ref.cycle, ref.week, ref.day, ref.r
 const tsOf = e => e.ts;
 
 /** Bir olayı yaz (append). Aynı id varsa yazmaz (idempotent). Dönüş: {written:boolean}. Türetilmiş durumu aynı transaction'da günceller. */
-export async function appendEvent(ev, { fromRemote = false } = {}) {
+/** Veri sürümü (29 Eyl): her kalıcı yazımdan SONRA (commit edildikten sonra) artar. UI bağlam önbelleği bununla geçersizlenir —
+ *  sekme geçişleri IndexedDB'yi yeniden okumadan anında çizilir. Yazma bitmeden artmaz: eski veri yeni sürümle önbelleğe giremez. */
+let _ver = 0;
+export const ver = () => _ver;
+export async function appendEvent(ev, opts = {}) { try { return await appendEvent0(ev, opts); } finally { _ver++; } }
+async function appendEvent0(ev, { fromRemote = false } = {}) {
   return db.transaction('rw', db.events, db.set_state, db.sync_state, async () => {
     if (await db.events.get(ev.id)) return { written: false };
     await db.events.add(ev);
@@ -125,7 +130,7 @@ export async function rebuildState() {
     const evs = await db.events.orderBy('ts').toArray();
     for (const e of evs) await applyToState(e);
     return evs.length;
-  });
+  }).finally(() => { _ver++; });
 }
 
 /** NDJSON içe aktar (migrasyon / yedekten geri yükleme / uzak cihaz dosyası). İdempotent. */
@@ -232,4 +237,4 @@ export async function stressFor(program, cycle) {
 export async function putProgramDef(def) { await db.program_defs.put({ key: `${def.program}|${def.cycle}`, program: def.program, cycle: def.cycle, def }); }
 export async function getProgramDef(program, cycle) { return (await db.program_defs.get(`${program}|${cycle}`))?.def ?? null; }
 export async function getMeta(k, dflt = null) { return (await db.meta.get(k))?.v ?? dflt; }
-export async function setMeta(k, v) { await db.meta.put({ k, v }); }
+export async function setMeta(k, v) { try { await db.meta.put({ k, v }); } finally { _ver++; } }

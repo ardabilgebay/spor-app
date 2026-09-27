@@ -502,3 +502,22 @@ main{transition:transform .42s var(--spring),opacity .25s ease}
 .tabs.scrub button{transition:color .12s ease}
 .kpanel .hr span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .pri.warnb{background:linear-gradient(180deg,#f0b27a,#d98a4a);color:#221407}
+/* A20 (29 Eyl) — 2 pencere: hareket çarkı kartı detaylı · set ekranında nabız · hızlı sekme */
+.wheel-track.ex{height:196px}
+.wheel-track.ex .wsp{height:57px}
+.exw .wsel{top:60px;height:76px}
+.xw{height:76px;flex-direction:column;align-items:stretch;justify-content:center;gap:2px;padding:0 14px}
+.xw .l1{display:flex;align-items:center;gap:10px;min-width:0}
+.xw .tg{flex:none;font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--dim)}
+.xw .l2{font-size:13.5px;color:var(--ink2);padding-left:28px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.xw .l3{font-size:11.5px;color:var(--dim);padding-left:28px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.xw.done .l3{color:var(--ok)}
+.xw:not(.on) .l2,.xw:not(.on) .l3{opacity:.55}
+.xw.on .v{font-size:17px}
+.hrfld .hrc{flex:1;display:flex;align-items:center;gap:6px;min-width:0}
+.hrfld .hrc span{flex:none;font-size:10.5px;color:var(--dim);white-space:nowrap}
+.hrfld .hrc input{flex:1;min-width:0;min-height:36px;padding:4px 6px;font-size:16px;text-align:center;border-radius:10px;background:linear-gradient(180deg,rgba(255,255,255,.07),rgba(255,255,255,.02));border:1px solid var(--g-bd);box-shadow:inset 0 1px 0 rgba(255,255,255,.12)}
+.hrfld{gap:8px}
+.sbar .kpanel{grid-template-columns:1fr}
+main{transition:transform .24s var(--ease-out),opacity .2s ease}
+main.vin{animation:vin .16s var(--ease-out)}
