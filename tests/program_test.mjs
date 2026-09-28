@@ -89,4 +89,11 @@ t('Deadlift kol bloğu yok', !P.kolBlok(dd, P.sessions(dd)[0].rows));
 const al = load('Alper'); const a1 = P.sessionView(al, await S.stateFor('Alper', 'C2'), 1);
 t('Alper bench iki plaka satırı', a1.rows[0].plaka && a1.rows[0].plakaAlper && a1.rows[0].plaka !== a1.rows[0].plakaAlper, `${a1.rows[0].plaka} | ${a1.rows[0].plakaAlper}`);
 t('Alper HEDEF · Alper 90 kg', a1.rows[0].hedef.endsWith('· Alper 90 kg'), a1.rows[0].hedef);
+// P8 (28 Eyl): Chin-up + varyasyonları 3 dk, diğerleri değişmez; Machine* eşleşmez
+{ const { readFileSync } = await import('node:fs'); const DG = JSON.parse(readFileSync(new URL('../data/degisiklikler.json', import.meta.url), 'utf8')).degisiklikler;
+  const dl = P.degisiklikUygula(load('Deadlift'), DG), dg = P.degisiklikUygula(load('Diger'), DG);
+  const chin = [...dl.rows, ...dg.rows].filter(r => /chin-?up|pull-?up/i.test(r.egzersiz));
+  t('P8: tüm Chin-up/Pull-up satırları 180 sn', chin.length >= 10 && chin.every(r => P.oncesiDinlenmeSn(r) === 180), chin.length);
+  t('P8: Machine Dips / Face Pull / Deadlift molası değişmedi', dg.rows.filter(r => /machine|face pull/i.test(r.egzersiz)).every(r => P.oncesiDinlenmeSn(r) === 90) && dl.rows.filter(r => r.modifier === 'Top Single').every(r => P.oncesiDinlenmeSn(r) === 480));
+  t('P8: taban programdef değişmedi (golden)', !load('Deadlift').rows.some(r => 'dinlenme_sn' in r)); }
 console.log(`\n  ${ok}/${ok + fail} geçti — ${fail ? 'BASARISIZ' : 'PROGRAM TEST GECTI'}`); process.exit(fail ? 1 : 0);

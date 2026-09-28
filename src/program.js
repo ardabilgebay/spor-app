@@ -212,7 +212,7 @@ export const DINLENME_SN = { top: 480, heavy: 300, backoff: 180, light: 90 };
 /** Kaydedilen satırdan sonra sıradaki tamamlanmamış satır; yoksa null. */
 export function sonrakiSatir(rows, r) { const i = rows.indexOf(r); return rows.slice(i + 1).find(x => !x.tamam) ?? rows.slice(0, i).find(x => !x.tamam) ?? null; }
 /** Bir setin ÖNCESİNDEKİ plan molası. */
-export function oncesiDinlenmeSn(r) { return DINLENME_SN[dinlenmeKategori(r)]; }
+export function oncesiDinlenmeSn(r) { return M.isNum(r?.dinlenme_sn) ? r.dinlenme_sn : DINLENME_SN[dinlenmeKategori(r)]; }   // K2 alan_ata ile satır bazlı mola (29 Eyl: Chin-up/Pull-up 3 dk)
 /** r kaydedildikten sonra kurulacak sayaç = sıradaki setin öncesi molası (sıradaki yoksa null). */
 export function dinlenmeSn(rows, r) { const n = sonrakiSatir(rows, r); return n ? oncesiDinlenmeSn(n) : null; }
 /** Kartta gösterilecek kısa dinlenme metni: Excel metninin ilk parçası (• / >> sonrası not). */
@@ -239,6 +239,9 @@ export function degisiklikUygula(def, liste) {
       }
     } else if (d.islem === 'alan_doldur') {
       for (const r of out.rows) if ((f.modifier_in ?? []).includes(r.modifier) && (r[f.bos_alan] === null || r[f.bos_alan] === undefined) && d.degerler?.[r.modifier] != null) { r[f.bos_alan] = d.degerler[r.modifier]; n++; }
+    } else if (d.islem === 'alan_ata') {   // 29 Eyl: {egzersiz_re} eşleşen satırlara degerler{alan: değer} yazılır (ör. dinlenme_sn)
+      const re = new RegExp(f.egzersiz_re, 'i');
+      for (const r of out.rows) if (re.test(r.egzersiz ?? '') && hafta(f, r.week)) { Object.assign(r, d.degerler ?? {}); n++; }
     }
     out.degisiklik.push({ id: d.id, n });
   }

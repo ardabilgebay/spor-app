@@ -521,3 +521,21 @@ main{transition:transform .42s var(--spring),opacity .25s ease}
 .sbar .kpanel{grid-template-columns:1fr}
 main{transition:transform .24s var(--ease-out),opacity .2s ease}
 main.vin{animation:vin .16s var(--ease-out)}
+/* A21 (28 Eyl) — sade giriş: tekrar/RPE seçici çarkları, iki satırlı hareket kartı, küçük Hazırım */
+.wheel-track.ex{height:168px}
+.wheel-track.ex .wsp{height:52px}
+.exw .wsel{top:55px;height:58px}
+.xw{height:58px}
+.pkrow{display:flex;gap:8px;margin-top:8px;align-items:stretch}
+.pkc{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
+.pkc.hrfld{flex:1.05;gap:5px}
+.pkl{font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--dim);text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.picker{position:relative;border-radius:14px;background:linear-gradient(180deg,rgba(0,0,0,.28),rgba(0,0,0,.12));box-shadow:inset 0 2px 6px rgba(0,0,0,.45),0 0 0 1px rgba(255,255,255,.06)}
+.wheel-track.pkt{height:108px}
+.wheel-track.pkt .wsp{height:36px}
+.pk{height:36px;display:flex;align-items:center;justify-content:center;font-size:19px;color:var(--ink2);scroll-snap-align:center;will-change:transform,opacity;cursor:pointer}
+.pk.on{color:#fff;font-weight:600;font-size:22px}
+.picker .wsel{top:36px;height:36px;border-radius:10px;background:rgba(157,143,240,.16);box-shadow:inset 0 0 0 1px rgba(157,143,240,.45)}
+.hrfld .hrc{flex:1}
+.hrfld .hrc input{min-height:40px}
+.srow .pill.hazir{min-height:32px;padding:0 12px;font-size:13px;width:auto;flex:none}

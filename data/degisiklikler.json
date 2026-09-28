@@ -8,6 +8,9 @@
       "satir": { "egzersiz": "Face Pull", "modifier": "Light", "set": 2, "tekrar": 15, "dinlenme": "60-90 sn", "sistem_notu": "P4 (27 Eyl): Deadlift Cuma'dan taşındı · 15 kg'da kal, tekrar büyüt; RPE 8'i geçme" } },
     { "id": "P2-HEDEF-RPE", "tarih": "2026-09-27", "kaynak": "Arda 27 Eyl: Top Single hedef RPE 9, Top Triple hedef RPE 8 (yalnız boş olanlar)", "program": "*", "islem": "alan_doldur",
       "filtre": { "modifier_in": ["Top Single", "Top Triple"], "bos_alan": "hedef_rpe" },
-      "degerler": { "Top Single": 9, "Top Triple": 8 } }
+      "degerler": { "Top Single": 9, "Top Triple": 8 } },
+    { "id": "P8-CHIN-DINLENME", "tarih": "2026-09-28", "kaynak": "Arda 28 Eyl: Chin-up'ların ve varyasyonlarının (Pull-up, Weighted/Negatif Chin-Up, Dar Tutuşlu Pronated Pull-up) dinlenmesi 3 dakika", "program": "*", "islem": "alan_ata",
+      "filtre": { "egzersiz_re": "chin-?up|pull-?up" },
+      "degerler": { "dinlenme_sn": 180, "dinlenme": "3 dk" } }
   ]
 }

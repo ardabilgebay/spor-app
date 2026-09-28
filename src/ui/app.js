@@ -213,7 +213,7 @@ export class App {
   }
   rowCard(c, r, { open = false, onclick = null, now = false } = {}) {
     const prev = P.prevMetni(P.prevEntry(c.stateAll, r, c.v, c.def.cycle));
-    const durum = r.tamam ? (r.arda.skipped ? 'ATLANDI' : r.renk === 'yuksek' ? 'RPE ↑' : r.renk === 'dusuk' ? 'RPE ↓' : 'KAYITLI') : (now ? 'ŞİMDİ' : (r.modifier ?? (P.kolBilgi(r) ? 'Kol' : /clean|snatch/i.test(r.egzersiz) ? 'Teknik' : (r.pct_1rm ? '' : 'Aksesuar'))));
+    const durum = r.tamam ? (r.arda.skipped ? 'ATLANDI' : r.renk === 'yuksek' ? 'RPE ↑' : r.renk === 'dusuk' ? 'RPE ↓' : 'KAYITLI') : (now ? (r.modifier ? `${r.modifier} · ŞİMDİ` : 'ŞİMDİ') : (r.modifier ?? (P.kolBilgi(r) ? 'Kol' : /clean|snatch/i.test(r.egzersiz) ? 'Teknik' : (r.pct_1rm ? '' : 'Aksesuar'))));
     const cls = 'card mark ' + (r.tamam ? (r.arda.skipped ? 'skip' : r.renk === 'yuksek' ? 'hi' : r.renk === 'dusuk' ? 'lo' : 'done') : now ? 'now' : '') + (onclick ? ' tap' : '');
     const yap = r.tamam && !r.arda.skipped ? (r.arda.sets_detail?.length ? P.detayMetni(r.arda.sets_detail) : `${fmt(r.arda.kg)}×${fmt(r.arda.sets)}×${r.arda.reps ?? r.arda.reps_text ?? ''}${r.arda.rpe ? ` · RPE${fmt(r.arda.rpe)}` : ''}`) + (r.arda.note ? ` — ${r.arda.note}` : '') : null;
     const prevA = c.def.program === 'Alper' ? P.prevMetni(P.prevEntry(c.stateAll, r, c.v, c.def.cycle, 'alper')) : null;
@@ -281,7 +281,7 @@ export class App {
       m.append(dots, pager); this.cizEgzCark(c, oi, nowRow);
       if (this.odakSayfa) this.sonra(() => { pager.scrollLeft = pager.clientWidth; });
     }
-    const seansBar = this.seansBar(c);
+    const seansBar = this.seansBar(c, openRow);
     if (!openRow) { this.footer('log', seansBar, el('div', { class: 'acts', style: 'margin-top:8px' }, el('button', { class: 'pri', onclick: () => this.fazSet('ozet') }, 'Seansı bitir'))); return; }
     this.footer('log', seansBar, ...await this.logBar(c, openRow));
   }
@@ -293,21 +293,31 @@ export class App {
     const yap = r => r.arda?.skipped ? 'atlandı' : r.arda?.sets_detail?.length ? P.detayMetni(r.arda.sets_detail) : r.arda ? `${fmt(r.arda.kg)}×${fmt(r.arda.sets)}×${r.arda.reps ?? ''}` : '';
     // 29 Eyl (Arda: "3 pencereden 2'ye"): odak kartı kalktı — plan, plaka, ekipman, geçen, fren ve Alper çark kartının içinde (ortadaki kartta tam görünür)
     const items = v.rows.map((r, i) => {
-      const eq = ekipman(r); const prev = P.prevMetni(P.prevEntry(c.stateAll, r, v, c.def.cycle));
-      const prevA = c.def.program === 'Alper' ? P.prevMetni(P.prevEntry(c.stateAll, r, v, c.def.cycle, 'alper')) : null;
+      const eq = ekipman(r);
       const planT = (r.hedef?.replace(/^.*\n/, '') ?? '').replace(/\n/g, ' · ').replace(/\s*[▸⚠].*$/, '') + (r.plaka ? ` · ${r.plaka.replace('bir tarafa ', 'yan ')}` : '');
-      const alt = [r.tamam ? `yapılan ${yap(r)}` : null, prev ? `geçen ${prev}` : null, r.onerilen_alper !== null && r.onerilen_alper !== undefined ? `Alper ${fmt(r.onerilen_alper)} kg${prevA ? ` (geçen ${prevA})` : ''}` : null].filter(Boolean).join(' · ');
       return el('div', { class: 'xw glass ' + (r.tamam ? (r.arda?.skipped ? 'skip' : 'done') : r === nowRow ? 'nowr' : ''), 'data-i': i },
         el('div', { class: 'l1' }, el('span', { class: 'm' }, r.tamam ? (r.arda?.skipped ? '—' : '✓') : r === nowRow ? '●' : String(i + 1)),
           el('span', { class: 'v' }, r.egzersiz + (r.modifier ? ` · ${r.modifier}` : '')), el('span', { class: 'tg' }, [eq ? EKIPMAN_AD[eq] : null, `${i + 1}/${v.rows.length}`].filter(Boolean).join(' · '))),
-        el('div', { class: 'l2 tab' }, planT || '—'),
-        el('div', { class: 'l3 tab' }, alt || ' '));
+        el('div', { class: 'l2 tab' }, r.tamam ? `✓ ${yap(r)}` : (planT || '—')));   // 28 Eyl (sade): geçen/Alper/not genel görünümde
     });
     const track = el('div', { class: 'wheel-track ex' }, el('div', { class: 'wsp' }), ...items, el('div', { class: 'wsp' }));
     box.replaceChildren(track, el('div', { class: 'wsel' }));
+    // 28 Eyl (Arda: "farklı egzersiz seçince ekran değişimi rahatsız edici"): ekran yeniden çizilmez — yalnız giriş çubuğu ve set çarkı yerinde değişir
     const sec = async idx => { if (idx === oi || !track.isConnected) return;
-      const r = v.rows[idx]; this.geriBildirim(); await S.setMeta(c.seansKey, { ...c.seans, openKey: r.row_key }); this.odakSayfa = 0; this._sessiz = true; try { await this.render(); } finally { this._sessiz = false; } };
+      const r = v.rows[idx]; oi = idx; this.geriBildirim(); c.seans = { ...c.seans, openKey: r.row_key }; await S.setMeta(c.seansKey, c.seans);
+      if (v.rampa && r === nowRow && r.row_key === v.rampa.rowKey && !c.seans.isinma_gecildi && !(c.seans.tik ?? []).length) { this._sessiz = true; try { await this.render(); } finally { this._sessiz = false; } return; }
+      const kids = await this.logBar(c, r); if (!track.isConnected) return; this.footer('log', this.seansBar(c, r), ...kids); this.applyCollapse(); };
     this.carkBagla(track, items, { ilk: oi, sec, tmr: '_exTmr', aci: 22 });
+  }
+  /** Dikey seçici (iOS saat seçici): değerler çarkı; ortadaki değer seçilir. ayarla(v) dışarıdan konumlar (seçim tetiklemez). */
+  secici(ad, degerler, etiket, secili, onSec) {
+    const items = degerler.map(x => el('div', { class: 'pk tab', 'data-v': x === null ? '' : String(x) }, etiket(x)));
+    const track = el('div', { class: 'wheel-track pkt' }, el('div', { class: 'wsp' }), ...items, el('div', { class: 'wsp' }));
+    const box = el('div', { class: 'picker', 'data-ad': ad }, track, el('div', { class: 'wsel' }));
+    let cur = Math.max(0, degerler.indexOf(secili));
+    this.carkBagla(track, items, { ilk: cur, aci: 30, tmr: '_pk_' + ad, sec: i => { if (i === cur) return; cur = i; onSec(degerler[i]); } });
+    box.ayarla = x => { const i = degerler.indexOf(x); if (i < 0 || i === cur) return; cur = i; const it = items[i]; if (track.isConnected) track.scrollTop = it.offsetTop + it.offsetHeight / 2 - track.clientHeight / 2; else this.sonra(() => { track.scrollTop = it.offsetTop + it.offsetHeight / 2 - track.clientHeight / 2; }); };
+    return box;
   }
   /** Ortak çark fiziği (set + hareket çarkı): native momentum + snap; kart konumu DOM'dan ölçülür (sabit adım varsayımı yok, uzun listede kayma olmaz).
    *  Yalnız kullanıcı kaydırması (dokunma/tekerlek) seçim yapar; programatik ilk konum seçmez. */
@@ -341,11 +351,11 @@ export class App {
       prev ? el('div', { class: 'prev' }, 'geçen ' + prev) : null);
   }
   /** Seans şeridi (çubuğun tepesi): tutamaç · geçen süre · dinlenme rozeti · Bitir. */
-  seansBar(c) {
+  seansBar(c, row = null) {
     const sure = el('span', { class: 'chip tab', id: 'sure' }, this.sureMetni(c.seans.started_at)); this.tickSure();
     const grab = el('button', { class: 'grab', title: this.logCollapsed ? 'Aç' : 'Katla', onclick: () => { if (this.dragMoved) { this.dragMoved = false; return; } this.logCollapsed = !this.logCollapsed; this.applyCollapse(); } }, el('span', { class: 'gl' }), el('span', { class: 'gt' }, this.logCollapsed ? '▴  aç' : '▾  katla'));
     this.grabDrag(grab);
-    return el('div', { class: 'sbar' }, grab, el('div', { class: 'srow' }, sure, this.kronoPill(), el('span', { style: 'flex:1' }), el('button', { class: 'pill', title: 'Isınma rampasına dön', onclick: () => this.fazSet('isinma') }, 'Isınma')), this.kronoPanel());   // 29 Eyl: "Bitir" buradan kalktı (yanlışlıkla seansı kapatıyordu) → genel görünümün altında
+    return el('div', { class: 'sbar' }, grab, el('div', { class: 'srow' }, sure, this.kronoPill(), el('span', { style: 'flex:1' }), this.kronoPanel(), c.v.rampa && row && row.row_key === c.v.rampa.rowKey ? el('button', { class: 'pill', title: 'Isınma rampasına dön', onclick: () => this.fazSet('isinma') }, 'Isınma') : null));   // 28 Eyl: Isınma yalnız rampanın hareketinde; Hazırım çubukta küçük düğme   // 29 Eyl: "Bitir" buradan kalktı (yanlışlıkla seansı kapatıyordu) → genel görünümün altında
   }
   /** Tutamaç parmağı izler: panel dirençle (rubber band) kayar, pill uzar; eşik (36 px) geçilirse katlanır/açılır, yoksa yaylanıp döner. */
   grabDrag(grab) {
@@ -363,7 +373,7 @@ export class App {
   }
   applyCollapse() {
     const f = this.foot; const c = this.logCollapsed;
-    f.querySelector('.body')?.classList.toggle('hidden', c); f.querySelector('.hh')?.classList.toggle('hidden', c);
+    f.querySelector('.body')?.classList.toggle('hidden', c); f.querySelector('.ttl')?.classList.toggle('hidden', !c);
     f.querySelector('.oz')?.classList.toggle('hidden', !c); f.querySelector('.kmini')?.classList.toggle('hidden', !c); f.querySelector('.modeb')?.classList.toggle('hidden', c);
     const g = f.querySelector('.grab .gt'); if (g) g.textContent = c ? '▴  aç' : '▾  katla';
   }
@@ -388,7 +398,7 @@ export class App {
     const ozetS = el('span', { class: 'oz tab' + (this.logCollapsed ? '' : ' hidden') });
     const kaydetMini = el('button', { class: 'pill sel kmini' + (this.logCollapsed ? '' : ' hidden'), onclick: () => commit() }, 'Kaydet');
     const modeBtn = el('button', { class: 'pill modeb hidden', title: 'Giriş biçimi', onclick: async () => { d.mode = d.mode === 'set' ? 'satir' : 'set'; await S.setMeta('log_mode', d.mode); saveDraft(); paint(); } });
-    const ttl = el('div', { class: 'ttl' }, el('div', { class: 'n' }, r.egzersiz + (r.modifier ? ` · ${r.modifier}` : '')), el('div', { class: 'hh tab' + (this.logCollapsed ? ' hidden' : '') }, r.hedef?.replace(/^.*\n/, '').replace(/\n.*$/s, '').replace(/\s*[▸⚠].*$/, '') ?? ''), modeBtn, ozetS, kaydetMini);
+    const ttl = el('div', { class: 'ttl' + (this.logCollapsed ? '' : ' hidden') }, el('div', { class: 'n' }, r.egzersiz + (r.modifier ? ` · ${r.modifier}` : '')), modeBtn, ozetS, kaydetMini);   // 28 Eyl (sade): ad çarkta; başlık yalnız katlıyken
     const body = el('div', { class: 'body' + (this.logCollapsed ? ' hidden' : '') });
     // kişi
     let segBtns = [];
@@ -410,18 +420,22 @@ export class App {
     repIn.addEventListener('change', () => { d.reps = M.parseKg(repIn.value); saveDraft(); paint(); });
     const rpeBtns = RPE_LIST.map(n => el('button', { class: 'tab', onclick: () => { d.rpe = d.rpe === n ? null : n; saveDraft(); paint(); } }, fmt(n)));
     // set-set modu: kayıtlı setler listesi
-    const fn = frenNotu(r); if (fn) body.append(fn);
     const setList = el('div', { class: 'sets hidden' });
     body.append(setList);
     const setFld = el('div', { class: 'fld' }, el('div', { class: 'lbl' }, 'Set'), el('div', { class: 'opts' }, ...setBtns)); body.append(setFld);
-    body.append(el('div', { class: 'fld' }, el('div', { class: 'lbl' }, 'Tkr'), el('div', { class: 'opts' }, ...repBtns, repIn)));
-    body.append(el('div', { class: 'fld' }, el('div', { class: 'lbl' }, 'RPE' + (r.hedef_rpe ? ` ${fmt(r.hedef_rpe)}` : '')), el('div', { class: 'opts rpe' }, ...rpeBtns)));
+    // 28 Eyl (Arda: "tekrar ve RPE de set/hareket gibi saat seçici olsun, sabit düğmeler yok"): iOS saat seçici gibi iki dikey çark
+    const repDeg = [null, ...Array.from({ length: Math.max(30, (r.tekrar ?? 0) + 10) }, (_, i) => i + 1)];
+    const repPk = this.secici('tkr', repDeg, x => x === null ? (r.tekrar_metin ?? '—') : String(x), d.reps ?? null, x => { d.reps = x; saveDraft(); paint(); });
+    const rpePk = this.secici('rpe', [null, ...RPE_LIST], x => x === null ? '—' : fmt(x), d.rpe ?? null, x => { d.rpe = x; saveDraft(); paint(); });
     const hrParse = t => { const x = /^\s*\d{2,3}\s*$/.test(t) ? parseInt(t, 10) : NaN; return Number.isFinite(x) && x >= 30 && x <= 230 ? x : null; };
     const hrIn = alan => { const i = el('input', { type: 'text', inputmode: 'numeric', autocomplete: 'off', enterkeyhint: 'done', class: 'tab', placeholder: '—' });
       i.addEventListener('change', () => { d[alan] = hrParse(i.value); saveDraft(); paint(); });
       i.addEventListener('keydown', e => { if (e.key === 'Enter') i.blur(); }); return i; };
     const hrBasIn = hrIn('hrBas'), hrSonIn = hrIn('hrSon'); const hrBasL = el('span'), hrSonL = el('span');
-    body.append(el('div', { class: 'fld hrfld' }, el('div', { class: 'lbl' }, '♥'), el('label', { class: 'hrc' }, hrBasL, hrBasIn), el('label', { class: 'hrc' }, hrSonL, hrSonIn)));
+    body.append(el('div', { class: 'pkrow' },
+      el('div', { class: 'pkc' }, el('div', { class: 'pkl' }, 'Tekrar'), repPk),
+      el('div', { class: 'pkc' }, el('div', { class: 'pkl' }, 'RPE' + (r.hedef_rpe ? ` · hedef ${fmt(r.hedef_rpe)}` : '')), rpePk),
+      el('div', { class: 'pkc hrfld' }, el('div', { class: 'pkl' }, '♥ nabız'), el('label', { class: 'hrc' }, hrBasL, hrBasIn), el('label', { class: 'hrc' }, hrSonL, hrSonIn))));
     // not (isteğe bağlı, düğmeyle açılır)
     const notOf = () => d.notes[d.actor] ?? null;
     // eylemler
@@ -469,14 +483,15 @@ export class App {
     };
     const paint = () => {
       kgIn.value = d.kg === null ? '' : fmt(d.kg);
-      const pk = planKg(); kgSub.textContent = (eq === 'db' && d.kg ? `tek el ${fmt(d.kg / 2)} · toplam ${fmt(d.kg)} · ` : eq === 'bw' && d.kg ? `BW ${BW_KG} ${d.kg >= BW_KG ? '+ ek ' + fmt(Math.round((d.kg - BW_KG) * 100) / 100) : '− destek ' + fmt(Math.round((BW_KG - d.kg) * 100) / 100)} · ` : '') + (r.bw ? 'toplam yük' : (pk !== null && pk !== undefined ? `plan ${fmt(pk)}` : prevOf() ? `geçen ${fmt(prevOf().kg)}` : 'plan yok')) + (prevOf() && pk !== null && pk !== undefined ? ` · geçen ${fmt(prevOf().kg)}` : '') + (r.barli && d.kg ? ` · ${P.plakaMetni(d.kg)?.replace('bir tarafa ', 'yan ') ?? ''}` : '') + ' · ✎ yaz';
+      const pk = planKg(); const yan = r.barli && d.kg ? P.plakaMetni(d.kg)?.replace('bir tarafa ', 'yan ') : null;   // 28 Eyl (sade): plan/geçen genel görünümde
+      kgSub.textContent = eq === 'db' && d.kg ? `tek el ${fmt(d.kg / 2)}` : eq === 'bw' && d.kg ? `BW ${BW_KG} ${d.kg >= BW_KG ? '+ ' + fmt(Math.round((d.kg - BW_KG) * 100) / 100) : '− ' + fmt(Math.round((BW_KG - d.kg) * 100) / 100)}` : yan ?? (pk !== null && pk !== undefined && pk !== d.kg ? `plan ${fmt(pk)}` : r.bw ? 'toplam yük' : ' ');
       segBtns.forEach(b => b.classList.toggle('sel', b.textContent.toLowerCase() === d.actor));
       setBtns.forEach((b, i) => b.classList.toggle('sel', d.sets === i + 1));
       repBtns.forEach((b, i) => b.classList.toggle('sel', d.reps === reps[i]));
       repIn.value = d.reps !== null && !reps.includes(d.reps) ? String(d.reps) : ''; repIn.classList.toggle('sel', d.reps !== null && !reps.includes(d.reps));
       rpeBtns.forEach((b, i) => b.classList.toggle('sel', d.rpe === RPE_LIST[i]));
       { const ed0 = M.isNum(d.editIdx) && d.detail[d.editIdx] ? d.editIdx : null; const n = (ed0 ?? d.detail.length) + 1;
-        hrBasL.textContent = `set ${n} başlarken`; hrSonL.textContent = `set ${n} bitince`;
+        hrBasL.textContent = 'başta'; hrSonL.textContent = 'sonda'; hrBasIn.title = `set ${n} başlarken`; hrSonIn.title = `set ${n} bitince`; repPk.ayarla(d.reps ?? null); rpePk.ayarla(d.rpe ?? null);
         if (document.activeElement !== hrBasIn) hrBasIn.value = M.isNum(d.hrBas) ? String(d.hrBas) : ''; if (document.activeElement !== hrSonIn) hrSonIn.value = M.isNum(d.hrSon) ? String(d.hrSon) : ''; }
       notBtn.classList.toggle('sel', !!notOf()); notBtn.textContent = notOf() ? '✎ not' : '✎';
       const setMode = d.mode === 'set';
@@ -563,9 +578,7 @@ export class App {
     const gecen = () => Math.round((Date.now() - k.start) / 1000);
     const hz = el('button', { class: 'hazir' + (M.isNum(k.hazirS) ? ' on' : ''), id: 'khazir', disabled: !M.isNum(k.hazirS) && gecen() < k.altSn, onclick: () => { if (gecen() < k.altSn) return; k.hazirS = gecen(); hz.classList.add('on'); hz.textContent = `Hazır ✓ ${this.kronoMetin(k.hazirS)}`; this.geriBildirim(); } },
       M.isNum(k.hazirS) ? `Hazır ✓ ${this.kronoMetin(k.hazirS)}` : 'Hazırım');
-    // Arda 28 Eyl: nabız alanı görünmüyordu → dinlenme sürerken hep açık
-    return el('div', { class: 'kpanel' + (this.kronoBig ? ' big' : ''), id: 'kpanel' }, hz,
-      el('div', { class: 'kalt xs dim2' }, (k.altSn ? 'Nabız <100 (ideal 90–95) + zihin taze → Hazırım · alt sınır 3:00 · nabzı set ekranına yaz' : 'Tazeysen → Hazırım · nabzı set ekranına yaz')));
+    hz.classList.add('pill'); return hz;   // 28 Eyl (sade): panel yok — Hazırım çubukta küçük düğme (alt sınır 3:00 geri sayımı düğmede)
   }
   /** Dinlenme uyumu: rest_s/rest_plan_s olan girişler → {n, ort_oran, uyumlu, erken, gec} (±15% bant). */
   dinlenmeStat(entries) {
