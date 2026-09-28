@@ -28,7 +28,7 @@ t('stres sheet açıldı', (await p.$$('.sheet .stres button')).length === 5);
 await p.locator('.sheet .stres button').nth(2).click(); await p.waitForTimeout(400);
 t('H2: seans Clean ile başlıyor → rampa atlanır, doğrudan log', (await p.$$('main .isirow')).length === 0 && (await p.$$('.log')).length === 1);
 // LOG fazı
-t('log fazı: çubuk açık, süre çubukta, Bitir çubukta YOK (29 Eyl), başlık tek satır', (await p.$$('.log')).length === 1 && !(await p.textContent('.log .srow')).includes('Bitir') && (await p.$$('.log #sure')).length === 1 && (await p.$$('.hdr.one')).length === 1);
+t('log fazı: çubuk açık, süre çubukta, Bitir çubukta YOK (29 Eyl), başlık tek satır', (await p.$$('.log')).length === 1 && !(await p.textContent('.log .srow')).includes('Bitir') && (await p.$$('.hdr #sure')).length === 1 && (await p.$$('.hdr.one')).length === 1);
 t('log fazında liste üstte sade (stres rozeti yok)', (await p.$$('main .sig')).length === 0);
 t('kg kutusu type=text', await kg().getAttribute('type') === 'text');
 await kg().fill('42,5'); await kg().dispatchEvent('change'); await p.waitForTimeout(150);
@@ -43,7 +43,7 @@ t('çip seçimi yerinde (ana liste yeniden çizilmedi)', (await p.$$eval('main .
 await p.locator('.log .setk').click(); await p.waitForTimeout(400);
 t('A20 nabız set ekranında: "set 2 başlarken / bitince", dinlenme panelinde nabız yok', (await p.locator('.log .hrfld input').nth(0).getAttribute('title')) === 'set 2 başlarken' && (await p.locator('.log .hrfld input').nth(1).getAttribute('title')) === 'set 2 bitince' && (await p.$$('.kpanel input')).length === 0, await p.textContent('.log .hrfld'));
 { const h = p.locator('.log .hrfld input'); await h.nth(0).fill('98'); await h.nth(0).dispatchEvent('change'); await h.nth(1).fill('151'); await h.nth(1).dispatchEvent('change'); await p.waitForTimeout(100); }
-t('1. set listede, sayaç Clean kategorisi (1:30)', (await p.$$('.log .srow-set')).length === 1 && /^1:2\d|1:30/.test(await p.textContent('.log #kpill .kt')), await p.textContent('.log #kpill'));
+t('1. set listede, sayaç Clean kategorisi (1:30)', (await p.$$('.log .srow-set')).length === 1 && /^1:2\d|1:30/.test(await p.textContent('#island #kpill .kt')), await p.textContent('#island #kpill'));
 await p.locator('.log .setk').click(); await p.waitForTimeout(300);
 await kg().fill('45'); await kg().dispatchEvent('change'); await pick('rpe', 8); await p.locator('.log .setk').click(); await p.waitForTimeout(300);
 t('A23 iki sayfa; sayfa 1 tek çerçevede hareket kaydırağı + set yığını, odak kart Clean, yığında 3 bitmiş set + şimdi', (await p.$$('main .pager > .pg')).length === 2 && (await p.$$('main .combo .xcar .xslide')).length === 3 && (await p.textContent('main .xslide.on .xcard .v')) === 'Clean' && (await p.$$('#deck .wc.done')).length === 3 && (await p.$$('#deck .wc.now')).length === 1);
@@ -53,14 +53,14 @@ t('T1+: çark set 1\'de durdu → "Set 1\'i güncelle" + Sil', (await p.textCont
 await p.locator('#deck .wheel-track').evaluate(t => { t.dispatchEvent(new Event('pointerdown')); t.scrollTo({ top: t.scrollHeight }); }); await p.waitForTimeout(500);   // en alta (şimdi)
 t('T1+: çark en altta → "Set 4\'i kaydet" (bekleyen değer geri)', (await p.textContent('.log .setk')) === "Set 4'i kaydet", await p.textContent('.log .setk'));
 await p.screenshot({ path: '/tmp/claude-0/-home-claude/bea8c8c8-fd92-5557-9f37-af05fa048467/scratchpad/t1_log.png' });
-t('3 set listede, bitir düğmesi "(3 set)"', (await p.$$('.log .srow-set')).length === 3 && (await p.textContent('.log .acts .pri:not(.setk)')).includes('3 set'));
+t('3 set listede, bitir düğmesi "(3 set)"', (await p.$$('.log .srow-set')).length === 3 && (await p.locator('.log .acts .pri:not(.setk)').getAttribute('title')).includes('3 set'));
 await pick('tkr', 2); await pick('rpe', 9); await p.locator('.log .setk').click(); await p.waitForTimeout(600);
 t('H2+P5: Squat sırası gelince ısınma açıldı — Clean 45 üstünden 4 basamak, boş bar yok', (await p.$$('main .isirow')).length === 4 && !(await p.textContent('main')).includes('boş bar'), (await p.$$('main .isirow')).length);
 await p.locator('main .isirow').nth(0).click(); await p.waitForTimeout(150); t('basamak tik', (await p.$$('main .isirow.on')).length === 1);
 await p.locator('.foot button.pri').click(); await p.waitForTimeout(500);
 let done = await p.$$eval('main .card.mark.done .yap', a => a.map(x => x.textContent));
 t('H3: 4. set → hareket otomatik bitti; kayıt 42.5×3 R7.5 · 42.5×3 · 45×3 R8 · 45×2 R9', done[0]?.includes('42.5×3 R7.5 · 42.5×3 · 45×3 R8 · 45×2 R9'), done[0]);
-t('dinlenme rozeti çubukta: sıradaki Top Single → 8:00 civarı', (await p.$$('.log #kpill')).length === 1 && /^7:5\d|8:00/.test(await p.textContent('.log #kpill .kt')), await p.textContent('.log #kpill'));
+t('dinlenme rozeti çubukta: sıradaki Top Single → 8:00 civarı', (await p.$$('#island #kpill')).length === 1 && /^7:5\d|8:00/.test(await p.textContent('#island #kpill .kt')), await p.textContent('#island #kpill'));
 t('sıradaki hareket Squat Top Single açık', (await p.textContent('.log .ttl .n')).startsWith('Squat'));
 // plaka sheet → aktar
 await p.locator('.log .kgrow .plk-ic').click(); await p.waitForTimeout(300);
@@ -73,11 +73,11 @@ t('aktar → kg 122.5', await kg().inputValue() === '122.5', await kg().inputVal
 await p.locator('.log .grab').click(); await p.waitForTimeout(150);
 t('çubuk katlandı: özet "henüz set yok" + mini Kaydet, hedef gizli', !(await p.locator('.log .kgrow').isVisible()) && (await p.textContent('.log .oz')).includes('henüz set yok') && await p.locator('.log .kmini').isVisible() && !(await p.locator('.log .hh').isVisible()));
 await p.locator('.log .grab').click(); await p.waitForTimeout(150); t('çubuk açıldı', await p.locator('.log .kgrow').isVisible());
-await p.locator('.log #kpill').click(); await p.waitForTimeout(500); t('dinlenme pili dokununca büyüdü (Dynamic Island)', await p.locator('.log #kpill.big').isVisible() && (await p.textContent('.log #kpill .kx')).trim() === 'Geç');
-t('P1+A21: Hazırım çubukta küçük düğme, 3:00 dolmadan pasif; panel yok', await p.locator('.log .srow #khazir').isVisible() && await p.locator('.log #khazir').isDisabled() && (await p.$$('.log #kpanel')).length === 0);
+await p.locator('#island #kpill').click(); await p.waitForTimeout(500); t('dinlenme pili dokununca büyüdü (Dynamic Island)', await p.locator('#island #kpill.big').isVisible() && (await p.textContent('#island #kpill .kx')).trim() === 'Geç');
+t('P1+A21: Hazırım çubukta küçük düğme, 3:00 dolmadan pasif; panel yok', await p.locator('#island #khazir').isVisible() && await p.locator('#island #khazir').isDisabled() && (await p.$$('.log #kpanel')).length === 0);
 { const h = p.locator('.log .hrfld input'); await h.nth(0).fill('12'); await h.nth(0).dispatchEvent('change'); await h.nth(1).fill('128'); await h.nth(1).dispatchEvent('change'); await p.waitForTimeout(100);
   t('A20: nabız 30–230 dışı reddedildi (12), geçerli kaldı (128)', (await h.nth(0).inputValue()) === '' && (await h.nth(1).inputValue()) === '128'); await h.nth(0).fill('96'); await h.nth(0).dispatchEvent('change'); }
-await p.locator('.log #kpill .kx').click(); await p.waitForTimeout(200); t('dinlenme pili Geç ile gizlendi', (await p.$$('.log #kpill')).length === 0);
+await p.locator('#island #kpill .kx').click(); await p.waitForTimeout(200); t('dinlenme pili Geç ile gizlendi', (await p.$$('#island #kpill')).length === 0);
 // H1: not sheet, kişi başına
 await p.locator('.log .acts button[title="Not"]').click(); await p.waitForTimeout(300);
 t('not penceresi (sheet) açıldı, Arda için', await p.locator('.sheet textarea').isVisible() && (await p.textContent('.sheet .t')).includes('Arda'));
@@ -93,13 +93,13 @@ await pick('rpe', 9); await p.locator('.log .setk').click(); await p.waitForTime
 done = await p.$$eval('main .card.mark.done .yap', a => a.map(x => x.textContent));
 t('Top Single tek setle bitti, not kayıtta: 122.5×1 R9 — sırt sıkı', done.some(x => x.includes('122.5×1 R9') && x.includes('sırt sıkı')), done.join(' | '));
 // T1 kırmızı takım: bitmiş hareket (Clean) geçmiş kartından yeniden açılınca kayıtlı 4 set yığında
-t('A19 hareket çarkı: ortada sıradaki (Top Triple), çarkta 3 hareket', (await p.textContent('main .xslide.on .xcard .v')).includes('Top Triple') && (await p.$$('main .xcar .xslide')).length === 3, await p.textContent('main .xcar'));
+t('A19 hareket çarkı: ortada sıradaki (Top Triple), çarkta 3 hareket', (await p.textContent('main .xslide.on .xcard')).includes('Top Triple') && (await p.$$('main .xcar .xslide')).length === 3, await p.textContent('main .xcar'));
 await p.evaluate(() => { document.querySelector('.xcar').dataset.m = 'ayni'; });
 await p.locator('main .xcar').evaluate(t => { t.dispatchEvent(new Event('touchstart')); const it = t.querySelector('.xslide'); t.scrollLeft = it.offsetLeft + it.offsetWidth / 2 - t.clientWidth / 2; }); await p.waitForTimeout(900);   // kaydırağı Clean'e kaydır
 t('A21: hareket değişimi yerinde (ekran yeniden çizilmedi), Clean\'de Isınma düğmesi yok', (await p.evaluate(() => document.querySelector('.xcar')?.dataset.m)) === 'ayni' && !(await p.textContent('.log .srow')).includes('Isınma'));
-t('A19: çark Clean\'de durdu → Clean açıldı, yığında 4 kayıtlı set', (await p.textContent('main .xslide.on .xcard .v')) === 'Clean' && (await p.textContent('main .xslide.on .tg')).includes('1/3') && (await p.$$('main .combo #deck')).length === 1 && (await p.textContent('main .combo-h')).startsWith('Clean') && (await p.$$('main .focus')).length === 0 && (await p.$$('#deck .wc.done')).length === 4 && (await p.textContent('#deck .deckplan')).includes('4 kayıtlı'), await p.textContent('#deck'));
+t('A19: çark Clean\'de durdu → Clean açıldı, yığında 4 kayıtlı set', (await p.textContent('main .xslide.on .xcard .v')) === 'Clean' && (await p.textContent('main .xslide.on .m')).includes('1/3') && (await p.$$('main .combo #deck')).length === 1 && (await p.$$('main .focus')).length === 0 && (await p.$$('#deck .wc.done')).length === 4 && (await p.textContent('#deck .deckplan')).includes('4 kayıtlı'), await p.textContent('#deck'));
 await p.locator('main .pager .pg').nth(1).locator('.card', { hasText: 'Top Triple' }).click(); await p.waitForTimeout(300);
-t('T1: sayfa 2\'den Top Triple açıldı, odak sayfasına dönüldü', (await p.textContent('main .xslide.on .xcard .v')).includes('Top Triple'), await p.textContent('main .xcar'));
+t('T1: sayfa 2\'den Top Triple açıldı, odak sayfasına dönüldü', (await p.textContent('main .xslide.on .xcard')).includes('Top Triple'), await p.textContent('main .xcar'));
 // 29 Eyl: erken bitir yalnız genel görünümde; özet eksik hareket varsa iki adım, Geri ile dönülür (seans kapanmaz)
 t('genel görünümde "Seansı bitir · 1 hareket girilmedi"', (await p.textContent('main .pager .pg:nth-child(2)')).includes('Seansı bitir · 1 hareket girilmedi'));
 await p.locator('main .pager .pg').nth(1).locator('button', { hasText: 'Seansı bitir' }).click(); await p.waitForTimeout(300);

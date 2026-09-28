@@ -588,3 +588,56 @@ main.vin{animation:vin .16s var(--ease-out)}
 .combo .wc{margin:3px 2px}
 /* A23.1 (28 Eyl, Arda: "biraz daha şeffaf") */
 .log{background:linear-gradient(180deg,rgba(30,31,48,.14),rgba(20,21,32,.36));-webkit-backdrop-filter:blur(4px) saturate(135%);backdrop-filter:blur(4px) saturate(135%)}
+/* ═══ TASARIM A (28 Eyl) — "Yüzen ada" ═══ */
+/* Dynamic Island: dinlenme sayacı + Hazırım */
+.island{position:absolute;left:50%;top:calc(env(safe-area-inset-top) + 8px);transform:translateX(-50%);z-index:30;display:flex;align-items:center;gap:6px;padding:4px;border-radius:999px;background:#000;box-shadow:0 0 0 1px rgba(157,143,240,.35),0 10px 28px rgba(0,0,0,.5);max-width:calc(100% - 24px)}
+.island.hidden{display:none}
+.island .kpill{background:transparent!important;border:0!important;box-shadow:none!important;min-height:30px}
+.island .kpill .kad{max-width:130px}
+.island .hazir{min-height:30px;padding:0 12px;border-radius:999px;font-size:12.5px;background:rgba(157,143,240,.18);border:1px solid rgba(157,143,240,.45);color:var(--acc-ink)}
+.island .hazir:disabled{opacity:.55}.island .hazir.on{background:rgba(119,214,160,.16);border-color:rgba(119,214,160,.5);color:var(--ok)}
+#app.has-foot .hdr{padding-top:calc(env(safe-area-inset-top) + 44px)}
+.hdr .right .chip{background:transparent;border:0;padding:0;font-size:12px;color:var(--dim)}.hdr .hsira{font-size:12px;color:var(--dim)}
+/* tek kart: hareket + setler; kenarlarda komşu kart ipucu */
+.combo-w{position:relative;margin:4px 6px 0}
+.combo-w .peek{position:absolute;top:22px;height:calc(100% - 60px);width:26px;border-radius:22px;opacity:.35;z-index:0}
+.combo-w .peek.l{left:-20px}.combo-w .peek.r{right:-20px}
+.combo{position:relative;z-index:1;border-radius:28px;padding:0 0 8px;border-color:rgba(255,255,255,.12)}
+.combo::before{display:none}
+.combo .xcar{padding:0;gap:0;margin:0}
+.combo .xslide{flex-basis:100%;max-width:none}
+.combo .xcard,.combo .xslide.on .xcard{background:transparent;border:0;box-shadow:none;border-radius:0;padding:20px 20px 6px;min-height:0}
+.xcard .m{color:var(--acc-ink);font-size:10.5px}.xcard.done .m{color:var(--ok)}.xcard.skip .m{color:var(--dim)}
+.combo .xcard .v{font-size:30px;font-weight:650;letter-spacing:-.03em;margin-top:6px;line-height:1.05}
+.combo .xcard .md{font-size:15px;color:var(--acc-ink);margin-top:3px;min-height:20px}
+.xcard .hero{display:flex;align-items:baseline;gap:8px;margin-top:10px}.xcard .hero b{font-size:46px;font-weight:650;letter-spacing:-.045em;line-height:1}.xcard .hero span{font-size:16px;color:var(--ink2)}
+.combo .xcard .l2{font-size:18px;margin-top:10px}
+.combo .xcard .l3{font-size:12.5px;color:var(--dim);margin-top:4px}
+.combo-bag{margin:6px 16px 0;border-top:1px solid rgba(255,255,255,.08);padding-top:2px}
+.combo .deck .deckplan{display:none}
+/* yüzen giriş adası */
+#app.has-foot .log{left:12px;right:12px;bottom:10px;border-radius:26px;border:1px solid rgba(255,255,255,.12);box-shadow:0 20px 44px rgba(0,0,0,.55);padding:4px 12px 12px;
+  background:rgba(22,22,36,.30);-webkit-backdrop-filter:blur(10px) saturate(150%);backdrop-filter:blur(10px) saturate(150%)}
+.log .grab{min-height:18px;padding:4px 0 2px}.log .grab .gt{display:none}.log .grab .gl{width:36px;height:4px;opacity:.5}
+.log .srow:empty{display:none}.log .srow{margin:0 0 6px;justify-content:flex-end}
+.log .kgrow{gap:8px;align-items:center}
+.log .kgrow .well{background:transparent!important;box-shadow:none!important;border:0!important}
+.log .kgrow .well input{font-size:34px!important}
+.log .kgrow>button{width:44px;height:44px;min-height:44px;border-radius:14px}
+.log .kgrow .seg{flex:none;margin:0;padding:3px;border-radius:12px}.log .kgrow .seg button{min-height:32px;padding:0 9px;font-size:12px}
+.log .acts button.skip{width:48px;flex:none;padding:0;font-size:18px}
+.log .acts .pri:not(.setk){width:56px;flex:none;padding:0;font-size:16px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);color:var(--ink2);box-shadow:none}
+.log .acts .pri:not(.setk):disabled{opacity:.45}
+.log .acts .setk{flex:1}
+.pkrow{margin-top:8px}
+/* A — düzeltmeler */
+#app.has-foot .hdr .k{display:none}
+#app.has-foot .hdr{padding-top:calc(env(safe-area-inset-top) + 50px)}
+.island .hazir{white-space:nowrap}
+.log .srow{display:flex;align-items:center;gap:8px;justify-content:space-between}
+.log .srow .sbslot{flex:1}
+.log .srow .seg{margin:0;flex:0 0 auto;width:160px}.log .srow .seg button{min-height:32px;font-size:12.5px}
+.log .kgrow .well .sub{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.combo .wheel-track{height:124px}
+.combo .wheel-track .wsp{height:36px}
+.combo .deck .wsel{top:39px}

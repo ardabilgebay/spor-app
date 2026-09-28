@@ -62,9 +62,9 @@ export class App {
     const r = this.root; r.replaceChildren();
     this.hdr = el('div', { class: 'hdr' }, el('div', { style: 'min-width:0' }, this.hK = el('div', { class: 'k' }), this.hT = el('div', { class: 't' })), this.hR = el('div', { class: 'right' }));
     this.strip = el('div', { class: 'strip' }); this.main = this.mainEl = el('main'); this.foot = el('div'); this.veil = el('div');
-    this.tabInd = el('span', { class: 'tabind' });
+    this.tabInd = el('span', { class: 'tabind' }); this.island = el('div', { class: 'island hidden', id: 'island' });
     this.tabbar = el('div', { class: 'tabs' }, this.tabInd, ...TABS.map(([id, ad]) => el('button', { 'data-tab': id, onclick: () => { if (this._scrubClick) return; this.go(id); } }, svg(ICON[id]), el('span', {}, ad))));
-    r.append(this.hdr, this.strip, this.main, this.foot, this.tabbar, this.veil);
+    r.append(this.hdr, this.strip, this.main, this.foot, this.tabbar, this.island, this.veil);
     this.sekmeKaydir(); this.sekmeSurukle();
     let lastY = 0; const mEl = this.mainEl; mEl.addEventListener('scroll', () => { const y = mEl.scrollTop, dy = y - lastY; lastY = y; if (this.root.classList.contains('has-foot')) return this.tabsShow(true);   // seans sırasında sekmeler sabit
       const atEnd = y + mEl.clientHeight >= mEl.scrollHeight - 24; if (dy > 6 && y > 40 && !atEnd) this.tabsShow(false); else if (dy < -4 || y <= 40 || atEnd) this.tabsShow(true); }, { passive: true });
@@ -149,17 +149,18 @@ export class App {
     this.strip.classList.toggle('hidden', this.tab === 'ayarlar' || this.tab === 'aletler' || (this.tab === 'bugun' && ['isinma', 'log', 'ozet'].includes(c.seans?.faz)));
     const live = this.mainEl; const top = live.scrollTop; const buf = el('main');
     const fn = { bugun: this.rBugun, program: this.rProgram, ilerleme: this.rIlerleme, aletler: this.rAletler, ayarlar: this.rAyarlar }[this.tab];
-    const bekleyen = this._takili = []; this.main = buf; this._footSet = false; this._headSet = false;
+    const bekleyen = this._takili = []; this.main = buf; this._footSet = false; this._headSet = false; this._islandSet = false;
     try { await fn.call(this, c); } finally { if (this.main === buf) this.main = live; if (this._takili === bekleyen) this._takili = null; }
     if (tok !== this._rtok) return;
     if (!this._headSet) this.hR.replaceChildren();
     if (!this._footSet) { this.foot.replaceChildren(); this.foot.className = 'hidden'; this.root.classList.remove('has-foot'); }
+    if (!this._islandSet) { this.island.replaceChildren(); this.island.classList.add('hidden'); }
     live.replaceChildren(...buf.childNodes); live.scrollTop = top;
     for (const f of bekleyen) requestAnimationFrame(f);
     this.renderSheet();
   }
   head(k, t, ...right) { this._headSet = true; this.hK.textContent = k; this.hT.textContent = t; this.hR.replaceChildren(...right.filter(Boolean)); this.hdr.classList.remove('one'); }
-  footer(cls, ...kids) { this._footSet = true; if (!this._footRO && window.ResizeObserver) { this._footRO = new ResizeObserver(() => this.root.style.setProperty('--footh', this.foot.offsetHeight + 'px')); this._footRO.observe(this.foot); } this.foot.className = cls; this.foot.replaceChildren(...kids.filter(Boolean)); this.root.classList.toggle('has-foot', cls !== 'hidden'); }
+  footer(cls, ...kids) { this._footSet = true; queueMicrotask(() => { const sl = this.foot.querySelector('.sbslot'); if (sl && this._segEl) { sl.replaceWith(this._segEl); } this._segEl = null; }); if (!this._footRO && window.ResizeObserver) { this._footRO = new ResizeObserver(() => this.root.style.setProperty('--footh', this.foot.offsetHeight + 'px')); this._footRO.observe(this.foot); } this.foot.className = cls; this.foot.replaceChildren(...kids.filter(Boolean)); this.root.classList.toggle('has-foot', cls !== 'hidden'); }
   banners() {
     const out = []; const st = this.sync?.last;
     if (this.persist === false) out.push(el('div', { class: 'banner warn' }, 'Kalıcı depolama izni yok — ana ekrandan açınca iOS verir. Kayıtlar cihazda; senkron/yedek önemli.'));
@@ -183,7 +184,7 @@ export class App {
     else if (faz === 'ozet') await this.fOzet(c, m);
   }
   sureMetni(iso) { const k = Math.max(0, Math.round((Date.now() - new Date(iso)) / 1000)); return mmss(k); }
-  tickSure() { clearInterval(this.sureIv); this.sureIv = setInterval(() => { const e = this.foot.querySelector('#sure') ?? this.hR.querySelector('#sure'); if (!e || !this.c?.seans?.started_at) return clearInterval(this.sureIv); e.textContent = this.sureMetni(this.c.seans.started_at); }, 1000); }
+  tickSure() { clearInterval(this.sureIv); this.sureIv = setInterval(() => { const e = this.hR.querySelector('#sure') ?? this.foot.querySelector('#sure'); if (!e || !this.c?.seans?.started_at) return clearInterval(this.sureIv); e.textContent = this.sureMetni(this.c.seans.started_at); }, 1000); }
   /** H2 (27 Eyl): rampa, rampanın hareketi sıradaysa gösterilir; seans olimpik kaldırışla başlıyorsa önce log, rampa o hareket gelince. */
   baslangicFaz(v) { const ilk = v.rows.find(r => !r.tamam); return v.rampa && ilk && ilk.row_key === v.rampa.rowKey ? 'isinma' : 'log'; }
   async fazSet(faz, extra = {}) {
@@ -290,22 +291,23 @@ export class App {
   cizEgzKaydirak(c, host, oi, nowRow) {
     const v = c.v; const n = v.rows.length;
     const yap = r => r.arda?.skipped ? 'atlandı' : r.arda?.sets_detail?.length ? P.detayMetni(r.arda.sets_detail) : r.arda ? `${fmt(r.arda.kg)}×${fmt(r.arda.sets)}×${r.arda.reps ?? ''}` : '';
+    // Tasarım A (28 Eyl): kart = durum satırı · büyük ad · modifier + hedef RPE · dev kg rakamı · yan/Alper; setler aynı kartın içinde, çizginin altında
     const slides = v.rows.map((r, i) => {
       const eq = ekipman(r);
       const planT = (r.hedef?.replace(/^.*\n/, '') ?? '').replace(/\n/g, ' · ').replace(/\s*[▸⚠].*$/, '');
+      const kgP = M.isNum(r.onerilen) ? r.onerilen : null; const tk = `${r.set ?? '?'}×${r.tekrar ?? r.tekrar_metin ?? '?'}`;
+      const alt = [r.plaka ? r.plaka.replace('bir tarafa ', 'yan ') : null, M.isNum(r.onerilen_alper) ? `Alper ${fmt(r.onerilen_alper)}` : null].filter(Boolean).join(' · ');
       return el('div', { class: 'xslide', 'data-i': i }, el('div', { class: 'xcard ' + (r.tamam ? (r.arda?.skipped ? 'skip' : 'done') : r === nowRow ? 'nowr' : '') },
-        el('div', { class: 'l0' }, el('span', { class: 'm' }, r.tamam ? (r.arda?.skipped ? '— atlandı' : '✓ bitti') : r === nowRow ? '● şimdi' : `sıra ${i + 1}`), el('span', { class: 'tg' }, [eq ? EKIPMAN_AD[eq] : null, `${i + 1}/${n}`].filter(Boolean).join(' · '))),
-        el('div', { class: 'v' }, r.egzersiz, r.modifier ? el('span', { class: 'md' }, r.modifier) : null),
-        el('div', { class: 'l2 tab' }, r.tamam ? yap(r) : (planT || '—')),
-        r.plaka ? el('div', { class: 'l3 tab' }, r.plaka.replace('bir tarafa ', 'yan ')) : null));
+        el('div', { class: 'l0' }, el('span', { class: 'm' }, [r.tamam ? (r.arda?.skipped ? '— atlandı' : '✓ bitti') : r === nowRow ? '● şimdi' : `sıra ${i + 1}`, eq ? EKIPMAN_AD[eq] : null, `${i + 1}/${n}`].filter(Boolean).join(' · '))),
+        el('div', { class: 'v' }, r.egzersiz),
+        el('div', { class: 'md' }, [r.modifier, M.isNum(r.hedef_rpe) ? `RPE ${fmt(r.hedef_rpe)}` : null].filter(Boolean).join(' · ') || ' '),
+        r.tamam ? el('div', { class: 'l2 tab' }, yap(r)) : kgP !== null ? el('div', { class: 'hero tab' }, el('b', {}, fmt(kgP)), el('span', {}, `kg · ${tk}`)) : el('div', { class: 'l2 tab' }, planT || tk),
+        alt ? el('div', { class: 'l3 tab' }, alt) : null));
     });
     const track = el('div', { class: 'xcar' }, ...slides);
-    const baslik = el('div', { class: 'combo-h' });
     const deck = el('div', { class: 'deck', id: 'deck' });
-    const bas = i => { const r = v.rows[i]; baslik.replaceChildren(el('span', { class: 'cn' }, `${r.egzersiz}${r.modifier ? ' · ' + r.modifier : ''}`), el('span', { class: 'cs' }, `setler · plan ${r.set ?? '?'}`)); };
-    bas(oi);
-    // tek çerçeve (28 Eyl, Arda: "hareket ve set penceresi birbirine bağlı görünsün"): kart + bağlantı başlığı + set yığını aynı cam kutuda, ortak vurgu çizgisi
-    host.append(el('div', { class: 'combo glass' }, track, el('div', { class: 'combo-bag' }, baslik, deck)));
+    host.append(el('div', { class: 'combo-w' }, el('div', { class: 'peek l glass' }), el('div', { class: 'peek r glass' }), el('div', { class: 'combo glass' }, track, el('div', { class: 'combo-bag' }, deck))));
+    const bas = () => {};
     const sec = async idx => { if (idx === oi || !track.isConnected) return;
       const r = v.rows[idx]; oi = idx; bas(idx); c.seans = { ...c.seans, openKey: r.row_key }; await S.setMeta(c.seansKey, c.seans);
       if (v.rampa && r === nowRow && r.row_key === v.rampa.rowKey && !c.seans.isinma_gecildi && !(c.seans.tik ?? []).length) { this._sessiz = true; try { await this.render(); } finally { this._sessiz = false; } return; }
@@ -373,7 +375,9 @@ export class App {
     const sure = el('span', { class: 'chip tab', id: 'sure' }, this.sureMetni(c.seans.started_at)); this.tickSure();
     const grab = el('button', { class: 'grab', title: this.logCollapsed ? 'Aç' : 'Katla', onclick: () => { if (this.dragMoved) { this.dragMoved = false; return; } this.logCollapsed = !this.logCollapsed; this.applyCollapse(); } }, el('span', { class: 'gl' }), el('span', { class: 'gt' }, this.logCollapsed ? '▴  aç' : '▾  katla'));
     this.grabDrag(grab);
-    return el('div', { class: 'sbar' }, grab, el('div', { class: 'srow' }, sure, this.kronoPill(), el('span', { style: 'flex:1' }), this.kronoPanel(), c.v.rampa && row && row.row_key === c.v.rampa.rowKey ? el('button', { class: 'pill', title: 'Isınma rampasına dön', onclick: () => this.fazSet('isinma') }, 'Isınma') : null));   // 28 Eyl: Isınma yalnız rampanın hareketinde; Hazırım çubukta küçük düğme   // 29 Eyl: "Bitir" buradan kalktı (yanlışlıkla seansı kapatıyordu) → genel görünümün altında
+    // 28 Eyl (Tasarım A): süre başlığın sağında; dinlenme sayacı + Hazırım üstte Dynamic Island kapsülünde; panelde yalnız (gerekirse) Isınma
+    this.hR.replaceChildren(sure, el('span', { class: 'hsira tab' }, row ? ` · ${c.v.rows.indexOf(row) + 1}/${c.v.rows.length}` : '')); this.adaCiz();
+    return el('div', { class: 'sbar' }, grab, el('div', { class: 'srow' }, el('span', { class: 'sbslot' }), c.v.rampa && row && row.row_key === c.v.rampa.rowKey ? el('button', { class: 'pill', title: 'Isınma rampasına dön', onclick: () => this.fazSet('isinma') }, 'Isınma') : null));   // 28 Eyl: Isınma yalnız rampanın hareketinde; Hazırım çubukta küçük düğme   // 29 Eyl: "Bitir" buradan kalktı (yanlışlıkla seansı kapatıyordu) → genel görünümün altında
   }
   /** Tutamaç parmağı izler: panel dirençle (rubber band) kayar, pill uzar; eşik (36 px) geçilirse katlanır/açılır, yoksa yaylanıp döner. */
   grabDrag(grab) {
@@ -420,7 +424,7 @@ export class App {
     const body = el('div', { class: 'body' + (this.logCollapsed ? ' hidden' : '') });
     // kişi
     let segBtns = [];
-    if (p === 'Alper') body.append(el('div', { class: 'seg' }, ...(segBtns = ['arda', 'alper'].map(a => el('button', { class: d.actor === a ? 'sel' : '', onclick: () => { if (a === d.actor) return; d.details ??= {}; d.details[d.actor] = d.detail; d.editIdx = null; d.yeni = null; d.hrBas = null; d.hrSon = null; d.actor = a; fill(); yukle(); saveDraft(); paint(); } }, a === 'arda' ? 'Arda' : 'Alper')))));   // kırmızı takım T1-1: setler kişi başına
+    let segEl = null; if (p === 'Alper') (segEl = el('div', { class: 'seg' }, ...(segBtns = ['arda', 'alper'].map(a => el('button', { class: d.actor === a ? 'sel' : '', onclick: () => { if (a === d.actor) return; d.details ??= {}; d.details[d.actor] = d.detail; d.editIdx = null; d.yeni = null; d.hrBas = null; d.hrSon = null; d.actor = a; fill(); yukle(); saveDraft(); paint(); } }, a === 'arda' ? 'Arda' : 'Alper')))));   // kırmızı takım T1-1: setler kişi başına
     // kg + plaka
     const kgIn = el('input', { type: 'text', inputmode: 'decimal', autocomplete: 'off', enterkeyhint: 'done', placeholder: '—', class: 'tab' });
     const kgSub = el('div', { class: 'sub tab' });
@@ -430,6 +434,7 @@ export class App {
     const plakaBtn = r.barli ? el('button', { class: 'plk-ic', title: 'Plaka hesabı', onclick: () => { this.sheet = { kind: 'plaka', kg: d.kg ?? planKg() ?? prevE?.kg ?? 20, aktar: kg => { d.kg = kg; saveDraft(); paint(); } }; this.renderSheet(); } }, '▬') : null;
     const eq = ekipman(r);
     body.append(el('div', { class: 'kgrow' }, hold(el('button', {}, '−'), k => step(-KG_ADIM * k)), el('div', { class: 'mid well', onclick: e => { if (e.target !== kgIn) { kgIn.focus(); kgIn.select?.(); } } }, kgIn, kgSub), hold(el('button', { class: 'plus' }, '+'), k => step(KG_ADIM * k)), plakaBtn));
+    this._segEl = segEl;   // Tasarım A: Arda/Alper seçimi panelin üst satırında (seansBar srow)
     // set / tekrar / rpe
     const setBtns = [1, 2, 3, 4, 5].map(n => el('button', { class: 'tab', onclick: () => { d.sets = n; saveDraft(); paint(); } }, n));
     const base = r.tekrar ?? 5; const reps = r.tekrar_metin ? [] : [base - 2, base - 1, base, base + 1, base + 2].filter(n => n >= 1);
@@ -520,9 +525,9 @@ export class App {
       const ed = M.isNum(d.editIdx) && d.detail[d.editIdx] ? d.editIdx : null;
       setKaydet.textContent = ed !== null ? `Set ${ed + 1}'i güncelle` : `Set ${d.detail.length + 1}'i kaydet`; delBtn.classList.toggle('hidden', ed === null); skipBtn.classList.toggle('hidden', ed !== null);
       if (!this._wheelBusy) this.cizDeck?.();
-      const q = cur(); kaydet.textContent = setMode ? (d.detail.length ? `Hareketi bitir (${d.detail.length} set)` : 'Hareketi bitir') : (q && !q.skipped ? 'Güncelle' : 'Kaydet'); skipBtn.textContent = q?.skipped ? 'Geri al' : 'Atla';
+      const q = cur(); kaydet.textContent = setMode ? (d.detail.length ? `✓ ${d.detail.length}` : '✓') : (q && !q.skipped ? 'Güncelle' : 'Kaydet'); kaydet.title = setMode ? (d.detail.length ? `Hareketi bitir (${d.detail.length} set)` : 'Hareketi bitir') : ''; skipBtn.textContent = q?.skipped ? '↺' : '⤼'; skipBtn.title = q?.skipped ? 'Geri al' : 'Atla';
       kaydet.disabled = (setMode && !d.detail.length) || ed !== null; kaydet.classList.toggle('bitir', setMode);
-      if (setMode && !d.detail.length) kaydet.title = 'Önce en az bir set kaydet'; else kaydet.title = '';
+      if (setMode && !d.detail.length) kaydet.title = 'Önce en az bir set kaydet';
       ozetS.textContent = ozet();
     };
     paint();
@@ -576,8 +581,8 @@ export class App {
     const k = this.krono; if (!k) return clearInterval(this.kronoIv);
     const kalan = this.kronoKalan();
     const pct = kalan >= 0 ? Math.round((1 - kalan / k.sn) * 100) : Math.min(100, Math.round((-kalan / k.sn) * 100));
-    const pill = this.foot.querySelector('#kpill') ?? this.hR.querySelector('#kpill'); if (pill) { pill.querySelector('.kt').textContent = this.kronoMetin(kalan); pill.classList.toggle('over', kalan < 0); pill.querySelector('.ring').style.setProperty('--pct', `${pct}%`); }
-    const hz = this.foot.querySelector('#khazir'); if (hz && !M.isNum(k.hazirS)) { const g = Math.round((Date.now() - k.start) / 1000); hz.disabled = g < k.altSn; hz.textContent = g < k.altSn ? `Hazırım · ${this.kronoMetin(k.altSn - g)}` : 'Hazırım'; }
+    const pill = this.island.querySelector('#kpill') ?? this.foot.querySelector('#kpill') ?? this.hR.querySelector('#kpill'); if (pill) { pill.querySelector('.kt').textContent = this.kronoMetin(kalan); pill.classList.toggle('over', kalan < 0); pill.querySelector('.ring').style.setProperty('--pct', `${pct}%`); }
+    const hz = this.island.querySelector('#khazir') ?? this.foot.querySelector('#khazir'); if (hz && !M.isNum(k.hazirS)) { const g = Math.round((Date.now() - k.start) / 1000); hz.disabled = g < k.altSn; hz.textContent = g < k.altSn ? `Hazırım · ${this.kronoMetin(k.altSn - g)}` : 'Hazırım'; }
     const big = this.main.querySelector('#krobig'); if (big) { big.textContent = this.kronoMetin(kalan); big.className = 'big tab ' + (kalan >= 0 ? 'on' : 'over'); }
     if (kalan === 0 && !k.bitti) { k.bitti = true; this.geriBildirim('alarm'); if (pill) { pill.classList.add('done'); setTimeout(() => { pill.classList.remove('done'); if (this.kronoBig) { this.kronoBig = false; pill.classList.remove('big'); } }, 1400); } }   // sayaç durmaz: aşım kırmızı sayar; büyükse nabız sonrası küçülür
   }
@@ -592,6 +597,7 @@ export class App {
       el('span', { class: 'kx', title: 'Dinlenmeyi geç', onclick: e => { e.stopPropagation(); this.krono = null; this.kronoBig = false; clearInterval(this.kronoIv); this.render(); } }, this.kronoBig ? 'Geç' : '×'));
     return pill;
   }
+  adaCiz() { const k = this.krono; this._islandSet = true; if (!k) { this.island.replaceChildren(); this.island.classList.add('hidden'); return; } this.island.replaceChildren(this.kronoPill(), this.kronoPanel()); this.island.classList.remove('hidden'); }
   kronoPanel() {
     const k = this.krono; if (!k) return null;
     const gecen = () => Math.round((Date.now() - k.start) / 1000);
