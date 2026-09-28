@@ -586,3 +586,5 @@ main.vin{animation:vin .16s var(--ease-out)}
 .combo-h .cs{flex:none;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--dim)}
 .combo .deck{margin:2px 0 0!important}
 .combo .wc{margin:3px 2px}
+/* A23.1 (28 Eyl, Arda: "biraz daha şeffaf") */
+.log{background:linear-gradient(180deg,rgba(30,31,48,.14),rgba(20,21,32,.36));-webkit-backdrop-filter:blur(4px) saturate(135%);backdrop-filter:blur(4px) saturate(135%)}
