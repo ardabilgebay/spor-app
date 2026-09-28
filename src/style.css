@@ -566,3 +566,23 @@ main.vin{animation:vin .16s var(--ease-out)}
 .log{background:linear-gradient(180deg,rgba(28,30,43,.34),rgba(20,21,32,.62));-webkit-backdrop-filter:blur(7px) saturate(140%);backdrop-filter:blur(7px) saturate(140%)}
 .xcar{padding-left:10vw;padding-right:10vw;gap:6px}
 .xslide{flex-basis:80vw}
+/* A23 (28 Eyl) — sakin ekran: seans sırasında yanıp sönme/yeniden çizim animasyonu yok */
+.log,.log .body,.log button.sel,.log .seg button,.stage *,main .card.mark,main .card.mark.done,main .card.mark.now,.kpill.over{animation:none!important}
+/* giriş paneli içeriğin ÜSTÜNDE yüzer (şeffaflık görünsün); içerik altına kaydırılabilir */
+#app.has-foot .log{position:absolute;left:0;right:0;bottom:0;margin-bottom:var(--tabh);z-index:15}
+#app.has-foot main{padding-bottom:calc(var(--footh,320px) + var(--tabh) + 10px)}
+.log{background:linear-gradient(180deg,rgba(30,31,48,.30),rgba(20,21,32,.55));-webkit-backdrop-filter:blur(6px) saturate(140%);backdrop-filter:blur(6px) saturate(140%)}
+/* tek çerçeve: hareket kaydırağı + bağlantı başlığı + set yığını */
+.stage{padding-top:2px}
+.combo{border-radius:24px;padding:10px 0 8px;overflow:hidden;border-color:rgba(157,143,240,.35);position:relative}
+.combo::before{content:"";position:absolute;left:0;top:18px;bottom:18px;width:3px;border-radius:0 3px 3px 0;background:linear-gradient(180deg,var(--acc),rgba(157,143,240,.15))}
+.combo .xcar{margin:0;padding:0 11%;gap:8px}
+.combo .xslide{flex-basis:78%}
+.combo .xcard{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:18px;min-height:118px;padding:14px 16px}
+.combo .xslide.on .xcard{background:linear-gradient(180deg,rgba(157,143,240,.18),rgba(157,143,240,.06));border-color:rgba(157,143,240,.5);box-shadow:inset 0 1px 0 rgba(255,255,255,.18)}
+.combo-bag{margin:8px 14px 0;border-top:1px solid rgba(157,143,240,.22);padding-top:6px}
+.combo-h{display:flex;justify-content:space-between;align-items:baseline;gap:10px;padding:0 4px}
+.combo-h .cn{font-size:12px;color:var(--acc-ink);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.combo-h .cs{flex:none;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--dim)}
+.combo .deck{margin:2px 0 0!important}
+.combo .wc{margin:3px 2px}
