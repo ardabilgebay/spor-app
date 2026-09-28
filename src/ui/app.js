@@ -288,6 +288,15 @@ export class App {
   /** Hareket kaydırağı (28 Eyl): yatay, native momentum + snap; komşu kartlar küçülüp hafif döner (yan yana yığın).
    *  Etkin kartın altında canlı set çarkı (#deck), diğerlerinde kayıtlı setlerin durağan özeti. Son sayfa = genel görünüm.
    *  Seçim yalnız kullanıcı kaydırmasıyla; hareket değişince ekran yeniden çizilmez (yalnız set yığını ve giriş çubuğu). */
+  kartGovde(r, aktor, yap, planT, tk) {
+    const alp = aktor === 'alper'; const q = alp ? r.alper : r.arda; const bitti = alp ? !!(q && (M.isNum(q.kg) || q.skipped)) : r.tamam;
+    const kgP = alp ? (M.isNum(r.onerilen_alper) ? r.onerilen_alper : null) : (M.isNum(r.onerilen) ? r.onerilen : null);
+    const yapQ = q?.skipped ? 'atlandı' : q?.sets_detail?.length ? P.detayMetni(q.sets_detail) : q ? `${fmt(q.kg)}×${fmt(q.sets)}×${q.reps ?? ''}` : '';
+    const plk = alp ? r.plakaAlper : r.plaka;
+    const alt = [plk ? plk.replace('bir tarafa ', 'yan ') : null, alp ? (M.isNum(r.onerilen) ? `Arda ${fmt(r.onerilen)}` : null) : (M.isNum(r.onerilen_alper) ? `Alper ${fmt(r.onerilen_alper)}` : null)].filter(Boolean).join(' · ');
+    return el('div', {}, bitti ? el('div', { class: 'l2 tab' }, alp ? yapQ : yap(r)) : kgP !== null ? el('div', { class: 'hero tab' }, el('b', {}, fmt(kgP)), el('span', {}, `kg · ${tk}`)) : el('div', { class: 'l2 tab' }, planT || tk),
+      alt ? el('div', { class: 'l3 tab' }, alt) : null);
+  }
   cizEgzKaydirak(c, host, oi, nowRow) {
     const v = c.v; const n = v.rows.length;
     const yap = r => r.arda?.skipped ? 'atlandı' : r.arda?.sets_detail?.length ? P.detayMetni(r.arda.sets_detail) : r.arda ? `${fmt(r.arda.kg)}×${fmt(r.arda.sets)}×${r.arda.reps ?? ''}` : '';
@@ -295,17 +304,19 @@ export class App {
     const slides = v.rows.map((r, i) => {
       const eq = ekipman(r);
       const planT = (r.hedef?.replace(/^.*\n/, '') ?? '').replace(/\n/g, ' · ').replace(/\s*[▸⚠].*$/, '');
-      const kgP = M.isNum(r.onerilen) ? r.onerilen : null; const tk = `${r.set ?? '?'}×${r.tekrar ?? r.tekrar_metin ?? '?'}`;
-      const alt = [r.plaka ? r.plaka.replace('bir tarafa ', 'yan ') : null, M.isNum(r.onerilen_alper) ? `Alper ${fmt(r.onerilen_alper)}` : null].filter(Boolean).join(' · ');
+      const tk = `${r.set ?? '?'}×${r.tekrar ?? r.tekrar_metin ?? '?'}`;
       return el('div', { class: 'xslide', 'data-i': i }, el('div', { class: 'xcard ' + (r.tamam ? (r.arda?.skipped ? 'skip' : 'done') : r === nowRow ? 'nowr' : '') },
-        el('div', { class: 'l0' }, el('span', { class: 'm' }, [r.tamam ? (r.arda?.skipped ? '— atlandı' : '✓ bitti') : r === nowRow ? '● şimdi' : `sıra ${i + 1}`, eq ? EKIPMAN_AD[eq] : null, `${i + 1}/${n}`].filter(Boolean).join(' · '))),
+        el('div', { class: 'l0' }, el('span', { class: 'm' }, [r.tamam ? (r.arda?.skipped ? '— atlandı' : '✓ bitti') : r === nowRow ? '● şimdi' : `sıra ${i + 1}`, eq ? EKIPMAN_AD[eq] : null, `${i + 1}/${n}`].filter(Boolean).join(' · ')), el('span', { class: 'kim' })),
         el('div', { class: 'v' }, r.egzersiz),
         el('div', { class: 'md' }, [r.modifier, M.isNum(r.hedef_rpe) ? `RPE ${fmt(r.hedef_rpe)}` : null].filter(Boolean).join(' · ') || ' '),
-        r.tamam ? el('div', { class: 'l2 tab' }, yap(r)) : kgP !== null ? el('div', { class: 'hero tab' }, el('b', {}, fmt(kgP)), el('span', {}, `kg · ${tk}`)) : el('div', { class: 'l2 tab' }, planT || tk),
-        alt ? el('div', { class: 'l3 tab' }, alt) : null));
+        el('div', { class: 'kh' }, this.kartGovde(r, 'arda', yap, planT, tk))));
     });
     const track = el('div', { class: 'xcar' }, ...slides);
     const deck = el('div', { class: 'deck', id: 'deck' });
+    // 28 Eyl (Arda: "Alper'e geçince ana kart da değişmeli"): kişi değişince etkin kartın gövdesi o kişinin planını/kaydını gösterir
+    this.kartAktor = (rowKey, aktor) => { const i = v.rows.findIndex(x => x.row_key === rowKey); const sl = slides[i]; if (!sl) return; const r = v.rows[i];
+      const planT = (r.hedef?.replace(/^.*\n/, '') ?? '').replace(/\n/g, ' · ').replace(/\s*[▸⚠].*$/, ''); const tk = `${r.set ?? '?'}×${r.tekrar ?? r.tekrar_metin ?? '?'}`;
+      sl.querySelector('.kh').replaceChildren(this.kartGovde(r, aktor, yap, planT, tk)); const k = sl.querySelector('.kim'); k.textContent = aktor === 'alper' ? 'Alper' : (c.def.program === 'Alper' ? 'Arda' : ''); k.classList.toggle('alp', aktor === 'alper'); sl.querySelector('.xcard').classList.toggle('alper', aktor === 'alper'); };
     host.append(el('div', { class: 'combo-w' }, el('div', { class: 'peek l glass' }), el('div', { class: 'peek r glass' }), el('div', { class: 'combo glass' }, track, el('div', { class: 'combo-bag' }, deck))));
     const bas = () => {};
     const sec = async idx => { if (idx === oi || !track.isConnected) return;
@@ -424,7 +435,7 @@ export class App {
     const body = el('div', { class: 'body' + (this.logCollapsed ? ' hidden' : '') });
     // kişi
     let segBtns = [];
-    let segEl = null; if (p === 'Alper') (segEl = el('div', { class: 'seg' }, ...(segBtns = ['arda', 'alper'].map(a => el('button', { class: d.actor === a ? 'sel' : '', onclick: () => { if (a === d.actor) return; d.details ??= {}; d.details[d.actor] = d.detail; d.editIdx = null; d.yeni = null; d.hrBas = null; d.hrSon = null; d.actor = a; fill(); yukle(); saveDraft(); paint(); } }, a === 'arda' ? 'Arda' : 'Alper')))));   // kırmızı takım T1-1: setler kişi başına
+    let segEl = null; if (p === 'Alper') (segEl = el('div', { class: 'seg' }, ...(segBtns = ['arda', 'alper'].map(a => el('button', { class: d.actor === a ? 'sel' : '', onclick: () => { if (a === d.actor) return; d.details ??= {}; d.details[d.actor] = d.detail; d.editIdx = null; d.yeni = null; d.hrBas = null; d.hrSon = null; d.actor = a; fill(); yukle(); saveDraft(); paint(); this.kartAktor?.(r.row_key, d.actor); } }, a === 'arda' ? 'Arda' : 'Alper')))));   // kırmızı takım T1-1: setler kişi başına
     // kg + plaka
     const kgIn = el('input', { type: 'text', inputmode: 'decimal', autocomplete: 'off', enterkeyhint: 'done', placeholder: '—', class: 'tab' });
     const kgSub = el('div', { class: 'sub tab' });
@@ -530,7 +541,7 @@ export class App {
       if (setMode && !d.detail.length) kaydet.title = 'Önce en az bir set kaydet';
       ozetS.textContent = ozet();
     };
-    paint();
+    paint(); this.kartAktor?.(r.row_key, d.actor);
     const commit = async ({ skipped = false } = {}) => {
       const q = cur();
       if (skipped && q?.skipped) { await S.appendEvent(await this.deleteEvent(r.ref, d.actor)); await S.setMeta(draftKey, null); this.sync?.schedule(); return this.render(); }

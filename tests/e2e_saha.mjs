@@ -174,6 +174,7 @@ await tab('Bugün'); await strip('Alper Günleri'); await p.waitForTimeout(300);
 await p.locator('.foot button.pri').click(); await p.waitForTimeout(300); await p.locator('.sheet .btnrow button').click(); await p.waitForTimeout(400);   // stres: şimdi değil → ısınma
 await p.locator('.foot button.sec').click(); await p.waitForTimeout(400);   // ısınmayı atla
 await p.locator('.log .seg button', { hasText: 'Alper' }).click(); await p.waitForTimeout(200);
+t('A25: Alper seçilince ana kart Alper planına döndü (90 kg, ALPER etiketi)', (await p.$$('main .xslide.on .xcard.alper')).length === 1 && (await p.textContent('main .xslide.on .hero b')) === '90' && (await p.textContent('main .xslide.on .kim')) === 'Alper', await p.textContent('main .xslide.on .xcard'));
 t('Alper segment → plan 90', await kg().inputValue() === '90', await kg().inputValue());
 await p.locator('.log .setk').click(); await p.waitForTimeout(600);   // Top Single 1 set → otomatik biter (H3)
 t('offline Alper kaydı 90×1', (await p.textContent('main')).includes('Alper: 90×1'), (await p.textContent('main')).slice(0, 200));

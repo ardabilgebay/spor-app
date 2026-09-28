@@ -641,3 +641,7 @@ main.vin{animation:vin .16s var(--ease-out)}
 .combo .wheel-track{height:124px}
 .combo .wheel-track .wsp{height:36px}
 .combo .deck .wsel{top:39px}
+.xcard .l0 .kim{font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim)}
+.xcard .l0 .kim.alp{color:#86bdf7}
+.combo .xcard.alper .hero b{color:#cfe6ff}
+.combo .xcard.alper .md{color:#86bdf7}
