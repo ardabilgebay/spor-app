@@ -46,7 +46,7 @@ t('A20 nabız set ekranında: "set 2 başlarken / bitince", dinlenme panelinde n
 t('1. set listede, sayaç Clean kategorisi (1:30)', (await p.$$('.log .srow-set')).length === 1 && /^1:2\d|1:30/.test(await p.textContent('.log #kpill .kt')), await p.textContent('.log #kpill'));
 await p.locator('.log .setk').click(); await p.waitForTimeout(300);
 await kg().fill('45'); await kg().dispatchEvent('change'); await pick('rpe', 8); await p.locator('.log .setk').click(); await p.waitForTimeout(300);
-t('T1 odak: pager 2 sayfa, odak kart Clean, yığında 3 bitmiş set + şimdi', (await p.$$('main .pager > .pg')).length === 2 && (await p.textContent('main .xw.on .v')) === 'Clean' && (await p.$$('#deck .wc.done')).length === 3 && (await p.$$('#deck .wc.now')).length === 1);
+t('A22 kaydırak: 3 hareket + genel görünüm, odak kart Clean, yığında 3 bitmiş set + şimdi', (await p.$$('main .xcar .xslide')).length === 4 && (await p.textContent('main .xslide.on .xcard .v')) === 'Clean' && (await p.$$('#deck .wc.done')).length === 3 && (await p.$$('#deck .wc.now')).length === 1);
 t('A20: set 2 kartında o setin nabzı ♥ 98 → 151, set 3 alanları boşaldı', (await p.locator('#deck .wc.done').nth(1).textContent()).includes('♥ 98 → 151') && (await p.locator('.log .hrfld input').nth(0).inputValue()) === '', await p.locator('#deck .wc.done').nth(1).textContent());
 await p.locator('#deck .wheel-track').evaluate(t => { t.dispatchEvent(new Event('pointerdown')); t.scrollTo({ top: 0 }); }); await p.waitForTimeout(500);   // çarkı en üste kaydır (set 1)
 t('T1+: çark set 1\'de durdu → "Set 1\'i güncelle" + Sil', (await p.textContent('.log .setk')) === "Set 1'i güncelle" && await p.locator('.log .acts button[title="Bu seti sil"]').isVisible(), await p.textContent('.log .setk'));
@@ -93,16 +93,16 @@ await pick('rpe', 9); await p.locator('.log .setk').click(); await p.waitForTime
 done = await p.$$eval('main .card.mark.done .yap', a => a.map(x => x.textContent));
 t('Top Single tek setle bitti, not kayıtta: 122.5×1 R9 — sırt sıkı', done.some(x => x.includes('122.5×1 R9') && x.includes('sırt sıkı')), done.join(' | '));
 // T1 kırmızı takım: bitmiş hareket (Clean) geçmiş kartından yeniden açılınca kayıtlı 4 set yığında
-t('A19 hareket çarkı: ortada sıradaki (Top Triple), çarkta 3 hareket', (await p.textContent('main .xw.on .v')).includes('Top Triple') && (await p.$$('#exw .xw')).length === 3, await p.textContent('#exw'));
-await p.evaluate(() => { document.querySelector('#exw').dataset.m = 'ayni'; });
-await p.locator('#exw .wheel-track').evaluate(t => { t.dispatchEvent(new Event('pointerdown')); t.scrollTo({ top: 0 }); }); await p.waitForTimeout(900);   // çarkı Clean'e kaydır
-t('A21: hareket değişimi yerinde (ekran yeniden çizilmedi), Clean\'de Isınma düğmesi yok', (await p.evaluate(() => document.querySelector('#exw')?.dataset.m)) === 'ayni' && !(await p.textContent('.log .srow')).includes('Isınma'));
-t('A19: çark Clean\'de durdu → Clean açıldı, yığında 4 kayıtlı set', (await p.textContent('main .xw.on .v')) === 'Clean' && (await p.textContent('main .xw.on .tg')).includes('1/3') && (await p.$$('main .focus')).length === 0 && (await p.$$('#deck .wc.done')).length === 4 && (await p.textContent('#deck .deckplan')).includes('4 kayıtlı'), await p.textContent('#deck'));
-await p.locator('main .pager .pg').nth(1).locator('.card', { hasText: 'Top Triple' }).click(); await p.waitForTimeout(300);
-t('T1: sayfa 2\'den Top Triple açıldı, odak sayfasına dönüldü', (await p.textContent('main .xw.on .v')).includes('Top Triple'), await p.textContent('#exw'));
+t('A19 hareket çarkı: ortada sıradaki (Top Triple), çarkta 3 hareket', (await p.textContent('main .xslide.on .xcard .v')).includes('Top Triple') && (await p.$$('main .xcar .xslide:not(.ov)')).length === 3, await p.textContent('main .xcar'));
+await p.evaluate(() => { document.querySelector('.xcar').dataset.m = 'ayni'; });
+await p.locator('main .xcar').evaluate(t => { t.dispatchEvent(new Event('touchstart')); const it = t.querySelector('.xslide'); t.scrollLeft = it.offsetLeft + it.offsetWidth / 2 - t.clientWidth / 2; }); await p.waitForTimeout(900);   // kaydırağı Clean'e kaydır
+t('A21: hareket değişimi yerinde (ekran yeniden çizilmedi), Clean\'de Isınma düğmesi yok', (await p.evaluate(() => document.querySelector('.xcar')?.dataset.m)) === 'ayni' && !(await p.textContent('.log .srow')).includes('Isınma'));
+t('A19: çark Clean\'de durdu → Clean açıldı, yığında 4 kayıtlı set', (await p.textContent('main .xslide.on .xcard .v')) === 'Clean' && (await p.textContent('main .xslide.on .tg')).includes('1/3') && (await p.$$('main .xslide.on #deck')).length === 1 && (await p.$$('main .focus')).length === 0 && (await p.$$('#deck .wc.done')).length === 4 && (await p.textContent('#deck .deckplan')).includes('4 kayıtlı'), await p.textContent('#deck'));
+await p.locator('main .xslide.ov .card', { hasText: 'Top Triple' }).click(); await p.waitForTimeout(300);
+t('T1: sayfa 2\'den Top Triple açıldı, odak sayfasına dönüldü', (await p.textContent('main .xslide.on .xcard .v')).includes('Top Triple'), await p.textContent('main .xcar'));
 // 29 Eyl: erken bitir yalnız genel görünümde; özet eksik hareket varsa iki adım, Geri ile dönülür (seans kapanmaz)
-t('genel görünümde "Seansı bitir · 1 hareket girilmedi"', (await p.textContent('main .pager .pg:nth-child(2)')).includes('Seansı bitir · 1 hareket girilmedi'));
-await p.locator('main .pager .pg').nth(1).locator('button', { hasText: 'Seansı bitir' }).click(); await p.waitForTimeout(300);
+t('genel görünümde "Seansı bitir · 1 hareket girilmedi"', (await p.textContent('main .xslide.ov')).includes('Seansı bitir · 1 hareket girilmedi'));
+await p.locator('main .xslide.ov button', { hasText: 'Seansı bitir' }).click(); await p.waitForTimeout(300);
 t('özet: eksik uyarısı', (await p.textContent('main')).includes('1 hareket girilmedi'));
 await p.locator('.foot button.pri').click(); await p.waitForTimeout(100);
 t('açılışta 0,8 sn kilit: ilk dokunuş yok sayıldı', (await p.textContent('.foot button.pri')) === 'Kaydet ve kapat');
