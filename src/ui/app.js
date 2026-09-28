@@ -160,7 +160,7 @@ export class App {
     this.renderSheet();
   }
   head(k, t, ...right) { this._headSet = true; this.hK.textContent = k; this.hT.textContent = t; this.hR.replaceChildren(...right.filter(Boolean)); this.hdr.classList.remove('one'); }
-  footer(cls, ...kids) { this._footSet = true; queueMicrotask(() => { const sl = this.foot.querySelector('.sbslot'); if (sl && this._segEl) { sl.replaceWith(this._segEl); } this._segEl = null; }); if (!this._footRO && window.ResizeObserver) { this._footRO = new ResizeObserver(() => this.root.style.setProperty('--footh', this.foot.offsetHeight + 'px')); this._footRO.observe(this.foot); } this.foot.className = cls; this.foot.replaceChildren(...kids.filter(Boolean)); this.root.classList.toggle('has-foot', cls !== 'hidden'); }
+  footer(cls, ...kids) { this._footSet = true; if (!this._footRO && window.ResizeObserver) { this._footRO = new ResizeObserver(() => this.root.style.setProperty('--footh', this.foot.offsetHeight + 'px')); this._footRO.observe(this.foot); } this.foot.className = cls; this.foot.replaceChildren(...kids.filter(Boolean)); this.root.classList.toggle('has-foot', cls !== 'hidden'); }
   banners() {
     const out = []; const st = this.sync?.last;
     if (this.persist === false) out.push(el('div', { class: 'banner warn' }, 'Kalıcı depolama izni yok — ana ekrandan açınca iOS verir. Kayıtlar cihazda; senkron/yedek önemli.'));
@@ -294,8 +294,8 @@ export class App {
     const yapQ = q?.skipped ? 'atlandı' : q?.sets_detail?.length ? P.detayMetni(q.sets_detail) : q ? `${fmt(q.kg)}×${fmt(q.sets)}×${q.reps ?? ''}` : '';
     const plk = alp ? r.plakaAlper : r.plaka;
     const alt = [plk ? plk.replace('bir tarafa ', 'yan ') : null, alp ? (M.isNum(r.onerilen) ? `Arda ${fmt(r.onerilen)}` : null) : (M.isNum(r.onerilen_alper) ? `Alper ${fmt(r.onerilen_alper)}` : null)].filter(Boolean).join(' · ');
-    return el('div', {}, bitti ? el('div', { class: 'l2 tab' }, alp ? yapQ : yap(r)) : kgP !== null ? el('div', { class: 'hero tab' }, el('b', {}, fmt(kgP)), el('span', {}, `kg · ${tk}`)) : el('div', { class: 'l2 tab' }, planT || tk),
-      alt ? el('div', { class: 'l3 tab' }, alt) : null);
+    // R4-B: büyük rakam yalnız panelde; kartta tek plan satırı
+    return el('div', {}, bitti ? el('div', { class: 'l2 tab' }, alp ? yapQ : yap(r)) : el('div', { class: 'planl tab' }, 'plan ', el('b', {}, kgP !== null ? `${fmt(kgP)} kg` : (planT || tk)), kgP !== null ? ` · ${tk}` : '', alt ? ` · ${alt}` : ''));
   }
   cizEgzKaydirak(c, host, oi, nowRow) {
     const v = c.v; const n = v.rows.length;
@@ -306,7 +306,7 @@ export class App {
       const planT = (r.hedef?.replace(/^.*\n/, '') ?? '').replace(/\n/g, ' · ').replace(/\s*[▸⚠].*$/, '');
       const tk = `${r.set ?? '?'}×${r.tekrar ?? r.tekrar_metin ?? '?'}`;
       return el('div', { class: 'xslide', 'data-i': i }, el('div', { class: 'xcard ' + (r.tamam ? (r.arda?.skipped ? 'skip' : 'done') : r === nowRow ? 'nowr' : '') },
-        el('div', { class: 'l0' }, el('span', { class: 'm' }, [r.tamam ? (r.arda?.skipped ? '— atlandı' : '✓ bitti') : r === nowRow ? '● şimdi' : `sıra ${i + 1}`, eq ? EKIPMAN_AD[eq] : null, `${i + 1}/${n}`].filter(Boolean).join(' · ')), el('span', { class: 'kim' })),
+        el('div', { class: 'l0' }, el('span', { class: 'm' }, [r.tamam ? (r.arda?.skipped ? '— atlandı' : '✓ bitti') : r === nowRow ? '● şimdi' : `sıra ${i + 1}`, eq ? EKIPMAN_AD[eq] : null, `${i + 1}/${n}`].filter(Boolean).join(' · ')), c.def.program === 'Alper' ? el('span', { class: 'kimsec' }, ...['arda', 'alper'].map(a => el('button', { 'data-a': a, class: a === 'arda' ? 'sel' : '', onclick: e => { e.stopPropagation(); this._aktorSec?.(a); } }, a === 'arda' ? 'Arda' : 'Alper'))) : el('span', { class: 'kim' })),
         el('div', { class: 'v' }, r.egzersiz),
         el('div', { class: 'md' }, [r.modifier, M.isNum(r.hedef_rpe) ? `RPE ${fmt(r.hedef_rpe)}` : null].filter(Boolean).join(' · ') || ' '),
         el('div', { class: 'kh' }, this.kartGovde(r, 'arda', yap, planT, tk))));
@@ -316,7 +316,7 @@ export class App {
     // 28 Eyl (Arda: "Alper'e geçince ana kart da değişmeli"): kişi değişince etkin kartın gövdesi o kişinin planını/kaydını gösterir
     this.kartAktor = (rowKey, aktor) => { const i = v.rows.findIndex(x => x.row_key === rowKey); const sl = slides[i]; if (!sl) return; const r = v.rows[i];
       const planT = (r.hedef?.replace(/^.*\n/, '') ?? '').replace(/\n/g, ' · ').replace(/\s*[▸⚠].*$/, ''); const tk = `${r.set ?? '?'}×${r.tekrar ?? r.tekrar_metin ?? '?'}`;
-      sl.querySelector('.kh').replaceChildren(this.kartGovde(r, aktor, yap, planT, tk)); const k = sl.querySelector('.kim'); k.textContent = aktor === 'alper' ? 'Alper' : (c.def.program === 'Alper' ? 'Arda' : ''); k.classList.toggle('alp', aktor === 'alper'); sl.querySelector('.xcard').classList.toggle('alper', aktor === 'alper'); };
+      sl.querySelector('.kh').replaceChildren(this.kartGovde(r, aktor, yap, planT, tk)); sl.querySelectorAll('.kimsec button').forEach(b => b.classList.toggle('sel', b.dataset.a === aktor)); sl.querySelector('.xcard').classList.toggle('alper', aktor === 'alper'); };
     host.append(el('div', { class: 'combo-w' }, el('div', { class: 'peek l glass' }), el('div', { class: 'peek r glass' }), el('div', { class: 'combo glass' }, track, el('div', { class: 'combo-bag' }, deck))));
     const bas = () => {};
     const sec = async idx => { if (idx === oi || !track.isConnected) return;
@@ -339,6 +339,32 @@ export class App {
       this[tmr] = setTimeout(() => { if (track.isConnected && Date.now() - dokunus < 2500) sec(enYakin()); }, 140); }, { passive: true });
     this.sonra(() => { const it = items[Math.max(0, Math.min(items.length - 1, ilk))]; sessizBit = Date.now() + 400; if (it) track.scrollLeft = mz(it) - track.clientWidth / 2; boya(); });
     return { git: j => { dokundu(); const it = items[j]; if (it) track.scrollTo({ left: mz(it) - track.clientWidth / 2, behavior: 'smooth' }); } };
+  }
+  /** Yatay şerit seçici (R4-B): native kaydırma + snap; ortadaki değer seçilir. Yalnız parmak/tekerlek dokunuşundan sonraki yerleşme seçer;
+   *  programatik konumlama (ayarla) dokunuş bayrağını sıfırlar → kendi kendine değer yazamaz. `varsayilan`: boşken o değerde SOLUK bekler (kaydedilmez). */
+  serit(ad, degerler, etiket, secili, onSec, { varsayilan = null } = {}) {
+    const items = degerler.map(x => el('span', { class: 'pk tab', 'data-v': x === null ? '' : String(x) }, etiket(x)));
+    const track = el('div', { class: 'hstrip' }, el('span', { class: 'hsp' }), ...items, el('span', { class: 'hsp' }));
+    const box = el('div', { class: 'picker serit', 'data-ad': ad }, track, el('div', { class: 'hsel' }));
+    let cur = degerler.indexOf(secili); let dok = 0; let tmr = 0; let raf = 0; let sonX = secili;
+    const mz = it => it.offsetLeft + it.offsetWidth / 2;
+    const yakin = () => { const c = track.scrollLeft + track.clientWidth / 2; let b = 0, bd = Infinity; items.forEach((it, i) => { const x = Math.abs(mz(it) - c); if (x < bd) { bd = x; b = i; } }); return b; };
+    const boya = () => { const c = track.scrollLeft + track.clientWidth / 2; for (const it of items) { const a = Math.min(2.5, Math.abs(mz(it) - c) / 34); it.style.opacity = String(Math.max(0.12, 1 - a * 0.42)); it.classList.toggle('on', a < 0.5); } };
+    const konum = i => { const it = items[i]; if (it) track.scrollLeft = mz(it) - track.clientWidth / 2; boya(); };
+    const bosMu = () => box.classList.toggle('bos', cur < 0);
+    const sec = i => { dok = 0; if (i === cur) return; cur = i; sonX = degerler[i]; bosMu(); onSec(degerler[i]); };
+    const dokundu = () => { dok = Date.now(); };
+    for (const ev of ['touchstart', 'touchmove', 'pointerdown', 'wheel']) track.addEventListener(ev, dokundu, { passive: true });
+    track.addEventListener('scroll', () => { if (!raf) raf = requestAnimationFrame(() => { raf = 0; boya(); }); clearTimeout(tmr); if (!dok) return;
+      tmr = setTimeout(() => { if (track.isConnected && dok && Date.now() - dok < 2500) sec(yakin()); }, 130); }, { passive: true });
+    items.forEach((it, i) => it.addEventListener('click', () => { dokundu(); const c = track.scrollLeft + track.clientWidth / 2; if (Math.abs(mz(it) - c) < it.offsetWidth / 2) sec(i); else track.scrollTo({ left: mz(it) - track.clientWidth / 2, behavior: 'smooth' }); }));
+    const ilk = () => cur >= 0 ? cur : Math.max(0, degerler.indexOf(varsayilan ?? degerler[0]));
+    bosMu(); this.sonra(() => konum(ilk()));
+    // kırmızı takım A26-1: aynı değere yeniden boyama no-op (süren kaydırmayı iptal etmez)
+    box.ayarla = x => { if (x === sonX) return; sonX = x; const i = degerler.indexOf(x); if (i === cur && i >= 0) return; dok = 0; clearTimeout(tmr); cur = i; bosMu(); const f = () => konum(ilk()); track.isConnected ? f() : this.sonra(f); };
+    // kırmızı takım A26-2: Kaydet'e basılınca yerleşmemiş kaydırma hemen çözülür (son seçilen değer kaybolmaz)
+    box.flush = () => { if (dok && Date.now() - dok < 2500) { clearTimeout(tmr); sec(yakin()); } };
+    return box;
   }
   /** Dikey seçici (iOS saat seçici): değerler çarkı; ortadaki değer seçilir. ayarla(v) dışarıdan konumlar (seçim tetiklemez). */
   secici(ad, degerler, etiket, secili, onSec) {
@@ -388,7 +414,7 @@ export class App {
     this.grabDrag(grab);
     // 28 Eyl (Tasarım A): süre başlığın sağında; dinlenme sayacı + Hazırım üstte Dynamic Island kapsülünde; panelde yalnız (gerekirse) Isınma
     this.hR.replaceChildren(sure, el('span', { class: 'hsira tab' }, row ? ` · ${c.v.rows.indexOf(row) + 1}/${c.v.rows.length}` : '')); this.adaCiz();
-    return el('div', { class: 'sbar' }, grab, el('div', { class: 'srow' }, el('span', { class: 'sbslot' }), c.v.rampa && row && row.row_key === c.v.rampa.rowKey ? el('button', { class: 'pill', title: 'Isınma rampasına dön', onclick: () => this.fazSet('isinma') }, 'Isınma') : null));   // 28 Eyl: Isınma yalnız rampanın hareketinde; Hazırım çubukta küçük düğme   // 29 Eyl: "Bitir" buradan kalktı (yanlışlıkla seansı kapatıyordu) → genel görünümün altında
+    return el('div', { class: 'sbar' }, grab, el('div', { class: 'srow' }, c.v.rampa && row && row.row_key === c.v.rampa.rowKey ? el('button', { class: 'pill', title: 'Isınma rampasına dön', onclick: () => this.fazSet('isinma') }, 'Isınma') : null));   // 28 Eyl: Isınma yalnız rampanın hareketinde; Hazırım çubukta küçük düğme   // 29 Eyl: "Bitir" buradan kalktı (yanlışlıkla seansı kapatıyordu) → genel görünümün altında
   }
   /** Tutamaç parmağı izler: panel dirençle (rubber band) kayar, pill uzar; eşik (36 px) geçilirse katlanır/açılır, yoksa yaylanıp döner. */
   grabDrag(grab) {
@@ -445,7 +471,7 @@ export class App {
     const plakaBtn = r.barli ? el('button', { class: 'plk-ic', title: 'Plaka hesabı', onclick: () => { this.sheet = { kind: 'plaka', kg: d.kg ?? planKg() ?? prevE?.kg ?? 20, aktar: kg => { d.kg = kg; saveDraft(); paint(); } }; this.renderSheet(); } }, '▬') : null;
     const eq = ekipman(r);
     body.append(el('div', { class: 'kgrow' }, hold(el('button', {}, '−'), k => step(-KG_ADIM * k)), el('div', { class: 'mid well', onclick: e => { if (e.target !== kgIn) { kgIn.focus(); kgIn.select?.(); } } }, kgIn, kgSub), hold(el('button', { class: 'plus' }, '+'), k => step(KG_ADIM * k)), plakaBtn));
-    this._segEl = segEl;   // Tasarım A: Arda/Alper seçimi panelin üst satırında (seansBar srow)
+    this._aktorSec = a => segBtns.find(b => b.textContent.toLowerCase() === a)?.click();   // R4-B: kişi seçimi kartın köşesinde (düğmeler bu kapanışı tetikler)
     // set / tekrar / rpe
     const setBtns = [1, 2, 3, 4, 5].map(n => el('button', { class: 'tab', onclick: () => { d.sets = n; saveDraft(); paint(); } }, n));
     const base = r.tekrar ?? 5; const reps = r.tekrar_metin ? [] : [base - 2, base - 1, base, base + 1, base + 2].filter(n => n >= 1);
@@ -459,17 +485,15 @@ export class App {
     const setFld = el('div', { class: 'fld' }, el('div', { class: 'lbl' }, 'Set'), el('div', { class: 'opts' }, ...setBtns)); body.append(setFld);
     // 28 Eyl (Arda: "tekrar ve RPE de set/hareket gibi saat seçici olsun, sabit düğmeler yok"): iOS saat seçici gibi iki dikey çark
     const repDeg = [null, ...Array.from({ length: Math.max(30, (r.tekrar ?? 0) + 10) }, (_, i) => i + 1)];
-    const repPk = this.secici('tkr', repDeg, x => x === null ? (r.tekrar_metin ?? '—') : String(x), d.reps ?? null, x => { d.reps = x; saveDraft(); paint(); });
-    const rpePk = this.secici('rpe', [null, ...RPE_LIST], x => x === null ? '—' : fmt(x), d.rpe ?? null, x => { d.rpe = x; saveDraft(); paint(); });
-    const hrParse = t => { const x = /^\s*\d{2,3}\s*$/.test(t) ? parseInt(t, 10) : NaN; return Number.isFinite(x) && x >= 30 && x <= 230 ? x : null; };
-    const hrIn = alan => { const i = el('input', { type: 'text', inputmode: 'numeric', autocomplete: 'off', enterkeyhint: 'done', class: 'tab', placeholder: '—' });
-      i.addEventListener('change', () => { d[alan] = hrParse(i.value); saveDraft(); paint(); });
-      i.addEventListener('keydown', e => { if (e.key === 'Enter') i.blur(); }); return i; };
-    const hrBasIn = hrIn('hrBas'), hrSonIn = hrIn('hrSon'); const hrBasL = el('span'), hrSonL = el('span');
-    body.append(el('div', { class: 'pkrow' },
-      el('div', { class: 'pkc' }, el('div', { class: 'pkl' }, 'Tekrar'), repPk),
-      el('div', { class: 'pkc' }, el('div', { class: 'pkl' }, 'RPE' + (r.hedef_rpe ? ` · hedef ${fmt(r.hedef_rpe)}` : '')), rpePk),
-      el('div', { class: 'pkc hrfld' }, el('div', { class: 'pkl' }, '♥ nabız'), el('label', { class: 'hrc' }, hrBasL, hrBasIn), el('label', { class: 'hrc' }, hrSonL, hrSonIn))));
+    // 28 Eyl (R4-B): tekrar | ♥ başta | ♥ sonda | RPE — dört yatay şerit, hepsi 44 pt. Nabız şeritleri varsayılan konumda (95 / 122) SOLUK durur;
+    // dokunulmadıkça KAYDEDİLMEZ (varsayılan veri uydurmaz) — parmakla yakın değere kaydırılır ya da ortadakine dokunulur.
+    const repPk = this.serit('tkr', [null, ...Array.from({ length: Math.max(30, (r.tekrar ?? 0) + 10) }, (_, i) => i + 1)], x => x === null ? (r.tekrar_metin ?? '—') : String(x), d.reps ?? null, x => { d.reps = x; saveDraft(); paint(); });
+    const rpePk = this.serit('rpe', [null, ...RPE_LIST], x => x === null ? '—' : fmt(x), d.rpe ?? null, x => { d.rpe = x; saveDraft(); paint(); });
+    const NABIZ = Array.from({ length: 201 }, (_, i) => i + 30);   // 30–230 (eski doğrulama ile aynı)
+    const hbPk = this.serit('hrb', NABIZ, x => String(x), M.isNum(d.hrBas) ? d.hrBas : null, x => { d.hrBas = x; saveDraft(); paint(); }, { varsayilan: 95 });
+    const hsPk = this.serit('hrs', NABIZ, x => String(x), M.isNum(d.hrSon) ? d.hrSon : null, x => { d.hrSon = x; saveDraft(); paint(); }, { varsayilan: 122 });
+    const kol = (pk, lbl) => el('div', { class: 'pkc' }, pk, el('div', { class: 'pkl' }, lbl));
+    body.append(el('div', { class: 'pkrow h4' }, kol(repPk, 'tekrar'), kol(hbPk, '♥ başta'), kol(hsPk, '♥ sonda'), kol(rpePk, 'rpe' + (r.hedef_rpe ? ` · ${fmt(r.hedef_rpe)}` : ''))));
     // not (isteğe bağlı, düğmeyle açılır)
     const notOf = () => d.notes[d.actor] ?? null;
     // eylemler
@@ -479,10 +503,17 @@ export class App {
     const notBtn = el('button', { class: 'skip', title: 'Not', onclick: () => { this.sheet = { kind: 'not', kisi: d.actor, deger: notOf(), onSave: v => { d.notes[d.actor] = v; d.note = v; saveDraft(); paint(); } }; this.renderSheet(); } }, '✎');
     const setKaydet = el('button', { class: 'pri setk hidden', onclick: () => setEkle() }, 'Set kaydet');
     const delBtn = el('button', { class: 'skip hidden', title: 'Bu seti sil', onclick: async () => { if (!M.isNum(d.editIdx)) return; d.detail.splice(d.editIdx, 1); d.detail.forEach((y, j) => y.n = j + 1); d.editIdx = null; if (d.yeni) Object.assign(d, d.yeni); d.yeni = null; await saveDraft(); paint(); } }, 'Sil');
-    body.append(el('div', { class: 'acts' }, skipBtn, delBtn, notBtn, setKaydet, kaydet), hint);
+    // R4-B: görünür yalnız Kaydet (+ düzenlemede Sil) ve ⋯; atla / not / hareketi bitir ⋯ menüsünde (düğmeler DOM'da gizli durur, menü onları tetikler)
+    const more = el('button', { class: 'more', title: 'Diğer', onclick: () => { this.sheet = { kind: 'menu', items: [
+      { t: notOf() ? '✎ Notu düzenle' : '✎ Not ekle', fn: () => notBtn.click() },
+      { t: skipBtn.textContent === '↺' ? '↺ Atlamayı geri al' : '⤼ Hareketi atla', fn: () => skipBtn.click() },
+      { t: kaydet.title || 'Hareketi bitir', fn: () => kaydet.click(), off: kaydet.disabled },
+      ...(v.rampa && r.row_key === v.rampa.rowKey ? [{ t: 'Isınma rampası', fn: () => this.fazSet('isinma') }] : []),
+    ] }; this.renderSheet(); } }, '⋯');
+    body.append(el('div', { class: 'acts' }, delBtn, setKaydet, more, el('span', { class: 'gizli' }, skipBtn, notBtn, kaydet)), hint);
     /** Set-set: bir seti taslağa ekle; öncesindeki gerçek mola = önceki set/kayıt/ısınmadan bu yana; sayaç = bu hareketin kendi kategorisi (setler arası). */
     const setEkle = async () => {
-      d.hrBas = hrParse(hrBasIn.value); d.hrSon = hrParse(hrSonIn.value);   // kırmızı takım A20-2: odaktan çıkmamış nabız da alınır
+      for (const pk of [repPk, rpePk, hbPk, hsPk]) pk.flush();
       if (d.kg === null || d.kg <= 0) { hint.textContent = d.kg === 0 ? '0 kg set kaydedilmez — kg gir.' : 'kg gir.'; hint.classList.remove('hidden'); return; }
       if (M.isNum(d.editIdx) && d.detail[d.editIdx]) {   // T1: yığındaki sete dokunuldu → düzenle (zaman/mola/nabız korunur)
         const hx = d.detail[d.editIdx]; Object.assign(hx, { kg: d.kg, reps: d.reps, rpe: d.rpe }); if (M.isNum(d.hrBas)) hx.hr_bas = d.hrBas; else delete hx.hr_bas; if (M.isNum(d.hrSon)) hx.hr_son = d.hrSon; else delete hx.hr_son; d.editIdx = null; if (d.yeni) Object.assign(d, d.yeni); d.yeni = null; hint.classList.add('hidden'); await saveDraft(); this.geriBildirim(); paint(); return;
@@ -525,8 +556,9 @@ export class App {
       repIn.value = d.reps !== null && !reps.includes(d.reps) ? String(d.reps) : ''; repIn.classList.toggle('sel', d.reps !== null && !reps.includes(d.reps));
       rpeBtns.forEach((b, i) => b.classList.toggle('sel', d.rpe === RPE_LIST[i]));
       { const ed0 = M.isNum(d.editIdx) && d.detail[d.editIdx] ? d.editIdx : null; const n = (ed0 ?? d.detail.length) + 1;
-        hrBasL.textContent = 'başta'; hrSonL.textContent = 'sonda'; hrBasIn.title = `set ${n} başlarken`; hrSonIn.title = `set ${n} bitince`; repPk.ayarla(d.reps ?? null); rpePk.ayarla(d.rpe ?? null);
-        if (document.activeElement !== hrBasIn) hrBasIn.value = M.isNum(d.hrBas) ? String(d.hrBas) : ''; if (document.activeElement !== hrSonIn) hrSonIn.value = M.isNum(d.hrSon) ? String(d.hrSon) : ''; }
+        repPk.ayarla(d.reps ?? null); rpePk.ayarla(d.rpe ?? null); hbPk.ayarla(M.isNum(d.hrBas) ? d.hrBas : null); hsPk.ayarla(M.isNum(d.hrSon) ? d.hrSon : null);
+        hbPk.title = `set ${n} başlarken nabız`; hsPk.title = `set ${n} bitince nabız`;
+        setKaydet.textContent = ed0 !== null ? `Set ${ed0 + 1}'i güncelle` : `Kaydet · set ${n} · ${d.kg === null ? '—' : fmt(d.kg)}×${d.reps ?? r.tekrar_metin ?? '?'}${M.isNum(d.rpe) ? ' · R' + fmt(d.rpe) : ''}`; }
       notBtn.classList.toggle('sel', !!notOf()); notBtn.textContent = notOf() ? '✎ not' : '✎';
       const setMode = d.mode === 'set';
       modeBtn.textContent = setMode ? 'Set set' : 'Tek satır'; modeBtn.classList.toggle('sel', setMode);
@@ -534,7 +566,7 @@ export class App {
       setList.replaceChildren(...d.detail.map((x, i) => el('div', { class: 'srow-set' }, el('span', { class: 'sn' }, `${i + 1}`), el('span', { class: 'tab', style: 'flex:1' }, `${fmt(x.kg)} × ${x.reps ?? '?'}${M.isNum(x.rpe) ? `  R${fmt(x.rpe)}` : ''}`), el('span', { class: 'xs dim tab' }, M.isNum(x.rest_s) ? `mola ${mmss(x.rest_s)}` : ''), el('button', { class: 'x', title: 'Sil', onclick: async () => { d.detail.splice(i, 1); d.detail.forEach((y, j) => y.n = j + 1); await saveDraft(); paint(); } }, '×'))),
         setMode ? el('div', { class: 'xs dim2', style: 'margin:2px 0 4px' }, d.detail.length ? `sıradaki set ${d.detail.length + 1} · plan ${r.set ?? '?'} set` : `set ${1} · plan ${r.set ?? '?'} set · her setten sonra "Set kaydet"`) : null);
       const ed = M.isNum(d.editIdx) && d.detail[d.editIdx] ? d.editIdx : null;
-      setKaydet.textContent = ed !== null ? `Set ${ed + 1}'i güncelle` : `Set ${d.detail.length + 1}'i kaydet`; delBtn.classList.toggle('hidden', ed === null); skipBtn.classList.toggle('hidden', ed !== null);
+ delBtn.classList.toggle('hidden', ed === null); skipBtn.classList.toggle('hidden', ed !== null);
       if (!this._wheelBusy) this.cizDeck?.();
       const q = cur(); kaydet.textContent = setMode ? (d.detail.length ? `✓ ${d.detail.length}` : '✓') : (q && !q.skipped ? 'Güncelle' : 'Kaydet'); kaydet.title = setMode ? (d.detail.length ? `Hareketi bitir (${d.detail.length} set)` : 'Hareketi bitir') : ''; skipBtn.textContent = q?.skipped ? '↺' : '⤼'; skipBtn.title = q?.skipped ? 'Geri al' : 'Atla';
       kaydet.disabled = (setMode && !d.detail.length) || ed !== null; kaydet.classList.toggle('bitir', setMode);
@@ -583,9 +615,9 @@ export class App {
   }
   /** P1 (Arda 27 Eyl): sayaç süreleri kalır; ağır/top/backoff setlerde "Hazırım" 3:00'ten önce açılmaz (alt sınır); set sonrası ve set öncesi nabız elle (isteğe bağlı).
    *  Bu dinlenme verisi bir SONRAKİ sete yazılır: {hr_sonra_onceki, hr_once, hazir_s}. Bellekte tutulur (uygulama yenilenirse bu dinlenmenin nabzı kaybolur — set kayıtları kaybolmaz). */
-  kronoBaslat(key, sn, ad, rowKey = null, { bitAd = null, basAd = null } = {}) { clearInterval(this.kronoIv); this.krono = { key, rowKey, bitAd, basAd, end: Date.now() + sn * 1000, sn, ad, start: Date.now(), altSn: sn >= 180 ? 180 : 0, hrSonra: null, hrOnce: null, hazirS: null }; this.kronoIv = setInterval(() => this.kronoTick(), 500); }
+  kronoBaslat(key, sn, ad, rowKey = null, { bitAd = null, basAd = null } = {}) { clearInterval(this.kronoIv); this._sonHazir = null; this.krono = { key, rowKey, bitAd, basAd, end: Date.now() + sn * 1000, sn, ad, start: Date.now(), altSn: sn >= 180 ? 180 : 0, hrSonra: null, hrOnce: null, hazirS: null }; this.kronoIv = setInterval(() => this.kronoTick(), 500); }
   // kırmızı takım: nabız yalnız sayacın ait olduğu satıra yazılır
-  kronoDinlenmeVerisi(key, rowKey) { const k = this.krono; if (!k || k.key !== key || !k.rowKey || k.rowKey !== rowKey) return {}; const o = {}; if (M.isNum(k.hrSonra)) o.hr_sonra_onceki = k.hrSonra; if (M.isNum(k.hrOnce)) o.hr_once = k.hrOnce; if (M.isNum(k.hazirS)) o.hazir_s = k.hazirS; return o; }
+  kronoDinlenmeVerisi(key, rowKey) { const sh = this._sonHazir; this._sonHazir = null; if (!this.krono && sh && sh.key === key && sh.rowKey === rowKey) return { hazir_s: sh.hazirS }; const k = this.krono; if (!k || k.key !== key || !k.rowKey || k.rowKey !== rowKey) return {}; const o = {}; if (M.isNum(k.hrSonra)) o.hr_sonra_onceki = k.hrSonra; if (M.isNum(k.hrOnce)) o.hr_once = k.hrOnce; if (M.isNum(k.hazirS)) o.hazir_s = k.hazirS; return o; }
   kronoKalan() { const k = this.krono; return k ? Math.round((k.end - Date.now()) / 1000) : 0; }   // negatif = aşım
   kronoMetin(kalan) { return kalan >= 0 ? mmss(kalan) : '+' + mmss(-kalan); }
   kronoTick() {
@@ -600,21 +632,21 @@ export class App {
   /** Başlıktaki dinlenme rozeti: bağımsız, dokununca gizlenir (Geç). */
   kronoPill() {
     const k = this.krono; if (!k) return null; const kalan = this.kronoKalan();
-    // Dynamic Island deseni: pil dokununca yaylanarak büyür (büyük sayaç + hareket adı + Geç), tekrar dokununca küçülür; süre bitince nabız verir ve kendiliğinden küçülür.
-    const pill = el('button', { id: 'kpill', class: 'kpill' + (kalan < 0 ? ' over' : '') + (this.kronoBig ? ' big' : ''), title: this.kronoBig ? 'Küçült' : 'Büyüt',
-        onclick: () => { this.kronoBig = !this.kronoBig; pill.classList.toggle('big', this.kronoBig); pill.title = this.kronoBig ? 'Küçült' : 'Büyüt'; pill.querySelector('.kx').textContent = this.kronoBig ? 'Geç' : '×'; this.foot.querySelector('#kpanel')?.classList.toggle('big', this.kronoBig); } },
+    // 28 Eyl (Arda): ada BÜYÜMEZ; yalnız dokunuşta hafifçe küçülür. Pil = halka + süre (+ hareket adı)
+    return el('span', { id: 'kpill', class: 'kpill' + (kalan < 0 ? ' over' : '') },
       el('span', { class: 'ring', style: `--pct:${kalan >= 0 ? Math.round((1 - kalan / k.sn) * 100) : 100}%` }),
-      el('span', { class: 'kbody' }, el('span', { class: 'kt tab' }, this.kronoMetin(kalan)), el('span', { class: 'kad' }, `${k.ad ?? 'dinlenme'} · plan ${this.kronoMetin(k.sn)}`)),
-      el('span', { class: 'kx', title: 'Dinlenmeyi geç', onclick: e => { e.stopPropagation(); this.krono = null; this.kronoBig = false; clearInterval(this.kronoIv); this.render(); } }, this.kronoBig ? 'Geç' : '×'));
-    return pill;
+      el('span', { class: 'kbody' }, el('span', { class: 'kt tab' }, this.kronoMetin(kalan)), el('span', { class: 'kad' }, k.ad ?? 'dinlenme')));
   }
-  adaCiz() { const k = this.krono; this._islandSet = true; if (!k) { this.island.replaceChildren(); this.island.classList.add('hidden'); return; } this.island.replaceChildren(this.kronoPill(), this.kronoPanel()); this.island.classList.remove('hidden'); }
+  adaCiz() { const k = this.krono; this._islandSet = true; if (!k) { this.island.replaceChildren(); this.island.classList.add('hidden'); return; } this.island.replaceChildren(this.kronoPill(), ...this.kronoPanel()); this.island.classList.remove('hidden'); }
+  /** Ada düğmeleri (28 Eyl, Arda): top/ağır molalarında (plan ≥ 5 dk) önce "Hazırım" (3:00 alt sınır), basınca yerine "Molayı bitir";
+   *  diğer molalarda yalnız "Molayı bitir". Bitir sayacı kapatır (set kayıtları ve ölçülen gerçek mola etkilenmez). */
   kronoPanel() {
-    const k = this.krono; if (!k) return null;
+    const k = this.krono; if (!k) return [];
     const gecen = () => Math.round((Date.now() - k.start) / 1000);
-    const hz = el('button', { class: 'hazir' + (M.isNum(k.hazirS) ? ' on' : ''), id: 'khazir', disabled: !M.isNum(k.hazirS) && gecen() < k.altSn, onclick: () => { if (gecen() < k.altSn) return; k.hazirS = gecen(); hz.classList.add('on'); hz.textContent = `Hazır ✓ ${this.kronoMetin(k.hazirS)}`; this.geriBildirim(); } },
-      M.isNum(k.hazirS) ? `Hazır ✓ ${this.kronoMetin(k.hazirS)}` : 'Hazırım');
-    hz.classList.add('pill'); return hz;   // 28 Eyl (sade): panel yok — Hazırım çubukta küçük düğme (alt sınır 3:00 geri sayımı düğmede)
+    const bitir = el('button', { class: 'abtn bitir', id: 'kbitir', onclick: () => { const k0 = this.krono; if (k0 && M.isNum(k0.hazirS)) this._sonHazir = { key: k0.key, rowKey: k0.rowKey, hazirS: k0.hazirS }; this.krono = null; clearInterval(this.kronoIv); this.adaCiz(); } }, 'Molayı bitir');   // kırmızı takım A26-3: hazir_s kaybolmaz
+    if (k.sn < 300 || M.isNum(k.hazirS)) return [bitir];
+    const hz = el('button', { class: 'abtn hazir', id: 'khazir', disabled: gecen() < k.altSn, onclick: () => { if (gecen() < k.altSn) return; k.hazirS = gecen(); this.adaCiz(); } }, 'Hazırım');
+    return [hz];
   }
   /** Dinlenme uyumu: rest_s/rest_plan_s olan girişler → {n, ort_oran, uyumlu, erken, gec} (±15% bant). */
   dinlenmeStat(entries) {
@@ -830,6 +862,10 @@ export class App {
       box.append(el('div', { class: 't' }, 'Hayat stresi'), el('div', { class: 'sub' }, `Hafta ${c.v.week} için genel yorgunluk/stres. Formüle girmez; haftalık sinyalin yanında not olarak durur.`));
       box.append(el('div', { class: 'stres' }, ...[1, 2, 3, 4, 5].map(n => el('button', { class: val === n ? 'sel' : '', onclick: async () => { await S.logStress({ program: c.p, cycle: c.def.cycle, week: c.v.week, value: n }); this.sync?.schedule(); this.sheet = null; if (sh.sonra) await this.fazSet(this.baslangicFaz(c.v)); else this.render(); } }, el('b', {}, n), el('span', {}, STRES_AD[n - 1])))));
       box.append(el('div', { class: 'btnrow', style: 'margin-top:12px' }, el('button', { class: 'sec', onclick: async () => { this.sheet = null; if (sh.sonra) await this.fazSet(this.baslangicFaz(c.v)); else this.renderSheet(); } }, sh.sonra ? 'Şimdi değil' : 'Kapat')));
+    } else if (sh.kind === 'menu') {
+      box.classList.add('menu');
+      box.append(...sh.items.map(it => el('button', { class: 'mi', disabled: !!it.off, onclick: () => { this.sheet = null; this.renderSheet(); it.fn(); } }, it.t)),
+        el('button', { class: 'mi iptal', onclick: () => { this.sheet = null; this.renderSheet(); } }, 'Vazgeç'));
     } else if (sh.kind === 'not') {
       const ta = el('textarea', { placeholder: 'his, aksaklık, gelecek haftaya…', enterkeyhint: 'done' }); ta.value = sh.deger ?? '';
       box.append(el('div', { class: 't' }, `Not · ${sh.kisi === 'alper' ? 'Alper' : 'Arda'}`), el('div', { class: 'sub' }, 'Bu harekete, bu kişiye ait. Kaydet ile birlikte olaya yazılır.'), ta,
