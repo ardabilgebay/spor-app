@@ -94,7 +94,7 @@ export class App {
   async start() {
     this.persist = await S.getMeta('persist_granted'); this.kilit = await S.getMeta('kilit', {});
     this.plakaKg = await S.getMeta('plaka_kg', 100);
-    this.ekipOv = await S.getMeta('ekip_ov', {}); this.vucut = await S.getMeta('vucut_kg', { arda: BW_KG, alper: null });
+    this.ekipOv = await S.getMeta('ekip_ov', {}); this.vucut = await S.getMeta('vucut_kg', { arda: BW_KG, alper: BW_KG }); if (!M.isNum(this.vucut.alper) && !this.vucut.alperElle) this.vucut = { ...this.vucut, alper: BW_KG };   // 29 Eyl (Arda): Alper de 90, Ayarlar'dan değişir
     this.prog = await this.pickProgram();
     const r = this.root; r.replaceChildren();
     this.hdr = el('div', { class: 'hdr' }, el('div', { style: 'min-width:0' }, this.hK = el('div', { class: 'k' }), this.hT = el('div', { class: 't' })), this.hR = el('div', { class: 'right' }));
@@ -980,7 +980,7 @@ export class App {
     m.append(el('div', { class: 'k', style: 'margin:18px 0 8px' }, 'Vücut ağırlığı'));
     const bwList = el('div', { class: 'list' });
     for (const [a, ad] of [['arda', 'Arda'], ['alper', 'Alper']]) { const inp = el('input', { type: 'text', inputmode: 'decimal', id: 'bw-' + a, autocomplete: 'off', placeholder: '—', class: 'tab', style: 'width:72px;text-align:right' }); inp.value = M.isNum(this.vucut?.[a]) ? fmt(this.vucut[a]) : '';
-      inp.addEventListener('change', async () => { const v = M.parseKg(inp.value); if (inp.value.trim() && (v === null || v < 30)) { this.msg = 'Vücut ağırlığı 30 kg\'dan büyük bir sayı olmalı.'; return this.render(); } this.vucut = { ...(this.vucut ?? {}), [a]: v }; await S.setMeta('vucut_kg', this.vucut); this.msg = `${ad}: ${v === null ? 'silindi' : fmt(v) + ' kg'}`; this.render(); });
+      inp.addEventListener('change', async () => { const v = M.parseKg(inp.value); if (inp.value.trim() && (v === null || v < 30)) { this.msg = 'Vücut ağırlığı 30 kg\'dan büyük bir sayı olmalı.'; return this.render(); } this.vucut = { ...(this.vucut ?? {}), [a]: v, ...(a === 'alper' ? { alperElle: v === null } : {}) }; await S.setMeta('vucut_kg', this.vucut); this.msg = `${ad}: ${v === null ? 'silindi' : fmt(v) + ' kg'}`; this.render(); });
       bwList.append(el('div', { class: 'it' }, el('span', { style: 'min-width:0' }, el('span', { class: 'a' }, ad), el('span', { class: 's' }, 'barfiks, dips gibi harekette yalnız ek yükü girersin')), el('span', { class: 'v' }, inp, ' kg'))); }
     m.append(bwList);
     m.append(el('div', { class: 'k', style: 'margin:18px 0 8px' }, 'Deneme kayıtları'));

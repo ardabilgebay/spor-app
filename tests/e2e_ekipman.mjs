@@ -17,7 +17,10 @@ await p.goto(URL); await p.waitForSelector('.hdr .t', { timeout: 15000 });
 await p.locator('.strip button', { hasText: 'Diğer Günler' }).click(); await p.waitForTimeout(300);
 // Ayarlar: vücut ağırlığı varsayılan 90
 await p.locator('.hdr .disli').click(); await p.waitForTimeout(400);
-t('Ayarlar: vücut ağırlığı Arda 90, Alper boş', await p.locator('#bw-arda').inputValue() === '90' && await p.locator('#bw-alper').inputValue() === '');
+t('Ayarlar: vücut ağırlığı Arda 90, Alper 90', await p.locator('#bw-arda').inputValue() === '90' && await p.locator('#bw-alper').inputValue() === '90');
+await p.locator('#bw-alper').fill('84,5'); await p.locator('#bw-alper').dispatchEvent('change'); await p.waitForTimeout(300);
+t('Ayarlar: Alper 84.5 olarak değişti', await p.locator('#bw-alper').inputValue() === '84.5');
+await p.locator('#bw-alper').fill('90'); await p.locator('#bw-alper').dispatchEvent('change'); await p.waitForTimeout(300);
 await p.locator('#bw-arda').fill('20'); await p.locator('#bw-arda').dispatchEvent('change'); await p.waitForTimeout(300);
 t('Ayarlar: 30 altı reddedildi, 90 kaldı', (await p.textContent('main')).includes('30 kg') && await p.locator('#bw-arda').inputValue() === '90');
 await p.locator('.hdr .geri').click(); await p.waitForTimeout(300);
