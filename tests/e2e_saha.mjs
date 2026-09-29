@@ -8,14 +8,14 @@ const ctx = await b.newContext({ viewport: { width: 390, height: 844 }, isMobile
 { const { readFileSync } = await import('node:fs'); const fx = readFileSync(new globalThis.URL('./fixtures/e2e_events.ndjson', import.meta.url), 'utf8'); await ctx.route('**/events.ndjson', r => r.fulfill({ status: 200, contentType: 'application/x-ndjson', body: fx })); }
 const p = await ctx.newPage(); p.on('dialog', d => d.accept()); const logs = []; p.on('console', m => logs.push(m.type() + ': ' + m.text())); p.on('pageerror', e => logs.push('PAGEERROR ' + e.message));
 let ok = 0, fail = 0; const t = (n, c, d = '') => { c ? ok++ : (fail++, console.log('  ✗', n, d)); };
-const tab = name => p.locator('.tabs button', { hasText: name }).click();
+const tab = name => p.locator('.tabs button', { hasText: name }).evaluate(b => b.click());   // A27: seansta çubuk gizli — test doğrudan tıklar
 const strip = name => p.locator('.strip button', { hasText: name }).click();
 const kg = () => p.locator('.log .kgrow input');
 // A21: tekrar/RPE dikey seçici — kullanıcı kaydırması taklidi (dokunuş + konum), yerleşme 130 ms
 const pick = async (ad, v) => { await p.locator(`.log .picker[data-ad="${ad}"] .hstrip`).evaluate((t, v) => { const it = t.querySelector(`.pk[data-v="${v}"]`); t.dispatchEvent(new Event('touchstart')); t.scrollLeft = it.offsetLeft + it.offsetWidth / 2 - t.clientWidth / 2; }, String(v)); await p.waitForTimeout(400); };
 const menu = async txt => { await p.locator('.log .acts .more').click(); await p.waitForTimeout(200); await p.locator('.sheet .mi', { hasText: txt }).click(); await p.waitForTimeout(300); };
 await p.goto(URL); await p.waitForSelector('.hdr .t', { timeout: 15000 });
-t('alt sekme çubuğu 5 sekme', (await p.$$('.tabs button')).length === 5);
+t('A27 (k): alt sekme çubuğu 3 sekme + başlıkta dişli', (await p.$$('.tabs button')).length === 3 && (await p.$$('.hdr .disli')).length === 1);
 t('üstte program şeridi', (await p.$$('.strip button')).length === 3);
 await strip('Diğer Günler'); await p.waitForTimeout(300);
 t('başlık "Hafta 1 — Salı Seansı", üst satır yalnız tarih', (await p.textContent('.hdr .t')) === 'Hafta 1 — Salı Seansı' && !/Diğer|Deadlift/.test(await p.textContent('.hdr .k')), await p.textContent('.hdr .k'));
@@ -45,6 +45,19 @@ await p.locator('.log .setk').click(); await p.waitForTimeout(400);
 t('A26 nabız şeritleri: başta 95 / sonda 122 SOLUK (boş), dinlenme panelinde nabız yok', (await p.$$('.log .picker.serit.bos[data-ad="hrb"]')).length === 1 && (await p.$$('.log .picker.serit.bos[data-ad="hrs"]')).length === 1 && (await p.textContent('.log .picker[data-ad="hrb"] .pk.on')) === '95' && (await p.textContent('.log .picker[data-ad="hrs"] .pk.on')) === '122' && (await p.$$('.kpanel input')).length === 0);
 await pick('hrb', 98); await pick('hrs', 151);
 t('A26: kısa mola (1:30) → adada yalnız "Molayı bitir", Hazırım yok', (await p.$$('#island #kbitir')).length === 1 && (await p.$$('#island #khazir')).length === 0);
+// A27 (h) bekleme ekranı: dinlenmede 10 sn dokunulmazsa büyük sayaç; dokunuş kapatır
+await p.evaluate(() => { window.__spor._sonDok = Date.now() - 11000; }); await p.waitForTimeout(700);
+t('A27 (h): 10 sn dokunulmayınca büyük sayaç ekranı', await p.locator('.bekle').isVisible() && /\d:\d\d/.test(await p.textContent('.bekle .bk-t')));
+await p.locator('.bekle').click({ position: { x: 20, y: 400 } }); await p.waitForTimeout(200);
+t('A27 (h): dokununca kapandı, set sayısı değişmedi', !(await p.locator('.bekle').isVisible()) && (await p.$$('#deck .wc.done')).length === 1);
+// F2: kg yazıp (onaylamadan) RPE kaydırınca kg bozulmaz
+await kg().fill('41'); await pick('rpe', 7); 
+t('F2: yazılan kg (41) RPE seçiminden sonra duruyor, Kaydet etiketinde', (await kg().inputValue()) === '41' && (await p.textContent('.log .setk')).includes('41×'), await p.textContent('.log .setk'));
+await kg().fill('42,5'); await kg().dispatchEvent('change'); await p.waitForTimeout(100);
+// F3: ⋯ menüsünde seans sıfırlama (onaylı)
+await p.locator('.log .acts .more').click(); await p.waitForTimeout(200);
+t('F3: ⋯ menüsünde "Seansı sıfırla" var', (await p.textContent('.sheet')).includes('Seansı sıfırla'));
+await p.locator('.sheet .mi.iptal').click(); await p.waitForTimeout(200);
 t('1. set listede, sayaç Clean kategorisi (1:30)', (await p.$$('.log .srow-set')).length === 1 && /^1:2\d|1:30/.test(await p.textContent('#island #kpill .kt')), await p.textContent('#island #kpill'));
 await p.locator('.log .setk').click(); await p.waitForTimeout(300);
 await kg().fill('45'); await kg().dispatchEvent('change'); await pick('rpe', 8); await p.locator('.log .setk').click(); await p.waitForTimeout(300);
@@ -57,20 +70,18 @@ t('T1+: çark en altta → "Set 4\'i kaydet" (bekleyen değer geri)', (await p.t
 await p.screenshot({ path: '/tmp/claude-0/-home-claude/bea8c8c8-fd92-5557-9f37-af05fa048467/scratchpad/t1_log.png' });
 t('3 set listede, bitir düğmesi "(3 set)"', (await p.$$('.log .srow-set')).length === 3 && (await p.locator('.log .acts .pri:not(.setk)').getAttribute('title')).includes('3 set'));
 await pick('tkr', 2); await pick('rpe', 9); await p.locator('.log .setk').click(); await p.waitForTimeout(600);
+t('A27: plan (4 set) doldu → hareket OTOMATİK BİTMEDİ; "Ek set" + görünür ✓ Bitir', (await p.textContent('.log .setk')).startsWith('Ek set · set 5') && await p.locator('.log .acts .pri.gorunur').isVisible());
+await p.locator('.log .acts .pri.gorunur').click(); await p.waitForTimeout(700);
 t('H2+P5: Squat sırası gelince ısınma açıldı — Clean 45 üstünden 4 basamak, boş bar yok', (await p.$$('main .isirow')).length === 4 && !(await p.textContent('main')).includes('boş bar'), (await p.$$('main .isirow')).length);
 await p.locator('main .isirow').nth(0).click(); await p.waitForTimeout(150); t('basamak tik', (await p.$$('main .isirow.on')).length === 1);
 await p.locator('.foot button.pri').click(); await p.waitForTimeout(500);
 let done = await p.$$eval('main .card.mark.done .yap', a => a.map(x => x.textContent));
-t('H3: 4. set → hareket otomatik bitti; kayıt 42.5×3 R7.5 · 42.5×3 · 45×3 R8 · 45×2 R9', done[0]?.includes('42.5×3 R7.5 · 42.5×3 · 45×3 R8 · 45×2 R9'), done[0]);
+t('A27: Bitir ile hareket bitti; kayıt 42.5×3 R7.5 · 42.5×3 R7 · 45×3 R8 · 45×2 R9', done[0]?.includes('42.5×3 R7.5 · 42.5×3 R7 · 45×3 R8 · 45×2 R9'), done[0]);
 t('dinlenme rozeti çubukta: sıradaki Top Single → 8:00 civarı', (await p.$$('#island #kpill')).length === 1 && /^7:5\d|8:00/.test(await p.textContent('#island #kpill .kt')), await p.textContent('#island #kpill'));
 t('sıradaki hareket Squat Top Single açık', (await p.textContent('.log .ttl .n')).startsWith('Squat'));
-// plaka sheet → aktar
-await p.locator('.log .kgrow .plk-ic').click(); await p.waitForTimeout(300);
-t('plaka sheet 120 kg · tek taraf 50', (await p.locator('.sheet input.big').inputValue()) === '120' && (await p.textContent('.sheet .plates')).includes('50'));
-await p.locator('.sheet input.big').fill('200'); await p.locator('.sheet input.big').dispatchEvent('change'); await p.waitForTimeout(100);
-t('plaka: sayı yazıldı 200 → tek taraf 90', (await p.textContent('.sheet .plates')).includes('90'));
-await p.locator('.sheet input.big').fill('120'); await p.locator('.sheet input.big').dispatchEvent('change'); await p.waitForTimeout(100);
-await p.locator('.sheet .plk button.plus').click(); await p.waitForTimeout(100); await p.locator('.sheet .btnrow .pri').click(); await p.waitForTimeout(200);
+// (j) plaka kartta: bar görseli + tek taraf metni; ▬ düğmesi yok
+t('A27 (j): kartta plaka görseli (120 → tek taraf 50), panelde ▬ yok', (await p.$$('main .xslide.on .kp .barviz .pl')).length >= 2 && (await p.textContent('main .xslide.on .kp')).includes('25') && (await p.$$('.log .kgrow .plk-ic')).length === 0, await p.textContent('main .xslide.on .kp').catch(() => ''));
+await p.locator('.log .kgrow button.plus').click(); await p.waitForTimeout(150);
 t('aktar → kg 122.5', await kg().inputValue() === '122.5', await kg().inputValue());
 await p.locator('.log .grab').click(); await p.waitForTimeout(150);
 t('çubuk katlandı: özet "henüz set yok" + mini Kaydet, hedef gizli', !(await p.locator('.log .kgrow').isVisible()) && (await p.textContent('.log .oz')).includes('henüz set yok') && await p.locator('.log .kmini').isVisible() && !(await p.locator('.log .hh').isVisible()));
@@ -90,8 +101,8 @@ await p.locator('.log .sbar button', { hasText: 'Isınma' }).click(); await p.wa
 t('H4: ısınma rampasına dönüldü', await p.locator('main .isirow').first().isVisible());
 await p.locator('.foot .pri', { hasText: 'Hareketlere geç' }).click(); await p.waitForTimeout(400);
 t('ısınmadan log fazına geri: taslak 122.5 duruyor', await kg().inputValue() === '122.5', await kg().inputValue());
-// Top Single (1 set) → tek Set kaydet → otomatik biter (H3), notla
-await pick('rpe', 9); await p.locator('.log .setk').click(); await p.waitForTimeout(600);
+// Top Single (1 set) → Set kaydet → ✓ Bitir, notla
+await pick('rpe', 9); await p.locator('.log .setk').click(); await p.waitForTimeout(600); await p.locator('.log .acts .pri.gorunur').click(); await p.waitForTimeout(700);
 done = await p.$$eval('main .card.mark.done .yap', a => a.map(x => x.textContent));
 t('Top Single tek setle bitti, not kayıtta: 122.5×1 R9 — sırt sıkı', done.some(x => x.includes('122.5×1 R9') && x.includes('sırt sıkı')), done.join(' | '));
 // T1 kırmızı takım: bitmiş hareket (Clean) geçmiş kartından yeniden açılınca kayıtlı 4 set yığında
@@ -113,7 +124,7 @@ t('eksikle kapatma iki adım: "tekrar dokun"', (await p.textContent('.foot butto
 await p.locator('.foot button.sec', { hasText: 'Geri' }).click(); await p.waitForTimeout(400);
 t('Geri → log, seans açık (Top Triple)', (await p.$$('.log .kgrow')).length === 1 && (await p.textContent('.hdr .t')) === 'Hafta 1 — Salı Seansı');
 // Top Triple (1 set)
-await kg().fill('107,5'); await kg().dispatchEvent('change'); await pick('rpe', 8); await p.locator('.log .setk').click(); await p.waitForTimeout(600);
+await kg().fill('107,5'); await kg().dispatchEvent('change'); await pick('rpe', 8); await p.locator('.log .setk').click(); await p.waitForTimeout(600); await p.locator('.log .acts .pri.gorunur').click(); await p.waitForTimeout(700);
 const yapT = await p.$$eval('main .card.mark.done .yap', a => a.map(x => x.textContent));
 t('Top Triple kaydı 107.5×3 R8', yapT.some(x => x.includes('107.5×3 R8')), yapT.join(' | '));
 t('tüm satırlar dolu → giriş alanı kapandı, "Seansı bitir" çıktı', (await p.$$('.log .kgrow')).length === 0 && (await p.textContent('.log')).includes('Seansı bitir'));
@@ -148,27 +159,17 @@ t('kilit kaldırıldı → Perşembe', (await p.textContent('.hdr .t')) === 'Haf
 await tab('Program'); await p.waitForTimeout(300); await p.locator('.pgrid .cell').first().click(); await p.waitForTimeout(300);
 await p.locator('main button', { hasText: 'app kayıtlarını sıfırla' }).click(); await p.waitForTimeout(600);
 t('sıfırlama → Bugün H1 Salı, 0 kayıtlı, mesaj', (await p.textContent('.hdr .t')) === 'Hafta 1 — Salı Seansı' && (await p.textContent('main')).includes('0 kayıtlı') && (await p.textContent('main')).includes('silindi'), (await p.textContent('.hdr .t')));
-await tab('Ayarlar'); await p.waitForTimeout(300);
+await p.locator('.hdr .disli').click(); await p.waitForTimeout(300);
 t('Ayarlar: deneme kayıtları bölümü var, Diğer için app kaydı yok', (await p.textContent('main')).includes('Deneme kayıtları') && /Diğer Günler\s*app kaydı yok/.test(await p.textContent('main')));
 await tab('Bugün'); await p.waitForTimeout(200);
-// Aletler
-await tab('Aletler'); await p.waitForTimeout(300);
-t('Aletler: plaka 100 kg + 7 süre düğmesi (30sn…8dk)', (await p.locator('main .plk input.big').inputValue()) === '100' && (await p.$$('main .krobtns button')).length === 7);
-await p.locator('main .plk button.plus').dispatchEvent('pointerdown'); await p.waitForTimeout(2000); await p.dispatchEvent('body', 'pointerup'); await p.waitForTimeout(300);
-const hv = Number(await p.locator('main .plk input.big').inputValue()); await p.waitForTimeout(500);
-t('basılı tut 2 sn → hızlanan artış (>120) ve bırakınca durur', hv > 120 && Number(await p.locator('main .plk input.big').inputValue()) === hv, String(hv));
-await p.locator('main .krobtns button', { hasText: '30 sn' }).click(); await p.waitForTimeout(1300);
-t('kronometre çalışıyor', /0:2\d/.test(await p.textContent('#krobig')), await p.textContent('#krobig'));
-await p.evaluate(() => { const a = document.querySelector('#app'); }); await p.waitForTimeout(0);
 // İlerleme
 await tab('İlerleme'); await p.waitForTimeout(300);
 t('İlerleme: 1RM kartları + 6 çubuk', (await p.$$('main .bars .b')).length === 6 && (await p.textContent('main')).includes('Tahmini 1RM'));
 // 28 Eyl: parmakla sekme geçişi (touch) — İlerleme → sola kaydır → Aletler
 { const box = await p.locator('main').boundingBox(); const y = box.y + 300;
   await p.evaluate(async ({ y }) => { const m = document.querySelector('main'); const T = (type, x) => { const t = new Touch({ identifier: 1, target: m, clientX: x, clientY: y }); m.dispatchEvent(new TouchEvent(type, { touches: type === 'touchend' ? [] : [t], changedTouches: [t], bubbles: true, cancelable: true })); };
-    T('touchstart', 320); for (let x = 300; x >= 150; x -= 30) { T('touchmove', x); await new Promise(r => setTimeout(r, 16)); } T('touchend', 150); }, { y });
-  await p.waitForTimeout(700); t('sekme kaydırma: İlerleme → Aletler', (await p.locator('.tabs button.sel').textContent()).includes('Aletler'), await p.locator('.tabs button.sel').textContent());
-  t('Aletler: bar görseli plakalarla', (await p.$$('main .barviz .pl')).length >= 2, (await p.$$('main .barviz .pl')).length);
+    T('touchstart', 70); for (let x = 90; x <= 260; x += 30) { T('touchmove', x); await new Promise(r => setTimeout(r, 16)); } T('touchend', 260); }, { y });
+  await p.waitForTimeout(700); t('A27 (c) sekme kaydırma: İlerleme → Program (canlı katman sonrası temizlik)', (await p.locator('.tabs button.sel').textContent()).includes('Program') && (await p.$$('main.hayal')).length === 0, await p.locator('.tabs button.sel').textContent());
   await tab('İlerleme'); await p.waitForTimeout(300); }
 // uçak modu: offline → açılış + Alper S1 kayıt
 await ctx.setOffline(true); await p.reload(); await p.waitForSelector('.hdr .t', { timeout: 15000 }); await p.waitForTimeout(300);
@@ -178,19 +179,18 @@ await p.locator('.foot button.sec').click(); await p.waitForTimeout(400);   // �
 await p.locator('main .xslide.on .kimsec button[data-a="alper"]').click(); await p.waitForTimeout(250);
 t('A25: Alper seçilince ana kart Alper planına döndü (90 kg, ALPER etiketi)', (await p.$$('main .xslide.on .xcard.alper')).length === 1 && (await p.textContent('main .xslide.on .planl b')) === '90 kg' && (await p.$$('main .xslide.on .kimsec button.sel[data-a="alper"]')).length === 1, await p.textContent('main .xslide.on .xcard'));
 t('Alper segment → plan 90', await kg().inputValue() === '90', await kg().inputValue());
-await p.locator('.log .setk').click(); await p.waitForTimeout(600);   // Top Single 1 set → otomatik biter (H3)
+await p.locator('.log .setk').click(); await p.waitForTimeout(600); await p.locator('.log .acts .pri.gorunur').click(); await p.waitForTimeout(700);   // Top Single 1 set → ✓ Bitir
 t('offline Alper kaydı 90×1', (await p.textContent('main')).includes('Alper: 90×1'), (await p.textContent('main')).slice(0, 200));
 await ctx.setOffline(false);
 // A19 sekme sürükleme: Bugün'den parmağı Aletler'e kaydır → baloncuk izler, sekmeler geçerken açılır
-{ const bb = await p.locator('.tabs').boundingBox(); const w = (bb.width - 12) / 5; const y = bb.y + 26; const xAt = i => bb.x + 6 + w * (i + 0.5);
-  await tab('Bugün'); await p.waitForTimeout(300);
-  await p.mouse.move(xAt(0), y); await p.mouse.down(); for (let i = 1; i <= 12; i++) { await p.mouse.move(xAt(0) + (xAt(2) - xAt(0)) * i / 12, y); await p.waitForTimeout(25); }
+{ await tab('Program'); await p.waitForTimeout(500);
+  const bb = await p.locator('.tabs').boundingBox(); const w = (bb.width - 12) / 3; const y = bb.y + 26; const xAt = i => bb.x + 6 + w * (i + 0.5);   // seansta Bugün'de çubuk gizli (i) → sürükleme Program'dan
+  await p.mouse.move(xAt(1), y); await p.mouse.down(); for (let i = 1; i <= 12; i++) { await p.mouse.move(xAt(1) + (xAt(2) - xAt(1)) * i / 12, y); await p.waitForTimeout(25); }
   await p.waitForTimeout(300); t('A19 sürüklerken İlerleme açıldı (parmak kaldırılmadan)', (await p.$eval('.tabs button.sel', b => b.textContent)).includes('İlerleme') && (await p.$$('.tabs.scrub')).length === 1);
-  for (let i = 1; i <= 6; i++) { await p.mouse.move(xAt(2) + (xAt(3) - xAt(2)) * i / 6, y); await p.waitForTimeout(25); }
   await p.mouse.up(); await p.waitForTimeout(400);
-  t('A19 bırakınca Aletler, baloncuk oturdu', (await p.$eval('.tabs button.sel', b => b.textContent)).includes('Aletler') && (await p.$$('.tabs.scrub')).length === 0 && (await p.textContent('main')).includes('Plaka')); }
-// Ayarlar
-await tab('Ayarlar'); await p.waitForTimeout(300);
+  t('A19 bırakınca İlerleme, baloncuk oturdu', (await p.$eval('.tabs button.sel', b => b.textContent)).includes('İlerleme') && (await p.$$('.tabs.scrub')).length === 0 && (await p.textContent('main')).includes('1RM')); }
+// Ayarlar (dişli)
+await p.locator('.hdr .disli').click(); await p.waitForTimeout(300);
 const txt = await p.textContent('main');
 t('Ayarlar: toplam olay 250 + yerel', /Toplam olay.*?(2[5-9]\d)/s.test(txt), txt.slice(0, 120));
 t('OneDrive ayarlı, giriş gerekli', txt.includes('giriş gerekli'), txt.slice(txt.indexOf('OneDrive'), txt.indexOf('OneDrive') + 60));

@@ -14,7 +14,8 @@ const ICON = {
   aletler: 'M12 21a8 8 0 1 0 0-16 8 8 0 0 0 0 16z|M12 9v4l3 2|M9 2h6|M18 5l1.5-1.5',
   ayarlar: 'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z|M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z',
 };
-const TABS = [['bugun', 'Bugün'], ['program', 'Program'], ['ilerleme', 'İlerleme'], ['aletler', 'Aletler'], ['ayarlar', 'Ayarlar']];
+// 29 Eyl (Arda, k): 3 sekme — Ayarlar başlıktaki dişlide, plaka hesabı kartta (Aletler kalktı)
+const TABS = [['bugun', 'Bugün'], ['program', 'Program'], ['ilerleme', 'İlerleme']];
 const PROGS = ['Deadlift', 'Alper', 'Diger'];
 const PROG_AD = { Deadlift: 'Deadlift', Alper: 'Alper Günleri', Diger: 'Diğer Günler' };
 const RPE_LIST = [6, 6.5, 7, 7.5, 8, 8.5, 9, 9.5, 10];
@@ -53,6 +54,7 @@ export class App {
     this.tab = 'bugun'; this.prog = null; this.kilit = {}; this.persist = null; this.msg = null; this.needRefresh = null;
     this.sheet = null; this.plakaKg = 100; this.krono = null; this.progSel = {}; this.ozet = null; this.logCollapsed = false; this.odakSayfa = 0;
     this.sync?.on(() => { if (this.tab === 'ayarlar') this.render(); });
+    try { window.__spor = this; } catch { }   // test ve hata ayıklama kancası (veriye doğrudan yazmaz)
   }
   // ── kabuk ────────────────────────────────────────────────────────
   async start() {
@@ -70,30 +72,52 @@ export class App {
       const atEnd = y + mEl.clientHeight >= mEl.scrollHeight - 24; if (dy > 6 && y > 40 && !atEnd) this.tabsShow(false); else if (dy < -4 || y <= 40 || atEnd) this.tabsShow(true); }, { passive: true });
     // alt kenara dokunuş → dock gibi geri gelir
     this.root.addEventListener('pointerdown', e => { if (e.clientY > innerHeight - 28) this.tabsShow(true); }, { passive: true });
+    // (i) seansta gizli sekme çubuğu: alt kenardan yukarı kaydırınca 5 sn görünür
+    let ey = null; this.root.addEventListener('touchstart', e => { const y = e.touches[0]?.clientY ?? 0; ey = y > innerHeight - 34 ? y : null; }, { passive: true });
+    this.root.addEventListener('touchmove', e => { if (ey === null) return; if ((e.touches[0]?.clientY ?? ey) - ey < -24) { ey = null; this.tabbar.classList.add('goster'); clearTimeout(this._gosterT); this._gosterT = setTimeout(() => this.tabbar.classList.remove('goster'), 5000); } }, { passive: true });
+    // (h) dinlenmede 10 sn dokunulmazsa büyük sayaç; dokunuş (tıklama) onu kapatır, alttaki düğmeye geçmez
+    this._sonDok = Date.now(); for (const ev of ['pointerdown', 'touchstart', 'keydown']) document.addEventListener(ev, () => { this._sonDok = Date.now(); }, { capture: true, passive: true });
+    this.bekle = el('div', { class: 'bekle hidden', onclick: e => { e.stopPropagation(); this.bekleKapat(); } }); r.append(this.bekle);
     document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && ['log', 'isinma'].includes(this.c?.seans?.faz)) this.wakeLock(true); });
     // iOS klavye: görsel viewport küçülünce alt çubuk klavyenin üstünde kalsın
     window.visualViewport?.addEventListener('resize', () => { const vv = window.visualViewport; this.root.style.height = vv.height + 'px'; this.root.style.transform = `translateY(${vv.offsetTop}px)`; });
     await this.render();
   }
   /** Sekme baloncuğu: seçili sekmenin altında; sürüklerken kesirli konuma kayar. */
-  tabIndKonum(f = null) { if (f === null && this._scrub) return; const i = f ?? TABS.findIndex(([id]) => id === this.tab); this.tabInd.style.transform = `translateX(${i * 100}%)`; }
+  tabIndKonum(f = null) { if (f === null && this._scrub) return; const i = f ?? TABS.findIndex(([id]) => id === this.tab); this.tabInd.style.opacity = i < 0 ? '0' : ''; this.tabInd.style.transform = `translateX(${i * 100}%)`; }
   /** 28 Eyl (Arda): sekmeler arası parmakla geçiş — içerik parmağı izler, baloncuk kayar; eşik/hız geçilirse yandaki sekmeye yayla oturur. */
+  /** (c) 29 Eyl: sekmeler arası parmakla geçişte yan sekme CANLI gelir — hedef sekme, yan etkisiz ("kuru") çizimle ayrı bir katmana önceden
+   *  çizilir ve parmakla birlikte kayar; bırakınca iki katman yerine oturur, sonra gerçek çizim takılır (içerik aynı olduğu için fark edilmez). */
   sekmeKaydir() {
-    const m = this.main; let sx = null, sy = 0, dx = 0, lock = null, t0 = 0;
+    const m = this.main; let sx = null, sy = 0, dx = 0, lock = null, t0 = 0, hayal = null;
     const idx = () => TABS.findIndex(([id]) => id === this.tab);
-    m.addEventListener('touchstart', e => { if (e.touches.length !== 1 || this.sheet || e.target.closest('input,textarea,.pager,.xcar,.pgdots,.strip,.pills,.krobtns,.wheel-track,.plk,.barviz,.kgrow')) { sx = null; return; }
-      sx = e.touches[0].clientX; sy = e.touches[0].clientY; dx = 0; lock = null; t0 = Date.now(); }, { passive: true });
+    const W = () => m.clientWidth || 390;
+    const hayalYer = (x, anim = false) => { if (!hayal?.el.isConnected) return; hayal.el.style.transition = anim ? 'transform .24s var(--ease-out)' : 'none'; hayal.el.style.transform = `translateX(${hayal.yon * W() + x}px)`; };
+    const hayalSil = () => { hayal?.el.remove(); hayal = null; };
+    const hayalKur = async (tab, yon) => {
+      const seansli = tab === 'bugun' && ['log', 'isinma', 'ozet'].includes(this.c?.seans?.faz); if (seansli || !this.c) return;
+      const g = el('main', { class: 'hayal' }); const h = { tab, yon, el: g }; hayal = h;
+      const fn = { bugun: this.rBugun, program: this.rProgram, ilerleme: this.rIlerleme }[tab]; const eskiM = this.main, eskiT = this.tab;
+      this._kuru = true; this.main = g; this.tab = tab; try { await fn.call(this, this.c); } catch { } finally { this.main = eskiM; this.tab = eskiT; this._kuru = false; }
+      if (hayal !== h || sx === null && !h.bekle) return; g.style.top = m.offsetTop + 'px'; g.style.height = m.offsetHeight + 'px'; this.root.insertBefore(g, m.nextSibling); hayalYer(dx); };
+    m.addEventListener('touchstart', e => { if (e.touches.length !== 1 || this.sheet || idx() < 0 || e.target.closest('input,textarea,.pager,.xcar,.pgdots,.strip,.pills,.krobtns,.wheel-track,.hstrip,.plk,.barviz,.kgrow')) { sx = null; return; }
+      sx = e.touches[0].clientX; sy = e.touches[0].clientY; dx = 0; lock = null; t0 = Date.now(); hayalSil(); }, { passive: true });
     m.addEventListener('touchmove', e => { if (sx === null) return; const x = e.touches[0].clientX - sx, y = e.touches[0].clientY - sy;
       if (!lock && (Math.abs(x) > 12 || Math.abs(y) > 12)) lock = Math.abs(x) > Math.abs(y) * 1.3 ? 'x' : 'y';
       if (lock !== 'x') return; e.preventDefault(); const i = idx(); const kenar = (x > 0 && i === 0) || (x < 0 && i === TABS.length - 1);
-      dx = kenar ? x * 0.25 : x; m.classList.add('swiping'); m.style.transform = `translateX(${dx}px)`; m.style.opacity = String(1 - Math.min(0.35, Math.abs(dx) / 700));
-      this.tabIndKonum(Math.max(0, Math.min(TABS.length - 1, i - dx / (m.clientWidth || 390)))); }, { passive: false });
-    const bit = () => { if (sx === null) return; sx = null; if (lock !== 'x') return; const v = dx / Math.max(1, Date.now() - t0); const i = idx();
+      dx = kenar ? x * 0.25 : x; m.classList.add('swiping'); m.style.transform = `translateX(${dx}px)`;
+      const yon = dx < 0 ? 1 : -1; const hedefTab = TABS[i + yon]?.[0];
+      if (!kenar && hedefTab && (!hayal || hayal.tab !== hedefTab)) { hayalSil(); hayalKur(hedefTab, yon); }
+      hayalYer(dx); this.tabIndKonum(Math.max(0, Math.min(TABS.length - 1, i - dx / W()))); }, { passive: false });
+    const bit = () => { if (sx === null) return; sx = null; if (lock !== 'x') { hayalSil(); return; } const v = dx / Math.max(1, Date.now() - t0); const i = idx();
       const hedef = (dx < -70 || v < -0.45) ? i + 1 : (dx > 70 || v > 0.45) ? i - 1 : i; m.classList.remove('swiping');
-      if (hedef !== i && hedef >= 0 && hedef < TABS.length) { const yon = hedef > i ? 1 : -1;   // 29 Eyl: bekleme yok — yeni sekme hemen çizilir, parmağın yönünden kısa bir kayışla gelir
-        m.classList.add('swiping'); this.go(TABS[hedef][0], true).catch(() => {}).then(() => { m.style.transform = `translateX(${yon * 22}vw)`; m.style.opacity = '.55';
-          requestAnimationFrame(() => requestAnimationFrame(() => { m.classList.remove('swiping'); m.style.transform = ''; m.style.opacity = ''; })); }); }
-      else { m.style.transform = ''; m.style.opacity = ''; this.tabIndKonum(); } };
+      if (hedef !== i && hedef >= 0 && hedef < TABS.length) { const yon = hedef > i ? 1 : -1;
+        if (hayal?.el.isConnected && hayal.tab === TABS[hedef][0]) {   // canlı katman var: ikisi birlikte oturur, sonra gerçek çizim
+          m.style.transition = 'transform .24s var(--ease-out)'; m.style.transform = `translateX(${-yon * W()}px)`; hayalYer(-yon * W() + yon * W() - hayal.yon * W() + 0, true); hayal.el.style.transform = 'translateX(0)';
+          const h = hayal; setTimeout(() => { m.classList.add('swiping'); m.style.transition = ''; this.go(TABS[hedef][0], true).catch(() => {}).then(() => { m.style.transform = ''; requestAnimationFrame(() => { m.classList.remove('swiping'); h.el.remove(); if (hayal === h) hayal = null; }); }); }, 240);
+        } else { hayalSil(); m.classList.add('swiping'); this.go(TABS[hedef][0], true).catch(() => {}).then(() => { m.style.transform = `translateX(${yon * 22}vw)`; m.style.opacity = '.55';
+          requestAnimationFrame(() => requestAnimationFrame(() => { m.classList.remove('swiping'); m.style.transform = ''; m.style.opacity = ''; })); }); } }
+      else { m.style.transform = ''; m.style.opacity = ''; if (hayal) { const h = hayal; hayalYer(0, true); setTimeout(() => { h.el.remove(); if (hayal === h) hayal = null; }, 250); } this.tabIndKonum(); } };
     m.addEventListener('touchend', bit); m.addEventListener('touchcancel', bit);
   }
   /** 29 Eyl (Arda: "parmak kaydıkça değişsin"): alt çubukta parmak sürüklenince cam baloncuk parmağı izler (büyüyüp sıvı gibi),
@@ -121,12 +145,15 @@ export class App {
     for (const p of PROGS) { const c = await this.ctx(p); if (c.v && c.v.day === today && c.v.tamamlanan < c.v.rows.length) return p; }
     return saved ?? PROGS[0];
   }
-  async setProg(p) { this.prog = p; await S.setMeta('prog', p); this.render(); }
+  async setProg(p) { await this._aktifCommit?.(); this.prog = p; await S.setMeta('prog', p); this.render(); }
   /** Program bağlamı: tanım + durum + aktif seans görünümü. */
   async ctx(p) {
     const def = this.defs[p]; if (!def) return { def: null, v: null };
     const [state, stateAll, ov, finished, stres, sev] = await Promise.all([S.stateFor(p, def.cycle), S.stateAllFor(p), S.armVariants(p, def.cycle), S.finishedSessions(p, def.cycle), S.stressFor(p, def.cycle), S.sessionEvents(p, def.cycle)]);
-    const idx = P.activeSessionIdx(def, state, this.kilit[p] ?? null, finished, new Date(), ov);
+    let idx = P.activeSessionIdx(def, state, this.kilit[p] ?? null, finished, new Date(), ov);
+    // 29 Eyl (Arda: "hareket bitince Bugün perşembeyi gösterdi"): bugün başlatılmış ve kapatılmamış seans, kapatılana kadar Bugün'de kalır (işaretçi sıçramaz)
+    const ak = this.kilit[p] ? null : await S.getMeta('aktif:' + p);
+    if (ak && ak.cycle === def.cycle && ak.gun === P.localDay(new Date()) && !finished.has(`${ak.week}|${ak.day}`)) { const s0 = P.sessions(def, ov).find(x => x.week === ak.week && x.day === ak.day); if (s0) idx = s0.idx; }
     const v = P.sessionView(def, state, idx, ov, stateAll);
     const seansKey = v ? `seans:${p}|${def.cycle}|${v.week}|${v.day}` : null;
     const seans = seansKey ? (await S.getMeta(seansKey)) ?? null : null;
@@ -153,14 +180,18 @@ export class App {
     try { await fn.call(this, c); } finally { if (this.main === buf) this.main = live; if (this._takili === bekleyen) this._takili = null; }
     if (tok !== this._rtok) return;
     if (!this._headSet) this.hR.replaceChildren();
+    const seansta = this.tab === 'bugun' && ['log', 'isinma'].includes(c.seans?.faz);
+    this.root.classList.toggle('seans', seansta); this.tabbar.classList.toggle('seans', seansta);   // (i) seans sırasında sekme çubuğu gizli; alttan yukarı kaydırınca gelir
+    if (!seansta && this.tab !== 'ayarlar') this.hR.append(el('button', { class: 'disli', title: 'Ayarlar', onclick: () => this.go('ayarlar') }, svg(ICON.ayarlar)));
+    if (this.tab === 'ayarlar') this.hR.replaceChildren(el('button', { class: 'disli geri', title: 'Geri', onclick: () => this.go('bugun') }, '‹ Geri'));
     if (!this._footSet) { this.foot.replaceChildren(); this.foot.className = 'hidden'; this.root.classList.remove('has-foot'); }
     if (!this._islandSet) { this.island.replaceChildren(); this.island.classList.add('hidden'); }
     live.replaceChildren(...buf.childNodes); live.scrollTop = top;
     for (const f of bekleyen) requestAnimationFrame(f);
     this.renderSheet();
   }
-  head(k, t, ...right) { this._headSet = true; this.hK.textContent = k; this.hT.textContent = t; this.hR.replaceChildren(...right.filter(Boolean)); this.hdr.classList.remove('one'); }
-  footer(cls, ...kids) { this._footSet = true; if (!this._footRO && window.ResizeObserver) { this._footRO = new ResizeObserver(() => this.root.style.setProperty('--footh', this.foot.offsetHeight + 'px')); this._footRO.observe(this.foot); } this.foot.className = cls; this.foot.replaceChildren(...kids.filter(Boolean)); this.root.classList.toggle('has-foot', cls !== 'hidden'); }
+  head(k, t, ...right) { if (this._kuru) return; this._headSet = true; this.hK.textContent = k; this.hT.textContent = t; this.hR.replaceChildren(...right.filter(Boolean)); this.hdr.classList.remove('one'); }
+  footer(cls, ...kids) { if (this._kuru) return; this._footSet = true; if (!this._footRO && window.ResizeObserver) { this._footRO = new ResizeObserver(() => this.root.style.setProperty('--footh', this.foot.offsetHeight + 'px')); this._footRO.observe(this.foot); } this.foot.className = cls; this.foot.replaceChildren(...kids.filter(Boolean)); this.root.classList.toggle('has-foot', cls !== 'hidden'); }
   banners() {
     const out = []; const st = this.sync?.last;
     if (this.persist === false) out.push(el('div', { class: 'banner warn' }, 'Kalıcı depolama izni yok — ana ekrandan açınca iOS verir. Kayıtlar cihazda; senkron/yedek önemli.'));
@@ -188,8 +219,10 @@ export class App {
   /** H2 (27 Eyl): rampa, rampanın hareketi sıradaysa gösterilir; seans olimpik kaldırışla başlıyorsa önce log, rampa o hareket gelince. */
   baslangicFaz(v) { const ilk = v.rows.find(r => !r.tamam); return v.rampa && ilk && ilk.row_key === v.rampa.rowKey ? 'isinma' : 'log'; }
   async fazSet(faz, extra = {}) {
-    const c = this.c; const s = { ...(c.seans ?? { tik: [], started_at: null, openKey: null }), faz, ...extra };
+    if (this.c?.seans?.faz === 'log' && faz !== 'log') await this._aktifCommit?.();
+    const c = this.c; if (c.seansKey) c.seans = (await S.getMeta(c.seansKey)) ?? c.seans; const s = { ...(c.seans ?? { tik: [], started_at: null, openKey: null }), faz, ...extra };
     if (faz !== 'onizleme' && !s.started_at) { s.started_at = new Date().toISOString(); await S.logSession('started', { program: c.p, cycle: c.def.cycle, week: c.v.week, day: c.v.day }); }
+    if (faz !== 'onizleme') await S.setMeta('aktif:' + c.p, { cycle: c.def.cycle, week: c.v.week, day: c.v.day, gun: P.localDay(new Date()) });
     await S.setMeta(c.seansKey, s); this.mainEl.scrollTop = 0; await this.render();
   }
   stresRozet(c) {
@@ -269,7 +302,7 @@ export class App {
     const openRow = v.rows.find(r => r.row_key === openKey) ?? null;
     if (v.rampa && openRow && openRow === nowRow && openRow.row_key === v.rampa.rowKey && !c.seans?.isinma_gecildi && !(c.seans?.tik ?? []).length) { setTimeout(() => this.fazSet('isinma'), 0); return; }   // H2: rampa, hareketi sıraya gelince
     // T1 (27 Eyl) ODAK MODU: sayfa 1 = odak hareket + set yığını + soluk geçmiş/gelecek (3D, cam); sayfa 2 = genel görünüm (tüm liste). Yana kaydırılır.
-    const liste = el('div', { class: 'grid', style: 'margin-top:10px' }, ...v.rows.map(r => this.rowCard(c, r, { open: r === openRow, now: r === openRow, onclick: async () => { await S.setMeta(c.seansKey, { ...c.seans, openKey: r.row_key }); this.odakSayfa = 0; this.render(); } })));
+    const liste = el('div', { class: 'grid', style: 'margin-top:10px' }, ...v.rows.map(r => this.rowCard(c, r, { open: r === openRow, now: r === openRow, onclick: async () => { await this._aktifCommit?.(); await S.setMeta(c.seansKey, { ...(await S.getMeta(c.seansKey)) ?? c.seans, openKey: r.row_key }); this.odakSayfa = 0; this.render(); } })));
     const pg2 = el('section', { class: 'pg' }, v.kol ? this.kolSatiri(c) : null, liste, openRow ? el('button', { class: 'sec', style: 'width:100%;margin-top:14px', onclick: () => this.fazSet('ozet') }, `Seansı bitir · ${v.rows.filter(r => !r.tamam).length} hareket girilmedi`) : null);
     if (!openRow) { m.append(pg2); }
     else {
@@ -314,13 +347,15 @@ export class App {
     const track = el('div', { class: 'xcar' }, ...slides);
     const deck = el('div', { class: 'deck', id: 'deck' });
     // 28 Eyl (Arda: "Alper'e geçince ana kart da değişmeli"): kişi değişince etkin kartın gövdesi o kişinin planını/kaydını gösterir
+    this.kartPlaka = (rowKey, kg) => { const i = v.rows.findIndex(x => x.row_key === rowKey); const sl = slides[i]; const r = v.rows[i]; if (!sl || !r?.barli) return; let k = sl.querySelector('.kp'); if (!k) { k = el('div', { class: 'kp' }); sl.querySelector('.xcard').append(k); } k.replaceChildren(this.plakaMini(kg)); };
     this.kartAktor = (rowKey, aktor) => { const i = v.rows.findIndex(x => x.row_key === rowKey); const sl = slides[i]; if (!sl) return; const r = v.rows[i];
       const planT = (r.hedef?.replace(/^.*\n/, '') ?? '').replace(/\n/g, ' · ').replace(/\s*[▸⚠].*$/, ''); const tk = `${r.set ?? '?'}×${r.tekrar ?? r.tekrar_metin ?? '?'}`;
       sl.querySelector('.kh').replaceChildren(this.kartGovde(r, aktor, yap, planT, tk)); sl.querySelectorAll('.kimsec button').forEach(b => b.classList.toggle('sel', b.dataset.a === aktor)); sl.querySelector('.xcard').classList.toggle('alper', aktor === 'alper'); };
     host.append(el('div', { class: 'combo-w' }, el('div', { class: 'peek l glass' }), el('div', { class: 'peek r glass' }), el('div', { class: 'combo glass' }, track, el('div', { class: 'combo-bag' }, deck))));
     const bas = () => {};
     const sec = async idx => { if (idx === oi || !track.isConnected) return;
-      const r = v.rows[idx]; oi = idx; bas(idx); c.seans = { ...c.seans, openKey: r.row_key }; await S.setMeta(c.seansKey, c.seans);
+      const yazildi = await this._aktifCommit?.(v.rows[idx]); const r = v.rows[idx]; oi = idx; bas(idx); c.seans = { ...((await S.getMeta(c.seansKey)) ?? c.seans), openKey: r.row_key }; await S.setMeta(c.seansKey, c.seans);
+      if (yazildi) { this._sessiz = true; try { await this.render(); } finally { this._sessiz = false; } return; }   // kırmızı takım A27-1: yazılan setlerle bayat görünüm kalmasın
       if (v.rampa && r === nowRow && r.row_key === v.rampa.rowKey && !c.seans.isinma_gecildi && !(c.seans.tik ?? []).length) { this._sessiz = true; try { await this.render(); } finally { this._sessiz = false; } return; }
       const kids = await this.logBar(c, r); if (!track.isConnected) return; this.footer('log', this.seansBar(c, r), ...kids); this.applyCollapse(); };
     this.kaydirakBagla(track, slides, { ilk: oi, sec, tmr: '_exTmr' });
@@ -337,7 +372,10 @@ export class App {
     track.addEventListener('scroll', () => { if (!raf) raf = requestAnimationFrame(() => { raf = 0; boya(); }); clearTimeout(this[tmr]);
       if (!dokunus || !track.isConnected || (Date.now() < sessizBit && dokunus < sessizBit - 400)) return;
       this[tmr] = setTimeout(() => { if (track.isConnected && Date.now() - dokunus < 2500) sec(enYakin()); }, 140); }, { passive: true });
-    this.sonra(() => { const it = items[Math.max(0, Math.min(items.length - 1, ilk))]; sessizBit = Date.now() + 400; if (it) track.scrollLeft = mz(it) - track.clientWidth / 2; boya(); });
+    const kay = this._kaydir; this._kaydir = null;
+    this.sonra(() => { const it = items[Math.max(0, Math.min(items.length - 1, ilk))]; sessizBit = Date.now() + 900; const from = kay && items[kay.from] && kay.from !== ilk ? items[kay.from] : null;
+      if (from) { track.scrollLeft = mz(from) - track.clientWidth / 2; boya(); setTimeout(() => { if (track.isConnected && it) track.scrollTo({ left: mz(it) - track.clientWidth / 2, behavior: 'smooth' }); }, 90); }   // (l) biten karttan sıradakine görünür kayış
+      else { if (it) track.scrollLeft = mz(it) - track.clientWidth / 2; boya(); } });
     return { git: j => { dokundu(); const it = items[j]; if (it) track.scrollTo({ left: mz(it) - track.clientWidth / 2, behavior: 'smooth' }); } };
   }
   /** Yatay şerit seçici (R4-B): native kaydırma + snap; ortadaki değer seçilir. Yalnız parmak/tekerlek dokunuşundan sonraki yerleşme seçer;
@@ -358,7 +396,8 @@ export class App {
     track.addEventListener('scroll', () => { if (!raf) raf = requestAnimationFrame(() => { raf = 0; boya(); }); clearTimeout(tmr); if (!dok) return;
       tmr = setTimeout(() => { if (track.isConnected && dok && Date.now() - dok < 2500) sec(yakin()); }, 130); }, { passive: true });
     items.forEach((it, i) => it.addEventListener('click', () => { dokundu(); const c = track.scrollLeft + track.clientWidth / 2; if (Math.abs(mz(it) - c) < it.offsetWidth / 2) sec(i); else track.scrollTo({ left: mz(it) - track.clientWidth / 2, behavior: 'smooth' }); }));
-    const ilk = () => cur >= 0 ? cur : Math.max(0, degerler.indexOf(varsayilan ?? degerler[0]));
+    const vs = () => typeof varsayilan === 'function' ? varsayilan() : varsayilan;
+    const ilk = () => cur >= 0 ? cur : Math.max(0, degerler.indexOf(vs() ?? degerler[0]));
     bosMu(); this.sonra(() => konum(ilk()));
     // kırmızı takım A26-1: aynı değere yeniden boyama no-op (süren kaydırmayı iptal etmez)
     box.ayarla = x => { if (x === sonX) return; sonX = x; const i = degerler.indexOf(x); if (i === cur && i >= 0) return; dok = 0; clearTimeout(tmr); cur = i; bosMu(); const f = () => konum(ilk()); track.isConnected ? f() : this.sonra(f); };
@@ -444,11 +483,12 @@ export class App {
     // Eski kayıtlar (dinlenme panelinden, sonraki sete yazılmış hr_once / hr_sonra_onceki) okunurken aynı anlama çevrilir — veri dönüştürülmez.
     const hrBasOf = x => x?.hr_bas ?? x?.hr_once ?? null;
     const hrSonOf = i => d.detail[i]?.hr_son ?? d.detail[i + 1]?.hr_sonra_onceki ?? null;
+    let yaziyor = false;
     const planKg = () => d.actor === 'alper' ? r.onerilen_alper : r.onerilen;
     const cur = () => d.actor === 'alper' ? r.alper : r.arda;
     const prevE = P.prevEntry(c.stateAll, r, v, def.cycle); const prevA = def.program === 'Alper' ? P.prevEntry(c.stateAll, r, v, def.cycle, 'alper') : null;
     const prevOf = () => d.actor === 'alper' ? prevA : prevE;
-    const fill = () => { const q = cur(); d.kg = q?.kg ?? planKg() ?? prevOf()?.kg ?? null; d.sets = q?.sets ?? r.set ?? null; d.reps = q?.reps ?? r.tekrar ?? null; d.rpe = q?.rpe ?? null; d.notes[d.actor] = q?.note ?? d.notes[d.actor] ?? null; d.note = d.notes[d.actor]; };
+    const fill = () => { yaziyor = false; const q = cur(); d.kg = q?.kg ?? planKg() ?? prevOf()?.kg ?? null; d.sets = q?.sets ?? r.set ?? null; d.reps = q?.reps ?? r.tekrar ?? null; d.rpe = q?.rpe ?? null; d.notes[d.actor] = q?.note ?? d.notes[d.actor] ?? null; d.note = d.notes[d.actor]; };
     const yukle = () => { const q = cur(); d.details ??= {}; d.detail = d.details[d.actor]?.length ? d.details[d.actor] : (q?.sets_detail?.length && !q.skipped ? q.sets_detail.map(x => ({ ...x })) : []); };   // kırmızı takım T1-2: bitmiş hareket yeniden açılınca kayıtlı setler yığına gelir (supersede eski setleri kaybetmez)
     if (d.kg === null && d.sets === null) { fill(); yukle(); }
     const saveDraft = () => S.setMeta(draftKey, { ...d, editIdx: null, yeni: null });   // düzenleme modu yalnız bellekte (kırmızı takım T1-4)
@@ -465,12 +505,15 @@ export class App {
     // kg + plaka
     const kgIn = el('input', { type: 'text', inputmode: 'decimal', autocomplete: 'off', enterkeyhint: 'done', placeholder: '—', class: 'tab' });
     const kgSub = el('div', { class: 'sub tab' });
-    kgIn.addEventListener('change', () => { d.kg = M.parseKg(kgIn.value); saveDraft(); paint(); });
+    // 29 Eyl (Arda: "kg girdikten sonra tekrar/RPE girince kg bozuluyor"): yazılan değer her tuşta taslağa alınır; odaktayken yeniden boyama kutuya dokunmaz
+    kgIn.addEventListener('input', () => { yaziyor = true; });   // kırmızı takım A27-5: yazarken ara değer ("1") taslağa yazılmaz; kaydederken kutudan okunur
+    kgIn.addEventListener('change', () => { yaziyor = false; d.kg = M.parseKg(kgIn.value); saveDraft(); paint(); });
+    kgIn.addEventListener('blur', () => { yaziyor = false; });
     kgIn.addEventListener('keydown', e => { if (e.key === 'Enter') kgIn.blur(); });
-    const step = n => { d.kg = Math.max(0, Math.round(((d.kg ?? planKg() ?? 0) + n) * 100) / 100); saveDraft(); paint(); };
+    const step = n => { yaziyor = false; d.kg = Math.max(0, Math.round(((d.kg ?? planKg() ?? 0) + n) * 100) / 100); saveDraft(); paint(); };
     const plakaBtn = r.barli ? el('button', { class: 'plk-ic', title: 'Plaka hesabı', onclick: () => { this.sheet = { kind: 'plaka', kg: d.kg ?? planKg() ?? prevE?.kg ?? 20, aktar: kg => { d.kg = kg; saveDraft(); paint(); } }; this.renderSheet(); } }, '▬') : null;
     const eq = ekipman(r);
-    body.append(el('div', { class: 'kgrow' }, hold(el('button', {}, '−'), k => step(-KG_ADIM * k)), el('div', { class: 'mid well', onclick: e => { if (e.target !== kgIn) { kgIn.focus(); kgIn.select?.(); } } }, kgIn, kgSub), hold(el('button', { class: 'plus' }, '+'), k => step(KG_ADIM * k)), plakaBtn));
+    body.append(el('div', { class: 'kgrow' }, hold(el('button', {}, '−'), k => step(-KG_ADIM * k)), el('div', { class: 'mid well', onclick: e => { if (e.target !== kgIn) { kgIn.focus(); kgIn.select?.(); } } }, kgIn, kgSub), hold(el('button', { class: 'plus' }, '+'), k => step(KG_ADIM * k))));
     this._aktorSec = a => segBtns.find(b => b.textContent.toLowerCase() === a)?.click();   // R4-B: kişi seçimi kartın köşesinde (düğmeler bu kapanışı tetikler)
     // set / tekrar / rpe
     const setBtns = [1, 2, 3, 4, 5].map(n => el('button', { class: 'tab', onclick: () => { d.sets = n; saveDraft(); paint(); } }, n));
@@ -490,8 +533,8 @@ export class App {
     const repPk = this.serit('tkr', [null, ...Array.from({ length: Math.max(30, (r.tekrar ?? 0) + 10) }, (_, i) => i + 1)], x => x === null ? (r.tekrar_metin ?? '—') : String(x), d.reps ?? null, x => { d.reps = x; saveDraft(); paint(); });
     const rpePk = this.serit('rpe', [null, ...RPE_LIST], x => x === null ? '—' : fmt(x), d.rpe ?? null, x => { d.rpe = x; saveDraft(); paint(); });
     const NABIZ = Array.from({ length: 201 }, (_, i) => i + 30);   // 30–230 (eski doğrulama ile aynı)
-    const hbPk = this.serit('hrb', NABIZ, x => String(x), M.isNum(d.hrBas) ? d.hrBas : null, x => { d.hrBas = x; saveDraft(); paint(); }, { varsayilan: 95 });
-    const hsPk = this.serit('hrs', NABIZ, x => String(x), M.isNum(d.hrSon) ? d.hrSon : null, x => { d.hrSon = x; saveDraft(); paint(); }, { varsayilan: 122 });
+    const hbPk = this.serit('hrb', NABIZ, x => String(x), M.isNum(d.hrBas) ? d.hrBas : null, x => { d.hrBas = x; saveDraft(); paint(); }, { varsayilan: () => hrBasOf(d.detail[d.detail.length - 1]) ?? 95 });   // (a) önceki setin değerinde bekler
+    const hsPk = this.serit('hrs', NABIZ, x => String(x), M.isNum(d.hrSon) ? d.hrSon : null, x => { d.hrSon = x; saveDraft(); paint(); }, { varsayilan: () => hrSonOf(d.detail.length - 1) ?? 122 });
     const kol = (pk, lbl) => el('div', { class: 'pkc' }, pk, el('div', { class: 'pkl' }, lbl));
     body.append(el('div', { class: 'pkrow h4' }, kol(repPk, 'tekrar'), kol(hbPk, '♥ başta'), kol(hsPk, '♥ sonda'), kol(rpePk, 'rpe' + (r.hedef_rpe ? ` · ${fmt(r.hedef_rpe)}` : ''))));
     // not (isteğe bağlı, düğmeyle açılır)
@@ -509,10 +552,13 @@ export class App {
       { t: skipBtn.textContent === '↺' ? '↺ Atlamayı geri al' : '⤼ Hareketi atla', fn: () => skipBtn.click() },
       { t: kaydet.title || 'Hareketi bitir', fn: () => kaydet.click(), off: kaydet.disabled },
       ...(v.rampa && r.row_key === v.rampa.rowKey ? [{ t: 'Isınma rampası', fn: () => this.fazSet('isinma') }] : []),
+      { t: '↺ Seansı sıfırla (deneme kayıtlarını sil)', fn: () => { this.sheet = { kind: 'onay', baslik: 'Seans sıfırlansın mı?', metin: `Hafta ${v.week} ${P.GUN_AD[v.day]}: bu seansta uygulamadan girilen tüm setler silinir (iz kalır), seans baştan açılır. Excel'den gelen kayıtlara dokunulmaz.`, evet: 'Evet, sıfırla', fn: async () => {
+        await S.resetSession(p, def.cycle, v.week, v.day); await S.setMeta(c.seansKey, null); await S.setMeta('aktif:' + p, null); this.krono = null; clearInterval(this.kronoIv); this._aktifCommit = null; this._aktifSahip = null; this.sync?.schedule(); this.msg = 'Seans sıfırlandı.'; this.render(); } }; this.renderSheet(); } },
     ] }; this.renderSheet(); } }, '⋯');
-    body.append(el('div', { class: 'acts' }, delBtn, setKaydet, more, el('span', { class: 'gizli' }, skipBtn, notBtn, kaydet)), hint);
+    const acts = el('div', { class: 'acts' }, delBtn, setKaydet, kaydet, more, el('span', { class: 'gizli' }, skipBtn, notBtn)); body.append(acts, hint);
     /** Set-set: bir seti taslağa ekle; öncesindeki gerçek mola = önceki set/kayıt/ısınmadan bu yana; sayaç = bu hareketin kendi kategorisi (setler arası). */
     const setEkle = async () => {
+      if (yaziyor) { d.kg = M.parseKg(kgIn.value); yaziyor = false; }
       for (const pk of [repPk, rpePk, hbPk, hsPk]) pk.flush();
       if (d.kg === null || d.kg <= 0) { hint.textContent = d.kg === 0 ? '0 kg set kaydedilmez — kg gir.' : 'kg gir.'; hint.classList.remove('hidden'); return; }
       if (M.isNum(d.editIdx) && d.detail[d.editIdx]) {   // T1: yığındaki sete dokunuldu → düzenle (zaman/mola/nabız korunur)
@@ -522,7 +568,8 @@ export class App {
       const last = d.detail.length ? new Date(d.detail[d.detail.length - 1].ts).getTime() : (c.seans?.last_save_at ? new Date(c.seans.last_save_at).getTime() : (c.seans?.isinma_bitti_at ? new Date(c.seans.isinma_bitti_at).getTime() : null));
       d.detail.push({ n: d.detail.length + 1, kg: d.kg, reps: d.reps, rpe: d.rpe, rest_s: last ? Math.round((now - last) / 1000) : null, rest_plan_s: P.oncesiDinlenmeSn(r), ts: new Date(now).toISOString(), ...(M.isNum(d.hrBas) ? { hr_bas: d.hrBas } : {}), ...(M.isNum(d.hrSon) ? { hr_son: d.hrSon } : {}), ...this.kronoDinlenmeVerisi(c.seansKey, r.row_key) });
       d.rpe = null; d.hrBas = null; d.hrSon = null; hint.classList.add('hidden'); await saveDraft();
-      if (M.isNum(r.set) && d.detail.length >= r.set) { this.geriBildirim(); return commit(); }   // H3 (26 Eyl): plan set sayısı doldu → hareket otomatik biter (tek setlikte sıradaki set açılmaz)
+      // 29 Eyl (Arda: "fazla set giremiyorum, diğer harekete geçiyor"): plan dolunca hareket OTOMATİK BİTMEZ — ek set girilebilir; bitirmek ✓ Bitir ile (ya da başka harekete geçince setler kendiliğinden kaydedilir)
+      this._yeniSet = true;
       this.kronoBaslat(c.seansKey, P.oncesiDinlenmeSn(r), `${r.egzersiz} · set ${d.detail.length + 1}`, r.row_key, { bitAd: `Set ${d.detail.length}`, basAd: `Set ${d.detail.length + 1}` });
       this.geriBildirim();
       paint(); this.render();   // seans şeridindeki rozet yenilensin (çubuk yerinde kalır, taslak meta'dan gelir)
@@ -542,12 +589,13 @@ export class App {
       deck.replaceChildren(track, el('div', { class: 'wsel' }), el('div', { class: 'deckplan xs dim2' }, `plan ${r.set ?? '?'} set · ${d.detail.length} kayıtlı`));
       const sec = idx => {
         if (idx === d.detail.length) { if (M.isNum(d.editIdx)) { if (d.yeni) Object.assign(d, d.yeni); d.editIdx = null; d.yeni = null; } }
-        else if (d.editIdx !== idx) { if (!M.isNum(d.editIdx)) d.yeni = { kg: d.kg, reps: d.reps, rpe: d.rpe, hrBas: d.hrBas ?? null, hrSon: d.hrSon ?? null }; const x = d.detail[idx]; d.editIdx = idx; d.kg = x.kg; d.reps = x.reps; d.rpe = x.rpe ?? null; d.hrBas = hrBasOf(x); d.hrSon = hrSonOf(idx); }
+        else if (d.editIdx !== idx) { yaziyor = false; if (!M.isNum(d.editIdx)) d.yeni = { kg: d.kg, reps: d.reps, rpe: d.rpe, hrBas: d.hrBas ?? null, hrSon: d.hrSon ?? null }; const x = d.detail[idx]; d.editIdx = idx; d.kg = x.kg; d.reps = x.reps; d.rpe = x.rpe ?? null; d.hrBas = hrBasOf(x); d.hrSon = hrSonOf(idx); }
         this._wheelBusy = true; paint(); this._wheelBusy = false; };
+      if (this._yeniSet && this.main !== this.mainEl && d.detail.length) { items[d.detail.length - 1]?.classList.add('yeni'); this._yeniSet = false; }   // (f) kaydedilen set yerine kayarak gelir
       this.carkBagla(track, items, { ilk: ed ?? d.detail.length, sec, tmr: '_wheelTmr', aci: 24 });
     };
     const paint = () => {
-      kgIn.value = d.kg === null ? '' : fmt(d.kg);
+      if (!yaziyor) kgIn.value = d.kg === null ? '' : fmt(d.kg);
       const pk = planKg(); const yan = r.barli && d.kg ? P.plakaMetni(d.kg)?.replace('bir tarafa ', 'yan ') : null;   // 28 Eyl (sade): plan/geçen genel görünümde
       kgSub.textContent = eq === 'db' && d.kg ? `tek el ${fmt(d.kg / 2)}` : eq === 'bw' && d.kg ? `BW ${BW_KG} ${d.kg >= BW_KG ? '+ ' + fmt(Math.round((d.kg - BW_KG) * 100) / 100) : '− ' + fmt(Math.round((BW_KG - d.kg) * 100) / 100)}` : yan ?? (pk !== null && pk !== undefined && pk !== d.kg ? `plan ${fmt(pk)}` : r.bw ? 'toplam yük' : ' ');
       segBtns.forEach(b => b.classList.toggle('sel', b.textContent.toLowerCase() === d.actor));
@@ -558,7 +606,8 @@ export class App {
       { const ed0 = M.isNum(d.editIdx) && d.detail[d.editIdx] ? d.editIdx : null; const n = (ed0 ?? d.detail.length) + 1;
         repPk.ayarla(d.reps ?? null); rpePk.ayarla(d.rpe ?? null); hbPk.ayarla(M.isNum(d.hrBas) ? d.hrBas : null); hsPk.ayarla(M.isNum(d.hrSon) ? d.hrSon : null);
         hbPk.title = `set ${n} başlarken nabız`; hsPk.title = `set ${n} bitince nabız`;
-        setKaydet.textContent = ed0 !== null ? `Set ${ed0 + 1}'i güncelle` : `Kaydet · set ${n} · ${d.kg === null ? '—' : fmt(d.kg)}×${d.reps ?? r.tekrar_metin ?? '?'}${M.isNum(d.rpe) ? ' · R' + fmt(d.rpe) : ''}`; }
+        const doldu = M.isNum(r.set) ? d.detail.length >= r.set : d.detail.length >= 1; kaydet.classList.toggle('gorunur', doldu && ed0 === null); acts.classList.toggle('doldu', doldu && ed0 === null);
+        setKaydet.textContent = ed0 !== null ? `Set ${ed0 + 1}'i güncelle` : `${doldu ? 'Ek set' : 'Kaydet'} · set ${n} · ${(() => { const g = yaziyor ? M.parseKg(kgIn.value) : d.kg; return g === null || g === undefined ? '—' : fmt(g); })()}×${d.reps ?? r.tekrar_metin ?? '?'}${M.isNum(d.rpe) ? ' · R' + fmt(d.rpe) : ''}`; }
       notBtn.classList.toggle('sel', !!notOf()); notBtn.textContent = notOf() ? '✎ not' : '✎';
       const setMode = d.mode === 'set';
       modeBtn.textContent = setMode ? 'Set set' : 'Tek satır'; modeBtn.classList.toggle('sel', setMode);
@@ -568,13 +617,15 @@ export class App {
       const ed = M.isNum(d.editIdx) && d.detail[d.editIdx] ? d.editIdx : null;
  delBtn.classList.toggle('hidden', ed === null); skipBtn.classList.toggle('hidden', ed !== null);
       if (!this._wheelBusy) this.cizDeck?.();
+      this.kartPlaka?.(r.row_key, d.kg ?? planKg());
       const q = cur(); kaydet.textContent = setMode ? (d.detail.length ? `✓ ${d.detail.length}` : '✓') : (q && !q.skipped ? 'Güncelle' : 'Kaydet'); kaydet.title = setMode ? (d.detail.length ? `Hareketi bitir (${d.detail.length} set)` : 'Hareketi bitir') : ''; skipBtn.textContent = q?.skipped ? '↺' : '⤼'; skipBtn.title = q?.skipped ? 'Geri al' : 'Atla';
       kaydet.disabled = (setMode && !d.detail.length) || ed !== null; kaydet.classList.toggle('bitir', setMode);
       if (setMode && !d.detail.length) kaydet.title = 'Önce en az bir set kaydet';
       ozetS.textContent = ozet();
     };
-    paint(); this.kartAktor?.(r.row_key, d.actor);
-    const commit = async ({ skipped = false } = {}) => {
+    paint(); this.kartAktor?.(r.row_key, d.actor); this.kartPlaka?.(r.row_key, d.kg);
+    const commit = async ({ skipped = false, sessiz = false, hedef = null } = {}) => {
+      if (yaziyor && !d.detail.length) { d.kg = M.parseKg(kgIn.value); yaziyor = false; }
       const q = cur();
       if (skipped && q?.skipped) { await S.appendEvent(await this.deleteEvent(r.ref, d.actor)); await S.setMeta(draftKey, null); this.sync?.schedule(); return this.render(); }
       const setMode = d.mode === 'set' && d.detail.length > 0;
@@ -587,13 +638,24 @@ export class App {
       try { await S.logSet({ ref: r.ref, actor: d.actor, ...data, skipped, supersedes: q?.event_id ?? null, rest_s: skipped ? null : rest_s, rest_plan_s: skipped ? null : rest_plan_s }); }
       catch (e) { hint.textContent = 'Kaydedilemedi: ' + e.message; hint.classList.remove('hidden'); this.logCollapsed = false; this.applyCollapse(); return; }
       d.details ??= {}; d.details[d.actor] = []; const diger = Object.entries(d.details).find(([a, x]) => a !== d.actor && x?.length);
-      if (diger) { d.actor = diger[0]; d.detail = diger[1]; d.hrBas = null; d.hrSon = null; await S.setMeta(draftKey, { ...d, editIdx: null, yeni: null }); } else await S.setMeta(draftKey, null);   // diğer kişinin bekleyen setleri kaybolmaz
+      if (diger) { d.actor = diger[0]; d.detail = diger[1]; d.hrBas = null; d.hrSon = null; await S.setMeta(draftKey, { ...d, editIdx: null, yeni: null }); } else { d.detail = []; await S.setMeta(draftKey, null); }   // diğer kişinin bekleyen setleri kaybolmaz
       this.sync?.schedule(); this.geriBildirim(); this.odakSayfa = 0;
-      const rowsAfter = v.rows.map(x => x === r ? { ...x, tamam: true } : x); const nxt = P.sonrakiSatir(rowsAfter, rowsAfter[v.rows.indexOf(r)]);
-      if (!skipped && nxt) this.kronoBaslat(c.seansKey, P.oncesiDinlenmeSn(nxt), nxt.egzersiz, nxt.row_key, { bitAd: r.egzersiz, basAd: nxt.egzersiz }); else if (!skipped) { this.krono = null; clearInterval(this.kronoIv); }
-      await S.setMeta(c.seansKey, { ...c.seans, openKey: null, last_save_at: skipped ? c.seans?.last_save_at ?? null : new Date(now).toISOString() });
-      this.render();
+      const rowsAfter = v.rows.map(x => x === r ? { ...x, tamam: true } : x); const nxt = hedef ?? P.sonrakiSatir(rowsAfter, rowsAfter[v.rows.indexOf(r)]);
+      // 29 Eyl: son setten beri süren dinlenme SIFIRLANMAZ — sayaç sıradaki hareketin molasına yeniden hedeflenir (başlangıç aynı)
+      const k0 = this.krono; const surer = k0 && k0.key === c.seansKey && k0.rowKey === r.row_key;
+      if (!skipped && nxt) { if (surer) { const sn = P.oncesiDinlenmeSn(nxt); Object.assign(k0, { sn, end: k0.start + sn * 1000, ad: nxt.egzersiz, rowKey: nxt.row_key, altSn: sn >= 180 ? 180 : 0, bitti: false }); } else if (!sessiz) this.kronoBaslat(c.seansKey, P.oncesiDinlenmeSn(nxt), nxt.egzersiz, nxt.row_key, { bitAd: r.egzersiz, basAd: nxt.egzersiz }); }
+      else if (!skipped && !sessiz) { this.krono = null; clearInterval(this.kronoIv); }
+      const sonTs = setMode && d.detail.length ? d.detail[d.detail.length - 1].ts : null;
+      c.seans = { ...c.seans, ...(sessiz ? {} : { openKey: null }), last_save_at: skipped ? c.seans?.last_save_at ?? null : (sonTs ?? new Date(now).toISOString()) }; await S.setMeta(c.seansKey, c.seans);
+      if (!sessiz) { this._kaydir = { from: v.rows.indexOf(r) }; this.render(); }
     };
+    // Başka harekete / özete geçerken yerleşmiş setler kendiliğinden kaydedilir (taslakta set kalmaz — veri kaybı olmaz)
+    // kırmızı takım A27-2/3: tek uçuş (çift dokunuş iki kez yazmaz) + sahiplik (eski kapanış başka seansın taslağını yazamaz)
+    const sahip = draftKey; this._aktifSahip = sahip;
+    this._aktifCommit = (hedef = null) => this._acUcus ??= (async () => { try {
+      if (this._aktifSahip !== sahip || this.c?.seansKey !== c.seansKey || !(await S.getMeta(draftKey))) return 0;
+      let n = 0, k = 0; while (d.detail?.length && k++ < 3) { const a = d.actor, once = d.detail.length; await commit({ sessiz: true, hedef }); if (d.detail?.length && d.actor === a) break; n += once; } return n;
+    } finally { this._acUcus = null; } })();
     return [ttl, body];
   }
   async deleteEvent(ref, actor) {
@@ -611,6 +673,7 @@ export class App {
   }
   /** iOS 16.4+: seans sırasında ekran uyumasın (dinlenme sayacı görünür kalsın). */
   async wakeLock(on) {
+    if (this._kuru) return;
     try { if (on && !this.wl && navigator.wakeLock) { this.wl = await navigator.wakeLock.request('screen'); this.wl.addEventListener('release', () => { this.wl = null; }); } else if (!on && this.wl) { await this.wl.release(); this.wl = null; } } catch {}
   }
   /** P1 (Arda 27 Eyl): sayaç süreleri kalır; ağır/top/backoff setlerde "Hazırım" 3:00'ten önce açılmaz (alt sınır); set sonrası ve set öncesi nabız elle (isteğe bağlı).
@@ -620,9 +683,19 @@ export class App {
   kronoDinlenmeVerisi(key, rowKey) { const sh = this._sonHazir; this._sonHazir = null; if (!this.krono && sh && sh.key === key && sh.rowKey === rowKey) return { hazir_s: sh.hazirS }; const k = this.krono; if (!k || k.key !== key || !k.rowKey || k.rowKey !== rowKey) return {}; const o = {}; if (M.isNum(k.hrSonra)) o.hr_sonra_onceki = k.hrSonra; if (M.isNum(k.hrOnce)) o.hr_once = k.hrOnce; if (M.isNum(k.hazirS)) o.hazir_s = k.hazirS; return o; }
   kronoKalan() { const k = this.krono; return k ? Math.round((k.end - Date.now()) / 1000) : 0; }   // negatif = aşım
   kronoMetin(kalan) { return kalan >= 0 ? mmss(kalan) : '+' + mmss(-kalan); }
+  bekleKapat() { this.bekle.classList.add('hidden'); this._sonDok = Date.now(); }
+  bekleCiz(kalan) {
+    const k = this.krono; const acik = !this.bekle.classList.contains('hidden');
+    const uygun = k && this.tab === 'bugun' && this.c?.seans?.faz === 'log' && !this.sheet && document.visibilityState === 'visible';
+    if (!uygun) { if (acik) this.bekle.classList.add('hidden'); return; }
+    if (!acik && Date.now() - this._sonDok < 10000) return;
+    if (!acik) { this.bekle.replaceChildren(el('div', { class: 'bk-t tab' }), el('div', { class: 'bk-a' }), el('div', { class: 'bk-b' }, ...this.kronoPanel().map(b => { const f = b.onclick; b.onclick = e => { e.stopPropagation(); f?.(e); this.bekleKapat(); }; return b; })), el('div', { class: 'bk-h' }, 'dokun → geri dön')); this.bekle.classList.remove('hidden'); }
+    this.bekle.querySelector('.bk-t').textContent = this.kronoMetin(kalan); this.bekle.querySelector('.bk-a').textContent = `${k.ad ?? 'dinlenme'} · plan ${this.kronoMetin(k.sn)}`; this.bekle.classList.toggle('over', kalan < 0);
+  }
   kronoTick() {
-    const k = this.krono; if (!k) return clearInterval(this.kronoIv);
-    const kalan = this.kronoKalan();
+    const k = this.krono; if (!k) { this.bekle?.classList.add('hidden'); return clearInterval(this.kronoIv); }
+    const kalan = this.kronoKalan(); this.bekleCiz(kalan);
+    this.island.classList.toggle('over', kalan < 0);   // F1: süre dolunca ada kırmızı halka ile yavaşça nabız atar
     const pct = kalan >= 0 ? Math.round((1 - kalan / k.sn) * 100) : Math.min(100, Math.round((-kalan / k.sn) * 100));
     const pill = this.island.querySelector('#kpill') ?? this.foot.querySelector('#kpill') ?? this.hR.querySelector('#kpill'); if (pill) { pill.querySelector('.kt').textContent = this.kronoMetin(kalan); pill.classList.toggle('over', kalan < 0); pill.querySelector('.ring').style.setProperty('--pct', `${pct}%`); }
     const hz = this.island.querySelector('#khazir') ?? this.foot.querySelector('#khazir'); if (hz && !M.isNum(k.hazirS)) { const g = Math.round((Date.now() - k.start) / 1000); hz.disabled = g < k.altSn; hz.textContent = g < k.altSn ? `Hazırım · ${this.kronoMetin(k.altSn - g)}` : 'Hazırım'; }
@@ -637,7 +710,7 @@ export class App {
       el('span', { class: 'ring', style: `--pct:${kalan >= 0 ? Math.round((1 - kalan / k.sn) * 100) : 100}%` }),
       el('span', { class: 'kbody' }, el('span', { class: 'kt tab' }, this.kronoMetin(kalan)), el('span', { class: 'kad' }, k.ad ?? 'dinlenme')));
   }
-  adaCiz() { const k = this.krono; this._islandSet = true; if (!k) { this.island.replaceChildren(); this.island.classList.add('hidden'); return; } this.island.replaceChildren(this.kronoPill(), ...this.kronoPanel()); this.island.classList.remove('hidden'); }
+  adaCiz() { if (this._kuru) return; const k = this.krono; this._islandSet = true; if (!k) { this.island.classList.remove('over'); this.island.replaceChildren(); this.island.classList.add('hidden'); return; } this.island.replaceChildren(this.kronoPill(), ...this.kronoPanel()); this.island.classList.remove('hidden'); }
   /** Ada düğmeleri (28 Eyl, Arda): top/ağır molalarında (plan ≥ 5 dk) önce "Hazırım" (3:00 alt sınır), basınca yerine "Molayı bitir";
    *  diğer molalarda yalnız "Molayı bitir". Bitir sayacı kapatır (set kayıtları ve ölçülen gerçek mola etkilenmez). */
   kronoPanel() {
@@ -685,7 +758,7 @@ export class App {
       if (eksik && Date.now() - onay > 4000) { onay = Date.now(); kapat.textContent = `Eksik ${eksik} hareket — kapatmak için tekrar dokun`; kapat.classList.add('warnb'); setTimeout(() => { if (kapat.isConnected && Date.now() - onay >= 4000) { kapat.textContent = 'Kaydet ve kapat'; kapat.classList.remove('warnb'); } }, 4100); return; }
       const dur = c.seans?.started_at ? Math.round((Date.now() - new Date(c.seans.started_at)) / 1000) : null;
       await S.logSession('finished', { program: c.p, cycle: c.def.cycle, week: v.week, day: v.day, duration_s: dur, note: (this.ozet?.note ?? '').trim() || null });
-      await S.setMeta(c.seansKey, null); this.ozet = null; this.krono = null; this.sync?.schedule(); this.mainEl.scrollTop = 0;
+      await S.setMeta(c.seansKey, null); await S.setMeta('aktif:' + c.p, null); this.ozet = null; this.krono = null; this.sync?.schedule(); this.mainEl.scrollTop = 0;
       if (this.kilit[c.p]) { delete this.kilit[c.p]; await S.setMeta('kilit', this.kilit); }   // H5 (26 Eyl): kilitli seans bitince kilit kalkar → sıradaki seans
       if (this.needRefresh) { setTimeout(() => this.needRefresh(), 400); }
       this.render();
@@ -727,11 +800,11 @@ export class App {
       m.append(el('div', { class: 'h', style: 'margin-top:16px' }, el('div', { class: 'k' }, `Seans ${s.idx} · Hafta ${s.week} ${P.GUN_AD[s.day]}`), el('div', { class: 'xs dim2 tab' }, `${v.tamamlanan}/${v.rows.length}`)));
       m.append(el('div', { class: 'grid', style: 'margin-top:8px' }, ...v.rows.map(r => this.rowCard(sub, r, { open: true }))));
       if (fin?.note) m.append(el('div', { class: 'prev', style: 'margin-top:8px' }, 'Seans notu: ' + fin.note));
-      m.append(el('div', { class: 'btnrow' }, s.idx !== c.idx ? el('button', { onclick: async () => { this.kilit[p] = s.idx; await S.setMeta('kilit', this.kilit); this.tab = 'bugun'; this.render(); } }, `Bu seansı Bugün'de aç`) : el('button', { disabled: true }, 'Aktif seans'), this.kilit[p] ? el('button', { class: 'sec', onclick: async () => { delete this.kilit[p]; await S.setMeta('kilit', this.kilit); this.render(); } }, 'Kilidi kaldır') : null));
+      m.append(el('div', { class: 'btnrow' }, s.idx !== c.idx ? el('button', { onclick: async () => { await this._aktifCommit?.(); this.kilit[p] = s.idx; await S.setMeta('kilit', this.kilit); this.tab = 'bugun'; this.render(); } }, `Bu seansı Bugün'de aç`) : el('button', { disabled: true }, 'Aktif seans'), this.kilit[p] ? el('button', { class: 'sec', onclick: async () => { delete this.kilit[p]; await S.setMeta('kilit', this.kilit); this.render(); } }, 'Kilidi kaldır') : null));
       const appN = v.rows.filter(r => r.tamam).length;
       if (appN) m.append(el('button', { class: 'sec', style: 'width:100%;margin-top:8px;color:var(--red);border-color:#6a3030', onclick: async () => {
         if (!confirm(`Seans ${s.idx} (H${s.week} ${P.GUN_AD[s.day]}) app kayıtları silinsin mi? Göç/Excel verisi silinmez; takvim bu güne geri çekilir. Silme olay olarak yazılır (geri alınabilir değil).`)) return;
-        const n = await S.resetSession(p, def.cycle, s.week, s.day); await S.setMeta(`seans:${p}|${def.cycle}|${s.week}|${s.day}`, null); this.krono = null; this.sync?.schedule(); this.msg = `Seans ${s.idx}: ${n} app kaydı silindi, seans yeniden açıldı.`; this.tab = 'bugun'; delete this.kilit[p]; await S.setMeta('kilit', this.kilit); this.render();
+        const n = await S.resetSession(p, def.cycle, s.week, s.day); await S.setMeta(`seans:${p}|${def.cycle}|${s.week}|${s.day}`, null); await S.setMeta('aktif:' + p, null); this._aktifCommit = null; this._aktifSahip = null; this.krono = null; this.sync?.schedule(); this.msg = `Seans ${s.idx}: ${n} app kaydı silindi, seans yeniden açıldı.`; this.tab = 'bugun'; delete this.kilit[p]; await S.setMeta('kilit', this.kilit); this.render();
       } }, 'Bu seansın app kayıtlarını sıfırla'));
     }
   }
@@ -786,6 +859,14 @@ export class App {
       k ? el('button', { class: 'sec', style: 'margin-top:8px;width:100%', onclick: () => { this.krono = null; clearInterval(this.kronoIv); this.render(); } }, 'Durdur') : null);
     m.append(box);
   }
+  /** (j) Kart içi küçük plaka görseli (tek taraf, IWF renkleri). */
+  plakaMini(kg) {
+    const t = M.isNum(kg) ? P.plakaMetni(kg) : null; const m = t && /bir tarafa [\d.]+: (.*?)(?:\s*\(|$)/.exec(t); const ps = [];
+    if (m) for (const x of m[1].split(' + ')) { const mm = /^(?:(\d+)×)?([\d.]+)$/.exec(x.trim()); if (mm) for (let i = 0; i < (+mm[1] || 1); i++) ps.push(+mm[2]); }
+    if (!ps.length) return el('div', { class: 'kpt tab' }, t ?? '');
+    const pl = w => el('i', { class: 'pl w' + String(w).replace('.', '_') }, el('b', {}, fmt(w)));
+    return el('div', { class: 'kpv' }, el('div', { class: 'barviz mini' }, el('span', { class: 'sleeve l' }, ...ps.slice().reverse().map(pl)), el('span', { class: 'shaft' }), el('span', { class: 'sleeve r' }, ...ps.map(pl))), el('div', { class: 'kpt tab' }, `tek taraf ${ps.map(fmt).join(' + ')}`));
+  }
   plakaBlok(kg0, onChange, aktar = null) {
     let kg = kg0; const big = el('input', { type: 'text', inputmode: 'decimal', class: 'big tab', autocomplete: 'off', enterkeyhint: 'done' }); const plates = el('div', { class: 'plates' }); const not = el('div', { class: 'xs dim2', style: 'margin-top:6px' });
     big.addEventListener('change', () => { const v = M.parseKg(big.value); if (v !== null) set(v); else paint(); }); big.addEventListener('keydown', e => { if (e.key === 'Enter') big.blur(); });
@@ -839,7 +920,7 @@ export class App {
       sifirla.append(el('div', { class: 'it' }, el('span', { style: 'min-width:0' }, el('span', { class: 'a' }, PROG_AD[p]), el('span', { class: 's' }, n ? `${ss.length} seansta ${n} app kaydı (göç verisi hariç)` : 'app kaydı yok')),
         n ? el('button', { class: 'pill', style: 'color:var(--red);border-color:#6a3030', onclick: async () => {
           if (!confirm(`${PROG_AD[p]} ${def.cycle}: ${ss.length} seanstaki ${n} app kaydı silinsin, seanslar yeniden açılsın mı? Göç/Excel verisi kalır.`)) return;
-          let t = 0; for (const x of ss) { t += await S.resetSession(p, def.cycle, x.week, x.day); await S.setMeta(`seans:${p}|${def.cycle}|${x.week}|${x.day}`, null); } this.krono = null; this.sync?.schedule(); this.msg = `${PROG_AD[p]}: ${t} kayıt silindi.`; this.render();
+          let t = 0; for (const x of ss) { t += await S.resetSession(p, def.cycle, x.week, x.day); await S.setMeta(`seans:${p}|${def.cycle}|${x.week}|${x.day}`, null); } await S.setMeta('aktif:' + p, null); this._aktifCommit = null; this._aktifSahip = null; this.krono = null; this.sync?.schedule(); this.msg = `${PROG_AD[p]}: ${t} kayıt silindi.`; this.render();
         } }, 'Sıfırla') : el('span', { class: 'v dim2' }, '—')));
     }
     m.append(sifirla, el('div', { class: 'xs dim2', style: 'margin-top:6px;line-height:1.5' }, 'Tek bir seansı geri çekmek için Program sekmesinde o güne dokun → "Bu seansın app kayıtlarını sıfırla". Silme, silme olayı olarak yazılır ve OneDrive\'a yansır.'));
@@ -862,6 +943,11 @@ export class App {
       box.append(el('div', { class: 't' }, 'Hayat stresi'), el('div', { class: 'sub' }, `Hafta ${c.v.week} için genel yorgunluk/stres. Formüle girmez; haftalık sinyalin yanında not olarak durur.`));
       box.append(el('div', { class: 'stres' }, ...[1, 2, 3, 4, 5].map(n => el('button', { class: val === n ? 'sel' : '', onclick: async () => { await S.logStress({ program: c.p, cycle: c.def.cycle, week: c.v.week, value: n }); this.sync?.schedule(); this.sheet = null; if (sh.sonra) await this.fazSet(this.baslangicFaz(c.v)); else this.render(); } }, el('b', {}, n), el('span', {}, STRES_AD[n - 1])))));
       box.append(el('div', { class: 'btnrow', style: 'margin-top:12px' }, el('button', { class: 'sec', onclick: async () => { this.sheet = null; if (sh.sonra) await this.fazSet(this.baslangicFaz(c.v)); else this.renderSheet(); } }, sh.sonra ? 'Şimdi değil' : 'Kapat')));
+    } else if (sh.kind === 'onay') {
+      box.classList.add('menu');
+      box.append(el('div', { class: 't' }, sh.baslik), el('div', { class: 'sub' }, sh.metin),
+        el('button', { class: 'mi tehlike', onclick: async () => { this.sheet = null; this.renderSheet(); await sh.fn(); } }, sh.evet),
+        el('button', { class: 'mi iptal', onclick: () => { this.sheet = null; this.renderSheet(); } }, 'Vazgeç'));
     } else if (sh.kind === 'menu') {
       box.classList.add('menu');
       box.append(...sh.items.map(it => el('button', { class: 'mi', disabled: !!it.off, onclick: () => { this.sheet = null; this.renderSheet(); it.fn(); } }, it.t)),

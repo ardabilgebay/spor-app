@@ -11,6 +11,9 @@
       "degerler": { "Top Single": 9, "Top Triple": 8 } },
     { "id": "P8-CHIN-DINLENME", "tarih": "2026-09-28", "kaynak": "Arda 28 Eyl: Chin-up'ların ve varyasyonlarının (Pull-up, Weighted/Negatif Chin-Up, Dar Tutuşlu Pronated Pull-up) dinlenmesi 3 dakika", "program": "*", "islem": "alan_ata",
       "filtre": { "egzersiz_re": "chin-?up|pull-?up" },
-      "degerler": { "dinlenme_sn": 180, "dinlenme": "3 dk" } }
+      "degerler": { "dinlenme_sn": 180, "dinlenme": "3 dk" } },
+    { "id": "P9-OLIMPIK-2TKR", "tarih": "2026-09-29", "kaynak": "Arda 29 Eyl: Clean ve Snatch 2 tekrara düşeceğim (H2'den itibaren; set sayısı aynı)", "program": "Diger", "islem": "alan_ata",
+      "filtre": { "egzersiz_re": "^(clean|snatch)$", "week_min": 2 },
+      "degerler": { "tekrar": 2 } }
   ]
 }
