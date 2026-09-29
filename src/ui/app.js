@@ -4,6 +4,7 @@
 import * as S from '../store.js';
 import * as P from '../program.js';
 import * as M from '../motor.js';
+import EKIP from '../../data/ekipman.json';
 
 const el = (tag, attrs = {}, ...kids) => { const e = document.createElement(tag); for (const [k, v] of Object.entries(attrs)) { if (v === null || v === undefined || v === false) continue; if (k === 'class') e.className = v; else if (k.startsWith('on')) e.addEventListener(k.slice(2), v); else e.setAttribute(k, v); } for (const k of kids.flat(9)) if (k !== null && k !== undefined && k !== false) e.append(k.nodeType ? k : document.createTextNode(String(k))); return e; };
 const svg = d => { const s = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); s.setAttribute('viewBox', '0 0 24 24'); for (const p of d.split('|')) { const e = document.createElementNS('http://www.w3.org/2000/svg', 'path'); e.setAttribute('d', p); s.append(e); } return s; };
@@ -34,10 +35,21 @@ function frenNotu(r) {
 
 const fmt = M.fmt;
 /** T5 (27 Eyl): ekipman — programdef'te alan yok, hareket adından: vücut ağırlığı → BW; "Dumbbell/DB" → dumbbell; barlı → barbell. */
-const EKIPMAN_AD = { bar: '▮ barbell', db: '⚌ dumbbell', bw: '◯ vücut ağırlığı' };
-const BW_KG = 90;   // Arda 26 Eyl: ±5 kg değişmedikçe baz
-function ekipman(r) { if (r.bw) return 'bw'; if (/dumbbell|\bdb\b/i.test(r.egzersiz)) return 'db'; if (r.barli) return 'bar'; return null; }
-/** Basılı tutunca hızlanan düğme: hemen 1 adım; 400 ms sonra 150 ms'de bir; 1,5 sn sonra ×4 adım. Bitiş belge düzeyinde yakalanır (düğme kaybolsa da durur). */
+/** A28 (29 Eyl, Arda: "5'lik dumbbell giriyorum ama sağ-sol 10 kg; vücut ağırlığında sadece ilaveyi yazayım; kabloda sayı × 2"):
+ *  girdiğin sayı ekipmana göre toplam yüke çevrilir — hacim/grafik toplamı okur; sette ikisi de saklanır (kg = toplam, kg_g = girilen). */
+const EKIPMAN_AD = { bar: '▮ barbell', db: '⚌ dumbbell', kablo: '⫶ kablo', makine: '▦ makine', bw: '◯ vücut', serbest: '· serbest' };
+const BW_KG = 90;   // Arda 26 Eyl / 29 Eyl: varsayılan; Ayarlar'dan değişir
+function ekipTahmin(r) {
+  const n = r.egzersiz ?? '';
+  if (r.bw && !/machine/i.test(n)) return { tip: 'bw', carpan: 1 };
+  if (/dumbbell|\bdb\b/i.test(n)) return { tip: 'db', carpan: /single|waiter/i.test(n) ? 1 : 2 };
+  if (/cable|pushdown|pulldown|face pull|pull-through/i.test(n)) return { tip: 'kablo', carpan: /double/i.test(n) ? 2 : 1 };
+  if (/machine/i.test(n)) return { tip: 'makine', carpan: 1 };
+  if (r.barli) return { tip: 'bar', carpan: 1 };
+  return { tip: 'serbest', carpan: 1 };
+}
+function ekipman(r) { return ekipTahmin(r).tip; }   // eski çağrılar (etiket) — kişiselleştirilmiş hali App.ekipOf
+const ekipEtiket = e => e.tip === 'db' || e.tip === 'kablo' ? `${EKIPMAN_AD[e.tip]} ×${e.carpan}` : EKIPMAN_AD[e.tip];
 function hold(btn, fn) {
   let t = null, iv = null, on = false, t0 = 0;
   const ENDS = ['pointerup', 'pointercancel'];
@@ -57,9 +69,32 @@ export class App {
     try { window.__spor = this; } catch { }   // test ve hata ayıklama kancası (veriye doğrudan yazmaz)
   }
   // ── kabuk ────────────────────────────────────────────────────────
+  /** A28: hareketin ekipmanı — önce kartta Arda'nın seçtiği, sonra data/ekipman.json, sonra addan tahmin. */
+  ekipOf(r) { const ov = this.ekipOv?.[r.egzersiz] ?? EKIP.hareket?.[r.egzersiz]; return ov ? { tip: ov.tip, carpan: ov.carpan === 2 ? 2 : 1 } : ekipTahmin(r); }
+  vucutOf(actor) { const v = this.vucut?.[actor ?? 'arda']; return M.isNum(v) && v > 0 ? v : null; }
+  /** A28: değişiklikten önce girilmiş kaydın kg'sı ne demek (toplam / tek / ek). Kayıt dönüştürülmez — yalnız hazır gelen sayı için. */
+  eskiYorum(r, e, rec) {
+    const Y = EKIP.eski_yorum ?? {}; const ref = rec?.ref ?? rec ?? {};
+    const k = [ref.program ?? rec?.program, ref.cycle ?? rec?.cycle, ref.week ?? rec?.week, ref.day ?? rec?.day, r.egzersiz, rec?.actor ?? rec?.data?.actor ?? 'arda'].join('|');
+    return Y.kayit?.[k] ?? Y.hareket?.[r.egzersiz] ?? Y.varsayilan?.[e.tip] ?? 'toplam';
+  }
+  /** Kayıttaki (set ya da satır) kg'dan girişe hazır gelecek sayı: yeni sette kg_g, eski kayıtta yoruma göre. */
+  girilenOf(r, e, x, rec, actor) {
+    if (!x || !M.isNum(x.kg)) return null;
+    const bw = this.vucutOf(actor); const bwYok = e.tip === 'bw' && !bw;
+    const toplamdan = () => bwYok ? x.kg : (M.girilenYuk(x.kg, e.tip, e.carpan, bw) ?? x.kg);
+    if (x.ekip) {   // A28 sonrası set: aynı ekipmanla girildiyse girdiği sayı; ekipman/vücut modu değiştiyse toplamdan (kırmızı takım A28-2/4)
+      if (M.isNum(x.kg_g) && x.ekip === e.tip && (x.carpan ?? 1) === e.carpan && !bwYok) return x.kg_g;
+      return toplamdan();
+    }
+    const y = this.eskiYorum(r, e, rec ?? x);
+    if (y === 'tek' || y === 'ek') return bwYok ? null : x.kg;
+    return toplamdan();
+  }
   async start() {
     this.persist = await S.getMeta('persist_granted'); this.kilit = await S.getMeta('kilit', {});
     this.plakaKg = await S.getMeta('plaka_kg', 100);
+    this.ekipOv = await S.getMeta('ekip_ov', {}); this.vucut = await S.getMeta('vucut_kg', { arda: BW_KG, alper: null });
     this.prog = await this.pickProgram();
     const r = this.root; r.replaceChildren();
     this.hdr = el('div', { class: 'hdr' }, el('div', { style: 'min-width:0' }, this.hK = el('div', { class: 'k' }), this.hT = el('div', { class: 't' })), this.hR = el('div', { class: 'right' }));
@@ -335,11 +370,11 @@ export class App {
     const yap = r => r.arda?.skipped ? 'atlandı' : r.arda?.sets_detail?.length ? P.detayMetni(r.arda.sets_detail) : r.arda ? `${fmt(r.arda.kg)}×${fmt(r.arda.sets)}×${r.arda.reps ?? ''}` : '';
     // Tasarım A (28 Eyl): kart = durum satırı · büyük ad · modifier + hedef RPE · dev kg rakamı · yan/Alper; setler aynı kartın içinde, çizginin altında
     const slides = v.rows.map((r, i) => {
-      const eq = ekipman(r);
+      const eq = this.ekipOf(r);
       const planT = (r.hedef?.replace(/^.*\n/, '') ?? '').replace(/\n/g, ' · ').replace(/\s*[▸⚠].*$/, '');
       const tk = `${r.set ?? '?'}×${r.tekrar ?? r.tekrar_metin ?? '?'}`;
       return el('div', { class: 'xslide', 'data-i': i }, el('div', { class: 'xcard ' + (r.tamam ? (r.arda?.skipped ? 'skip' : 'done') : r === nowRow ? 'nowr' : '') },
-        el('div', { class: 'l0' }, el('span', { class: 'm' }, [r.tamam ? (r.arda?.skipped ? '— atlandı' : '✓ bitti') : r === nowRow ? '● şimdi' : `sıra ${i + 1}`, eq ? EKIPMAN_AD[eq] : null, `${i + 1}/${n}`].filter(Boolean).join(' · ')), c.def.program === 'Alper' ? el('span', { class: 'kimsec' }, ...['arda', 'alper'].map(a => el('button', { 'data-a': a, class: a === 'arda' ? 'sel' : '', onclick: e => { e.stopPropagation(); this._aktorSec?.(a); } }, a === 'arda' ? 'Arda' : 'Alper'))) : el('span', { class: 'kim' })),
+        el('div', { class: 'l0' }, el('span', { class: 'm' }, [r.tamam ? (r.arda?.skipped ? '— atlandı' : '✓ bitti') : r === nowRow ? '● şimdi' : `sıra ${i + 1}`, `${i + 1}/${n}`].filter(Boolean).join(' · '), el('button', { class: 'ekt', title: 'Ekipman — dokun, değiştir', onclick: e => { e.stopPropagation(); this.ekipSec(r); } }, ekipEtiket(eq))), c.def.program === 'Alper' ? el('span', { class: 'kimsec' }, ...['arda', 'alper'].map(a => el('button', { 'data-a': a, class: a === 'arda' ? 'sel' : '', onclick: e => { e.stopPropagation(); this._aktorSec?.(a); } }, a === 'arda' ? 'Arda' : 'Alper'))) : el('span', { class: 'kim' })),
         el('div', { class: 'v' }, r.egzersiz),
         el('div', { class: 'md' }, [r.modifier, M.isNum(r.hedef_rpe) ? `RPE ${fmt(r.hedef_rpe)}` : null].filter(Boolean).join(' · ') || ' '),
         el('div', { class: 'kh' }, this.kartGovde(r, 'arda', yap, planT, tk))));
@@ -438,9 +473,9 @@ export class App {
   odakKart(c, r, { baslik = true } = {}) {
     const prev = P.prevMetni(P.prevEntry(c.stateAll, r, c.v, c.def.cycle));
     const prevA = c.def.program === 'Alper' ? P.prevMetni(P.prevEntry(c.stateAll, r, c.v, c.def.cycle, 'alper')) : null;
-    const eq = ekipman(r);
+    const eq = this.ekipOf(r);
     return el('div', { class: 'focus glass' },
-      el('div', { class: 'row' }, baslik ? el('div', { class: 'ex' }, r.egzersiz) : el('div', { class: 'tag' }, `hareket ${c.v.rows.indexOf(r) + 1} / ${c.v.rows.length}`), el('div', { class: 'tag' }, [r.modifier, eq ? EKIPMAN_AD[eq] : null].filter(Boolean).join(' · '))),
+      el('div', { class: 'row' }, baslik ? el('div', { class: 'ex' }, r.egzersiz) : el('div', { class: 'tag' }, `hareket ${c.v.rows.indexOf(r) + 1} / ${c.v.rows.length}`), el('div', { class: 'tag' }, [r.modifier, ekipEtiket(eq)].filter(Boolean).join(' · '))),
       el('div', { class: 'plan tab' }, (r.hedef?.replace(/^.*\n/, '') ?? '').replace(/\n/g, ' · ') + (r.plaka ? ` · ${r.plaka.replace('bir tarafa ', 'yan ')}` : '')),
       frenNotu(r),
       r.onerilen_alper !== null && r.onerilen_alper !== undefined ? el('div', { class: 'small blue tab', style: 'margin-top:4px' }, `Alper ${fmt(r.onerilen_alper)} kg${prevA ? ` · geçen ${prevA}` : ''}`) : null,
@@ -486,12 +521,25 @@ export class App {
     let yaziyor = false;
     const planKg = () => d.actor === 'alper' ? r.onerilen_alper : r.onerilen;
     const cur = () => d.actor === 'alper' ? r.alper : r.arda;
+    // A28: d.kg = GİRDİĞİN sayı (dumbbell başına / pim / vücuda ek); toplam yük kaydederken hesaplanır
+    const E = () => this.ekipOf(r); const bwOf = () => this.vucutOf(d.actor);
+    const bwMod = () => E().tip === 'bw' && bwOf() !== null;   // ek yük (+) / destek (−) girişi; vücut bilinmiyorsa eski gibi toplam
+    const toplamOf = g => { if (!M.isNum(g)) return null; const e = E(); return e.tip === 'bw' ? (bwMod() ? M.toplamYuk(g, 'bw', 1, bwOf()) : g) : M.toplamYuk(g, e.tip, e.carpan); };
+    const setAlanlari = g => { const e = E(); const t = toplamOf(g); return e.tip === 'bw' && !bwMod() ? { kg: t, ekip: 'bw', carpan: 1 } : { kg: t, kg_g: g, ekip: e.tip, carpan: e.carpan, ...(bwMod() ? { bw: bwOf() } : {}) }; };   // kırmızı takım A28-4: her yeni sette ekipman izi (vücut bilinmiyorsa kg_g yok = toplam girildi)
+    const isaret = () => M.isNum(d.kg) && d.kg !== 0 ? (d.kg < 0 ? -1 : 1) : (d.bwIs ?? 1);   // kırmızı takım A28-5: iOS ondalık klavyede eksi yok → ek yük / destek düğmesi
+    const parseG = v => { if (!bwMod()) return M.parseKg(v); const x = M.parseKgIsaretli(v); return x === null ? null : /^[-−–+]/.test(String(v).trim()) ? x : isaret() * x; };
+    const gFmt = g => g === null || g === undefined ? '—' : bwMod() ? (g > 0 ? `+${fmt(g)}` : g < 0 ? `−${fmt(-g)}` : '0') : fmt(g);
+    const planG = () => { const pk = planKg(); if (!M.isNum(pk)) return null; const e = E(); return e.tip === 'bw' ? (bwMod() ? M.girilenYuk(pk, 'bw', 1, bwOf()) : pk) : M.girilenYuk(pk, e.tip, e.carpan); };
+    const girOf = rec => { if (!rec || rec.skipped) return null; const det = rec.sets_detail?.filter(x => M.isNum(x.kg)) ?? []; const x = det.length ? det.reduce((a, b) => b.kg > a.kg ? b : a) : { kg: rec.kg }; return this.girilenOf(r, E(), x, rec, d.actor); };
     const prevE = P.prevEntry(c.stateAll, r, v, def.cycle); const prevA = def.program === 'Alper' ? P.prevEntry(c.stateAll, r, v, def.cycle, 'alper') : null;
     const prevOf = () => d.actor === 'alper' ? prevA : prevE;
-    const fill = () => { yaziyor = false; const q = cur(); d.kg = q?.kg ?? planKg() ?? prevOf()?.kg ?? null; d.sets = q?.sets ?? r.set ?? null; d.reps = q?.reps ?? r.tekrar ?? null; d.rpe = q?.rpe ?? null; d.notes[d.actor] = q?.note ?? d.notes[d.actor] ?? null; d.note = d.notes[d.actor]; };
+    const fill = () => { yaziyor = false; const q = cur(); d.kg = girOf(q) ?? planG() ?? girOf(prevOf()) ?? null; d.sets = q?.sets ?? r.set ?? null; d.reps = q?.reps ?? r.tekrar ?? null; d.rpe = q?.rpe ?? null; d.notes[d.actor] = q?.note ?? d.notes[d.actor] ?? null; d.note = d.notes[d.actor]; };
     const yukle = () => { const q = cur(); d.details ??= {}; d.detail = d.details[d.actor]?.length ? d.details[d.actor] : (q?.sets_detail?.length && !q.skipped ? q.sets_detail.map(x => ({ ...x })) : []); };   // kırmızı takım T1-2: bitmiş hareket yeniden açılınca kayıtlı setler yığına gelir (supersede eski setleri kaybetmez)
     if (d.kg === null && d.sets === null) { fill(); yukle(); }
-    const saveDraft = () => S.setMeta(draftKey, { ...d, editIdx: null, yeni: null });   // düzenleme modu yalnız bellekte (kırmızı takım T1-4)
+    else if (d.gv !== 2 && M.isNum(d.kg)) d.kg = d.kg > 0 ? (this.girilenOf(r, E(), { kg: d.kg }, { program: p, cycle: def.cycle, week: v.week, day: v.day, actor: d.actor }, d.actor) ?? d.kg) : null;   // A28 öncesi taslak: kg toplamdı
+    else if (d.gv === 2 && E().tip === 'bw' && d.bwm !== undefined && d.bwm !== bwMod() && M.isNum(d.kg)) d.kg = bwMod() ? M.girilenYuk(d.kg, 'bw', 1, bwOf()) : null;   // kırmızı takım A28-2: vücut kilosu eklendi/silindi → taslaktaki sayı anlamını değiştirmesin
+    d.gv = 2;
+    const saveDraft = () => S.setMeta(draftKey, { ...d, editIdx: null, yeni: null, editG: null, bwm: E().tip === 'bw' ? bwMod() : undefined });   // düzenleme modu yalnız bellekte (kırmızı takım T1-4)
     const ozet = () => d.mode === 'set' ? (d.detail.length ? `${d.detail.length} set · ${P.detayMetni(d.detail.slice(-2))}` : 'set set · henüz set yok') : `${d.kg === null ? '—' : fmt(d.kg)}×${d.sets ?? '—'}×${d.reps ?? r.tekrar_metin ?? '—'}${d.rpe ? ` R${fmt(d.rpe)}` : ''}`;
     // başlık + katla/aç
     const ozetS = el('span', { class: 'oz tab' + (this.logCollapsed ? '' : ' hidden') });
@@ -507,13 +555,15 @@ export class App {
     const kgSub = el('div', { class: 'sub tab' });
     // 29 Eyl (Arda: "kg girdikten sonra tekrar/RPE girince kg bozuluyor"): yazılan değer her tuşta taslağa alınır; odaktayken yeniden boyama kutuya dokunmaz
     kgIn.addEventListener('input', () => { yaziyor = true; });   // kırmızı takım A27-5: yazarken ara değer ("1") taslağa yazılmaz; kaydederken kutudan okunur
-    kgIn.addEventListener('change', () => { yaziyor = false; d.kg = M.parseKg(kgIn.value); saveDraft(); paint(); });
+    kgIn.addEventListener('change', () => { yaziyor = false; d.kg = parseG(kgIn.value); saveDraft(); paint(); });
     kgIn.addEventListener('blur', () => { yaziyor = false; });
     kgIn.addEventListener('keydown', e => { if (e.key === 'Enter') kgIn.blur(); });
-    const step = n => { yaziyor = false; d.kg = Math.max(0, Math.round(((d.kg ?? planKg() ?? 0) + n) * 100) / 100); saveDraft(); paint(); };
+    const step = n => { yaziyor = false; d.kg = Math.max(bwMod() ? -(bwOf() - 1) : 0, Math.round(((d.kg ?? planG() ?? 0) + n) * 100) / 100); if (d.kg) d.bwIs = d.kg < 0 ? -1 : 1; saveDraft(); paint(); };
     const plakaBtn = r.barli ? el('button', { class: 'plk-ic', title: 'Plaka hesabı', onclick: () => { this.sheet = { kind: 'plaka', kg: d.kg ?? planKg() ?? prevE?.kg ?? 20, aktar: kg => { d.kg = kg; saveDraft(); paint(); } }; this.renderSheet(); } }, '▬') : null;
     const eq = ekipman(r);
     body.append(el('div', { class: 'kgrow' }, hold(el('button', {}, '−'), k => step(-KG_ADIM * k)), el('div', { class: 'mid well', onclick: e => { if (e.target !== kgIn) { kgIn.focus(); kgIn.select?.(); } } }, kgIn, kgSub), hold(el('button', { class: 'plus' }, '+'), k => step(KG_ADIM * k))));
+    const isBtns = [[1, '+ ek yük'], [-1, '− destek']].map(([k, t]) => el('button', { class: 'pill', 'data-is': k, onclick: () => { yaziyor = false; d.bwIs = k; if (M.isNum(d.kg)) d.kg = k * Math.abs(d.kg); saveDraft(); paint(); } }, t));
+    const isRow = el('div', { class: 'bwis' }, ...isBtns); body.append(isRow);
     this._aktorSec = a => segBtns.find(b => b.textContent.toLowerCase() === a)?.click();   // R4-B: kişi seçimi kartın köşesinde (düğmeler bu kapanışı tetikler)
     // set / tekrar / rpe
     const setBtns = [1, 2, 3, 4, 5].map(n => el('button', { class: 'tab', onclick: () => { d.sets = n; saveDraft(); paint(); } }, n));
@@ -558,15 +608,15 @@ export class App {
     const acts = el('div', { class: 'acts' }, delBtn, setKaydet, kaydet, more, el('span', { class: 'gizli' }, skipBtn, notBtn)); body.append(acts, hint);
     /** Set-set: bir seti taslağa ekle; öncesindeki gerçek mola = önceki set/kayıt/ısınmadan bu yana; sayaç = bu hareketin kendi kategorisi (setler arası). */
     const setEkle = async () => {
-      if (yaziyor) { d.kg = M.parseKg(kgIn.value); yaziyor = false; }
+      if (yaziyor) { d.kg = parseG(kgIn.value); yaziyor = false; }
       for (const pk of [repPk, rpePk, hbPk, hsPk]) pk.flush();
-      if (d.kg === null || d.kg <= 0) { hint.textContent = d.kg === 0 ? '0 kg set kaydedilmez — kg gir.' : 'kg gir.'; hint.classList.remove('hidden'); return; }
+      { const t = toplamOf(d.kg); if (d.kg === null || !(t > 0) || (!bwMod() && d.kg <= 0)) { hint.textContent = d.kg === null ? 'kg gir.' : bwMod() ? 'Toplam yük 0 ya da eksi olamaz — desteği azalt.' : '0 kg set kaydedilmez — kg gir.'; hint.classList.remove('hidden'); return; } }
       if (M.isNum(d.editIdx) && d.detail[d.editIdx]) {   // T1: yığındaki sete dokunuldu → düzenle (zaman/mola/nabız korunur)
-        const hx = d.detail[d.editIdx]; Object.assign(hx, { kg: d.kg, reps: d.reps, rpe: d.rpe }); if (M.isNum(d.hrBas)) hx.hr_bas = d.hrBas; else delete hx.hr_bas; if (M.isNum(d.hrSon)) hx.hr_son = d.hrSon; else delete hx.hr_son; d.editIdx = null; if (d.yeni) Object.assign(d, d.yeni); d.yeni = null; hint.classList.add('hidden'); await saveDraft(); this.geriBildirim(); paint(); return;
+        const hx = d.detail[d.editIdx]; if (d.kg !== d.editG) { for (const f of ['kg_g', 'ekip', 'carpan', 'bw']) delete hx[f]; Object.assign(hx, setAlanlari(d.kg)); } Object.assign(hx, { reps: d.reps, rpe: d.rpe }); d.editG = null; /* kırmızı takım A28-1: kg'ya dokunulmadıysa kayıtlı toplam/çarpan/vücut aynen kalır */ if (M.isNum(d.hrBas)) hx.hr_bas = d.hrBas; else delete hx.hr_bas; if (M.isNum(d.hrSon)) hx.hr_son = d.hrSon; else delete hx.hr_son; d.editIdx = null; if (d.yeni) Object.assign(d, d.yeni); d.yeni = null; hint.classList.add('hidden'); await saveDraft(); this.geriBildirim(); paint(); return;
       }
       const now = Date.now();
       const last = d.detail.length ? new Date(d.detail[d.detail.length - 1].ts).getTime() : (c.seans?.last_save_at ? new Date(c.seans.last_save_at).getTime() : (c.seans?.isinma_bitti_at ? new Date(c.seans.isinma_bitti_at).getTime() : null));
-      d.detail.push({ n: d.detail.length + 1, kg: d.kg, reps: d.reps, rpe: d.rpe, rest_s: last ? Math.round((now - last) / 1000) : null, rest_plan_s: P.oncesiDinlenmeSn(r), ts: new Date(now).toISOString(), ...(M.isNum(d.hrBas) ? { hr_bas: d.hrBas } : {}), ...(M.isNum(d.hrSon) ? { hr_son: d.hrSon } : {}), ...this.kronoDinlenmeVerisi(c.seansKey, r.row_key) });
+      d.detail.push({ n: d.detail.length + 1, ...setAlanlari(d.kg), reps: d.reps, rpe: d.rpe, rest_s: last ? Math.round((now - last) / 1000) : null, rest_plan_s: P.oncesiDinlenmeSn(r), ts: new Date(now).toISOString(), ...(M.isNum(d.hrBas) ? { hr_bas: d.hrBas } : {}), ...(M.isNum(d.hrSon) ? { hr_son: d.hrSon } : {}), ...this.kronoDinlenmeVerisi(c.seansKey, r.row_key) });
       d.rpe = null; d.hrBas = null; d.hrSon = null; hint.classList.add('hidden'); await saveDraft();
       // 29 Eyl (Arda: "fazla set giremiyorum, diğer harekete geçiyor"): plan dolunca hareket OTOMATİK BİTMEZ — ek set girilebilir; bitirmek ✓ Bitir ile (ya da başka harekete geçince setler kendiliğinden kaydedilir)
       this._yeniSet = true;
@@ -583,21 +633,26 @@ export class App {
       const deck = this.main.querySelector('#deck'); if (!deck) return;
       const ed = M.isNum(d.editIdx) && d.detail[d.editIdx] ? d.editIdx : null;
       const kart = (i, n, v, r, cls) => el('div', { class: 'wc glass ' + cls, 'data-i': i }, el('span', { class: 'n' }, n), el('span', { class: 'v tab' }, v), el('span', { class: 'r' }, r));
-      const items = [...d.detail.map((x, i) => kart(i, `set ${i + 1}`, `${fmt(x.kg)} × ${x.reps ?? '?'}${M.isNum(x.rpe) ? ' · R' + fmt(x.rpe) : ''}`, MOL(x, i) || 'kaydı', 'done')),
-        kart(d.detail.length, `set ${d.detail.length + 1}`, ed !== null && d.yeni ? `${d.yeni.kg === null ? '—' : fmt(d.yeni.kg)} × ${d.yeni.reps ?? '?'}` : `${d.kg === null ? '—' : fmt(d.kg)} × ${d.reps ?? '?'} · ${d.rpe ? 'R' + fmt(d.rpe) : 'R?'}`, 'şimdi', 'now')];
+      const items = [...d.detail.map((x, i) => kart(i, `set ${i + 1}`, `${P.kgMetni(x)} × ${x.reps ?? '?'}${M.isNum(x.rpe) ? ' · R' + fmt(x.rpe) : ''}`, MOL(x, i) || 'kaydı', 'done')),
+        kart(d.detail.length, `set ${d.detail.length + 1}`, ed !== null && d.yeni ? `${gFmt(d.yeni.kg)} × ${d.yeni.reps ?? '?'}` : `${gFmt(d.kg)} × ${d.reps ?? '?'} · ${d.rpe ? 'R' + fmt(d.rpe) : 'R?'}`, 'şimdi', 'now')];
       const track = el('div', { class: 'wheel-track' }, el('div', { class: 'wsp' }), ...items, el('div', { class: 'wsp' }));
       deck.replaceChildren(track, el('div', { class: 'wsel' }), el('div', { class: 'deckplan xs dim2' }, `plan ${r.set ?? '?'} set · ${d.detail.length} kayıtlı`));
       const sec = idx => {
-        if (idx === d.detail.length) { if (M.isNum(d.editIdx)) { if (d.yeni) Object.assign(d, d.yeni); d.editIdx = null; d.yeni = null; } }
-        else if (d.editIdx !== idx) { yaziyor = false; if (!M.isNum(d.editIdx)) d.yeni = { kg: d.kg, reps: d.reps, rpe: d.rpe, hrBas: d.hrBas ?? null, hrSon: d.hrSon ?? null }; const x = d.detail[idx]; d.editIdx = idx; d.kg = x.kg; d.reps = x.reps; d.rpe = x.rpe ?? null; d.hrBas = hrBasOf(x); d.hrSon = hrSonOf(idx); }
+        if (idx === d.detail.length) { if (M.isNum(d.editIdx)) { if (d.yeni) Object.assign(d, d.yeni); d.editIdx = null; d.yeni = null; d.editG = null; } }
+        else if (d.editIdx !== idx) { yaziyor = false; if (!M.isNum(d.editIdx)) d.yeni = { kg: d.kg, reps: d.reps, rpe: d.rpe, hrBas: d.hrBas ?? null, hrSon: d.hrSon ?? null }; const x = d.detail[idx]; d.editIdx = idx; d.kg = this.girilenOf(r, E(), x, null, d.actor) ?? x.kg; d.editG = d.kg; d.reps = x.reps; d.rpe = x.rpe ?? null; d.hrBas = hrBasOf(x); d.hrSon = hrSonOf(idx); }
         this._wheelBusy = true; paint(); this._wheelBusy = false; };
       if (this._yeniSet && this.main !== this.mainEl && d.detail.length) { items[d.detail.length - 1]?.classList.add('yeni'); this._yeniSet = false; }   // (f) kaydedilen set yerine kayarak gelir
       this.carkBagla(track, items, { ilk: ed ?? d.detail.length, sec, tmr: '_wheelTmr', aci: 24 });
     };
     const paint = () => {
-      if (!yaziyor) kgIn.value = d.kg === null ? '' : fmt(d.kg);
+      if (!yaziyor) kgIn.value = d.kg === null ? '' : bwMod() ? fmt(Math.abs(d.kg)) : gFmt(d.kg);
+      isRow.classList.toggle('hidden', !bwMod()); isBtns.forEach(b => b.classList.toggle('sel', Number(b.dataset.is) === isaret()));
       const pk = planKg(); const yan = r.barli && d.kg ? P.plakaMetni(d.kg)?.replace('bir tarafa ', 'yan ') : null;   // 28 Eyl (sade): plan/geçen genel görünümde
-      kgSub.textContent = eq === 'db' && d.kg ? `tek el ${fmt(d.kg / 2)}` : eq === 'bw' && d.kg ? `BW ${BW_KG} ${d.kg >= BW_KG ? '+ ' + fmt(Math.round((d.kg - BW_KG) * 100) / 100) : '− ' + fmt(Math.round((BW_KG - d.kg) * 100) / 100)}` : yan ?? (pk !== null && pk !== undefined && pk !== d.kg ? `plan ${fmt(pk)}` : r.bw ? 'toplam yük' : ' ');
+      { const e = E(); const t = toplamOf(d.kg); const has = M.isNum(d.kg);
+        kgSub.textContent = e.tip === 'db' ? (has ? `${e.carpan === 2 ? 'iki dumbbell' : 'tek dumbbell'} · toplam ${fmt(t)} kg` : 'dumbbell başına kg')
+          : e.tip === 'kablo' && e.carpan === 2 ? (has ? `iki kablo · toplam ${fmt(t)} kg` : 'kablo başına') 
+          : e.tip === 'bw' ? (!bwMod() ? (d.actor === 'alper' ? "toplam yük · Alper'in kilosu Ayarlar'da yok" : 'toplam yük') : has ? (d.kg === 0 ? `yalnız vücut · ${fmt(t)} kg` : `vücut ${fmt(bwOf())} ${d.kg > 0 ? '+' : '−'} ${fmt(Math.abs(d.kg))} = ${fmt(t)} kg`) : `ek yük (+) ya da destek (−) · vücut ${fmt(bwOf())}`)
+          : yan ?? (pk !== null && pk !== undefined && pk !== d.kg ? `plan ${fmt(pk)}` : ' '); }
       segBtns.forEach(b => b.classList.toggle('sel', b.textContent.toLowerCase() === d.actor));
       setBtns.forEach((b, i) => b.classList.toggle('sel', d.sets === i + 1));
       repBtns.forEach((b, i) => b.classList.toggle('sel', d.reps === reps[i]));
@@ -607,12 +662,12 @@ export class App {
         repPk.ayarla(d.reps ?? null); rpePk.ayarla(d.rpe ?? null); hbPk.ayarla(M.isNum(d.hrBas) ? d.hrBas : null); hsPk.ayarla(M.isNum(d.hrSon) ? d.hrSon : null);
         hbPk.title = `set ${n} başlarken nabız`; hsPk.title = `set ${n} bitince nabız`;
         const doldu = M.isNum(r.set) ? d.detail.length >= r.set : d.detail.length >= 1; kaydet.classList.toggle('gorunur', doldu && ed0 === null); acts.classList.toggle('doldu', doldu && ed0 === null);
-        setKaydet.textContent = ed0 !== null ? `Set ${ed0 + 1}'i güncelle` : `${doldu ? 'Ek set' : 'Kaydet'} · set ${n} · ${(() => { const g = yaziyor ? M.parseKg(kgIn.value) : d.kg; return g === null || g === undefined ? '—' : fmt(g); })()}×${d.reps ?? r.tekrar_metin ?? '?'}${M.isNum(d.rpe) ? ' · R' + fmt(d.rpe) : ''}`; }
+        setKaydet.textContent = ed0 !== null ? `Set ${ed0 + 1}'i güncelle` : `${doldu ? 'Ek set' : 'Kaydet'} · set ${n} · ${(() => { const g = yaziyor ? parseG(kgIn.value) : d.kg; return gFmt(g); })()}×${d.reps ?? r.tekrar_metin ?? '?'}${M.isNum(d.rpe) ? ' · R' + fmt(d.rpe) : ''}`; }
       notBtn.classList.toggle('sel', !!notOf()); notBtn.textContent = notOf() ? '✎ not' : '✎';
       const setMode = d.mode === 'set';
       modeBtn.textContent = setMode ? 'Set set' : 'Tek satır'; modeBtn.classList.toggle('sel', setMode);
       setFld.classList.toggle('hidden', setMode); setList.classList.add('hidden'); setKaydet.classList.toggle('hidden', !setMode);
-      setList.replaceChildren(...d.detail.map((x, i) => el('div', { class: 'srow-set' }, el('span', { class: 'sn' }, `${i + 1}`), el('span', { class: 'tab', style: 'flex:1' }, `${fmt(x.kg)} × ${x.reps ?? '?'}${M.isNum(x.rpe) ? `  R${fmt(x.rpe)}` : ''}`), el('span', { class: 'xs dim tab' }, M.isNum(x.rest_s) ? `mola ${mmss(x.rest_s)}` : ''), el('button', { class: 'x', title: 'Sil', onclick: async () => { d.detail.splice(i, 1); d.detail.forEach((y, j) => y.n = j + 1); await saveDraft(); paint(); } }, '×'))),
+      setList.replaceChildren(...d.detail.map((x, i) => el('div', { class: 'srow-set' }, el('span', { class: 'sn' }, `${i + 1}`), el('span', { class: 'tab', style: 'flex:1' }, `${P.kgMetni(x)} × ${x.reps ?? '?'}${M.isNum(x.rpe) ? `  R${fmt(x.rpe)}` : ''}`), el('span', { class: 'xs dim tab' }, M.isNum(x.rest_s) ? `mola ${mmss(x.rest_s)}` : ''), el('button', { class: 'x', title: 'Sil', onclick: async () => { d.detail.splice(i, 1); d.detail.forEach((y, j) => y.n = j + 1); await saveDraft(); paint(); } }, '×'))),
         setMode ? el('div', { class: 'xs dim2', style: 'margin:2px 0 4px' }, d.detail.length ? `sıradaki set ${d.detail.length + 1} · plan ${r.set ?? '?'} set` : `set ${1} · plan ${r.set ?? '?'} set · her setten sonra "Set kaydet"`) : null);
       const ed = M.isNum(d.editIdx) && d.detail[d.editIdx] ? d.editIdx : null;
  delBtn.classList.toggle('hidden', ed === null); skipBtn.classList.toggle('hidden', ed !== null);
@@ -625,16 +680,16 @@ export class App {
     };
     paint(); this.kartAktor?.(r.row_key, d.actor); this.kartPlaka?.(r.row_key, d.kg);
     const commit = async ({ skipped = false, sessiz = false, hedef = null } = {}) => {
-      if (yaziyor && !d.detail.length) { d.kg = M.parseKg(kgIn.value); yaziyor = false; }
+      if (yaziyor && !d.detail.length) { d.kg = parseG(kgIn.value); yaziyor = false; }
       const q = cur();
       if (skipped && q?.skipped) { await S.appendEvent(await this.deleteEvent(r.ref, d.actor)); await S.setMeta(draftKey, null); this.sync?.schedule(); return this.render(); }
       const setMode = d.mode === 'set' && d.detail.length > 0;
-      if (!skipped && !setMode && (d.kg === null || d.kg <= 0)) { hint.textContent = d.kg === 0 ? '0 kg kaydedilmez — yapılmadıysa "Atla", yapıldıysa kg gir.' : 'kg gir (ya da Atla).'; hint.classList.remove('hidden'); this.logCollapsed = false; this.applyCollapse(); return; }
+      if (!skipped && !setMode && (d.kg === null || !(toplamOf(d.kg) > 0))) { hint.textContent = d.kg === 0 ? '0 kg kaydedilmez — yapılmadıysa "Atla", yapıldıysa kg gir.' : 'kg gir (ya da Atla).'; hint.classList.remove('hidden'); this.logCollapsed = false; this.applyCollapse(); return; }
       // gerçek dinlenme: bu seansta önceki kayıttan bu yana geçen süre; plan: bir önceki kayıtta kurulan sayaç
       const now = Date.now(); const last = c.seans?.last_save_at ? new Date(c.seans.last_save_at).getTime() : (c.seans?.isinma_bitti_at ? new Date(c.seans.isinma_bitti_at).getTime() : null);
       const rest_s = setMode ? (d.detail[0].rest_s ?? null) : (last ? Math.round((now - last) / 1000) : null); const rest_plan_s = P.oncesiDinlenmeSn(r);   // bu hareketin ÖNCESİ (set-set: ilk setin molası)
-      const data = setMode ? { kg: null, sets: null, reps: null, reps_text: null, rpe: null, note: notOf(), sets_detail: d.detail.map(x => ({ n: x.n, kg: x.kg, reps: x.reps, rpe: x.rpe, rest_s: x.rest_s, rest_plan_s: x.rest_plan_s, ts: x.ts, ...(M.isNum(x.hr_sonra_onceki) ? { hr_sonra_onceki: x.hr_sonra_onceki } : {}), ...(M.isNum(x.hr_once) ? { hr_once: x.hr_once } : {}), ...(M.isNum(x.hazir_s) ? { hazir_s: x.hazir_s } : {}), ...(M.isNum(x.hr_bas) ? { hr_bas: x.hr_bas } : {}), ...(M.isNum(x.hr_son) ? { hr_son: x.hr_son } : {}) })) }
-        : { kg: d.kg, sets: d.sets, reps: d.reps, reps_text: r.tekrar_metin && d.reps === null ? r.tekrar_metin : null, rpe: d.rpe, note: notOf() };
+      const data = setMode ? { kg: null, sets: null, reps: null, reps_text: null, rpe: null, note: notOf(), sets_detail: d.detail.map(x => ({ n: x.n, kg: x.kg, ...(M.isNum(x.kg_g) ? { kg_g: x.kg_g } : {}), ...(x.ekip ? { ekip: x.ekip, carpan: x.carpan ?? 1 } : {}), ...(M.isNum(x.bw) ? { bw: x.bw } : {}), reps: x.reps, rpe: x.rpe, rest_s: x.rest_s, rest_plan_s: x.rest_plan_s, ts: x.ts, ...(M.isNum(x.hr_sonra_onceki) ? { hr_sonra_onceki: x.hr_sonra_onceki } : {}), ...(M.isNum(x.hr_once) ? { hr_once: x.hr_once } : {}), ...(M.isNum(x.hazir_s) ? { hazir_s: x.hazir_s } : {}), ...(M.isNum(x.hr_bas) ? { hr_bas: x.hr_bas } : {}), ...(M.isNum(x.hr_son) ? { hr_son: x.hr_son } : {}) })) }
+        : { kg: toplamOf(d.kg), sets: d.sets, reps: d.reps, reps_text: r.tekrar_metin && d.reps === null ? r.tekrar_metin : null, rpe: d.rpe, note: notOf() };
       try { await S.logSet({ ref: r.ref, actor: d.actor, ...data, skipped, supersedes: q?.event_id ?? null, rest_s: skipped ? null : rest_s, rest_plan_s: skipped ? null : rest_plan_s }); }
       catch (e) { hint.textContent = 'Kaydedilemedi: ' + e.message; hint.classList.remove('hidden'); this.logCollapsed = false; this.applyCollapse(); return; }
       d.details ??= {}; d.details[d.actor] = []; const diger = Object.entries(d.details).find(([a, x]) => a !== d.actor && x?.length);
@@ -657,6 +712,13 @@ export class App {
       let n = 0, k = 0; while (d.detail?.length && k++ < 3) { const a = d.actor, once = d.detail.length; await commit({ sessiz: true, hedef }); if (d.detail?.length && d.actor === a) break; n += once; } return n;
     } finally { this._acUcus = null; } })();
     return [ttl, body];
+  }
+  /** A28: ekipman seçimi (kartın etiketine dokununca) — hareket için bir kez; sonraki setler buna göre toplanır, kayıtlı setler kendi çarpanıyla kalır. */
+  ekipSec(r) {
+    const cur = this.ekipOf(r); const SEC = [['db', 2, 'Dumbbell · iki el (sağ-sol dahil)', 'dumbbell başına kg gir'], ['db', 1, 'Dumbbell · tek dumbbell', ''], ['kablo', 1, 'Kablo · tek yük', 'pimdeki sayı'], ['kablo', 2, 'Kablo · iki ayrı yük', 'bir taraftaki sayı'], ['bw', 1, 'Vücut ağırlığı', 'ek yük (+) / destek (−)'], ['bar', 1, 'Barbell', 'toplam, plaka gösterilir'], ['makine', 1, 'Makine', 'göstergedeki sayı'], ['serbest', 1, 'Diğer', 'girdiğin = toplam']];
+    this.sheet = { kind: 'menu', items: SEC.map(([tip, carpan, ad, alt]) => ({ t: `${cur.tip === tip && cur.carpan === carpan ? '✓ ' : ''}${ad}${alt ? ' — ' + alt : ''}`, fn: async () => {
+      this.ekipOv = { ...(this.ekipOv ?? {}), [r.egzersiz]: { tip, carpan } }; await S.setMeta('ekip_ov', this.ekipOv); this.msg = `${r.egzersiz}: ${ad}`; this.render(); } })) };
+    this.renderSheet();
   }
   async deleteEvent(ref, actor) {
     return { id: S.ulid(), ts: new Date().toISOString(), ts_kind: 'device', device: await S.deviceId(), entered_by: 'arda', type: 'set.deleted', ref, schema_v: 1, source: { kind: 'app' }, data: { actor } };
@@ -914,6 +976,13 @@ export class App {
       el('div', { class: 'xs dim2', style: 'margin-top:6px;line-height:1.5' }, 'Excel\'den yeniden çıkarılan göç dosyası yüklenir; eski göç olayları silinmez, "düşürüldü" olarak işaretlenir ve hesaba girmez. App\'ten girdiğin kayıtlara dokunulmaz.'));
     if (this.sync?.last?.err) m.append(el('div', { class: 'banner err' }, 'Son senkron hatası: ' + this.sync.last.err));
     // deneme sıfırlama (cycle, app kaynaklı)
+    // A28: vücut ağırlığı — BW hareketlerinde toplam = vücut + ek yük (ya da − destek); sette o günkü değer saklanır, geçmiş kaymaz
+    m.append(el('div', { class: 'k', style: 'margin:18px 0 8px' }, 'Vücut ağırlığı'));
+    const bwList = el('div', { class: 'list' });
+    for (const [a, ad] of [['arda', 'Arda'], ['alper', 'Alper']]) { const inp = el('input', { type: 'text', inputmode: 'decimal', id: 'bw-' + a, autocomplete: 'off', placeholder: '—', class: 'tab', style: 'width:72px;text-align:right' }); inp.value = M.isNum(this.vucut?.[a]) ? fmt(this.vucut[a]) : '';
+      inp.addEventListener('change', async () => { const v = M.parseKg(inp.value); if (inp.value.trim() && (v === null || v < 30)) { this.msg = 'Vücut ağırlığı 30 kg\'dan büyük bir sayı olmalı.'; return this.render(); } this.vucut = { ...(this.vucut ?? {}), [a]: v }; await S.setMeta('vucut_kg', this.vucut); this.msg = `${ad}: ${v === null ? 'silindi' : fmt(v) + ' kg'}`; this.render(); });
+      bwList.append(el('div', { class: 'it' }, el('span', { style: 'min-width:0' }, el('span', { class: 'a' }, ad), el('span', { class: 's' }, 'barfiks, dips gibi harekette yalnız ek yükü girersin')), el('span', { class: 'v' }, inp, ' kg'))); }
+    m.append(bwList);
     m.append(el('div', { class: 'k', style: 'margin:18px 0 8px' }, 'Deneme kayıtları'));
     const sifirla = el('div', { class: 'list' });
     for (const p of PROGS) { const def = this.defs[p]; if (!def) continue; const ss = await S.appSessions(p, def.cycle); const n = ss.reduce((a, x) => a + x.n, 0);

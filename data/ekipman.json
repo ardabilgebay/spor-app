@@ -1,0 +1,28 @@
+{
+  "_not": "A28 (29 Eyl) — hareket başına ekipman. tip: bar | db | kablo | makine | bw | serbest; carpan: 1 ya da 2 (db/kablo). Burada olmayan hareket adından tahmin edilir; Arda kartta dokunarak değiştirebilir (cihazda saklanır). ONAY BEKLİYOR: Arda'nın cevabına göre güncellenecek.",
+  "hareket": {
+    "Single Heavy DB Incline Crusher": { "tip": "db", "carpan": 1 },
+    "Waiter Curl": { "tip": "db", "carpan": 1 },
+    "Heavy Cheat Side Raise": { "tip": "db", "carpan": 2 },
+    "Incline Y Raise for traps": { "tip": "db", "carpan": 2 },
+    "Cross-Body Hammer Curl": { "tip": "db", "carpan": 2 },
+    "Spider Curl": { "tip": "db", "carpan": 2 },
+    "Drop Curl": { "tip": "db", "carpan": 2 },
+    "Kong Curl": { "tip": "db", "carpan": 2 },
+    "Single Cable Fly": { "tip": "kablo", "carpan": 1 },
+    "Double Cable Fly": { "tip": "kablo", "carpan": 2 },
+    "Lat Pulldown": { "tip": "kablo", "carpan": 1 },
+    "Cable Row": { "tip": "kablo", "carpan": 1 },
+    "Triceps Pushdown": { "tip": "kablo", "carpan": 1 },
+    "Face Pull": { "tip": "kablo", "carpan": 1 },
+    "High Pull": { "tip": "kablo", "carpan": 1 },
+    "Machine Dips Press": { "tip": "makine", "carpan": 1 },
+    "Back Extension": { "tip": "serbest", "carpan": 1 }
+  },
+  "eski_yorum": {
+    "_not": "Değişiklikten ÖNCE girilmiş kayıtların kg'sı ne demek: toplam (iki dumbbell / vücut dahil) ya da tek (dumbbell başına) / ek (vücut ağırlığına ek). Kayıtlar dönüştürülmez; yalnız öneri (bir sonraki sete hazır gelen sayı) bu yoruma göre hesaplanır.",
+    "varsayilan": { "db": "toplam", "bw": "toplam", "kablo": "tek" },
+    "hareket": {},
+    "kayit": {}
+  }
+}

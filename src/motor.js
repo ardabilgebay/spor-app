@@ -267,3 +267,24 @@ export function parseKg(s) {
   const v = Number(t.replace(',', '.'));
   return Number.isFinite(v) ? v : null;
 }
+
+/** A28 (29 Eyl, Arda): ekipman — girdiğin sayı ↔ toplam yük. tip: bar|db|kablo|makine|bw|serbest; carpan 1|2 (db/kablo); bw = vücut kg.
+ *  bw tipinde girilen = ek yük (+) ya da destek (−); toplam = vücut + girilen. Vücut bilinmiyorsa null (çağıran eski "toplam" moduna düşer). */
+export function toplamYuk(g, tip, carpan = 1, bw = null) {
+  if (!isNum(g)) return null;
+  if (tip === 'bw') return isNum(bw) ? Math.round((bw + g) * 100) / 100 : null;
+  if (tip === 'db' || tip === 'kablo') return Math.round(g * (carpan === 2 ? 2 : 1) * 100) / 100;
+  return g;
+}
+export function girilenYuk(t, tip, carpan = 1, bw = null) {
+  if (!isNum(t)) return null;
+  if (tip === 'bw') return isNum(bw) ? Math.round((t - bw) * 100) / 100 : null;
+  if (tip === 'db' || tip === 'kablo') return Math.round(t / (carpan === 2 ? 2 : 1) * 100) / 100;
+  return t;
+}
+/** İşaretli kg girişi (vücut ağırlığı: "-20" / "−20" / "+10"); işaret dışında parseKg ile aynı kurallar. */
+export function parseKgIsaretli(s) {
+  if (s === null || s === undefined) return null;
+  const t = String(s).trim().replace(/\s+/g, ''); const neg = /^[-−–]/.test(t);
+  const v = parseKg(t.replace(/^[-−–+]/, '')); return v === null ? null : (neg && v !== 0 ? -v : v);
+}

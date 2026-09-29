@@ -190,7 +190,13 @@ export function prevEntry(stateAll, r, sess, cycle, actor = 'arda') {
   return cand[0];
 }
 /** Set-set detay metni: "180×5 · 200×5 · 200×5 R9" */
-export function detayMetni(detail) { return (detail ?? []).map(x => `${M.fmt(x.kg)}×${x.reps ?? '?'}${M.isNum(x.rpe) ? ` R${M.fmt(x.rpe)}` : ''}`).join(' · '); }
+/** A28: sette girilen sayı (kg_g) varsa o gösterilir (dumbbell başına / pim / vücut ağırlığına ek); yoksa kayıttaki kg (eski kayıt, olduğu gibi). */
+export function kgMetni(x) {
+  if (!x) return '';
+  if (M.isNum(x.kg_g)) return x.ekip === 'bw' ? (x.kg_g > 0 ? `+${M.fmt(x.kg_g)}` : x.kg_g < 0 ? `−${M.fmt(-x.kg_g)}` : 'BW') : M.fmt(x.kg_g);
+  return M.fmt(x.kg);
+}
+export function detayMetni(detail) { return (detail ?? []).map(x => `${kgMetni(x)}×${x.reps ?? '?'}${M.isNum(x.rpe) ? ` R${M.fmt(x.rpe)}` : ''}`).join(' · '); }
 export function prevMetni(s) {
   if (!s) return null;
   if (s.sets_detail?.length) return `${detayMetni(s.sets_detail)}${s.note ? ` — ${s.note}` : ''}`;
