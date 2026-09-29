@@ -106,12 +106,15 @@
       "kablo": "tek"
     },
     "hareket": {
-      "Heavy Cheat Side Raise": "tek"
+      "Heavy Cheat Side Raise": "tek",
+      "Kong Curl": "toplam",
+      "Cable Stretch Drag Curl": "toplam",
+      "Cable Triceps Extension": "toplam"
     },
     "kayit": {
       "Diger|C1|3|Sal|Cross-Body Hammer Curl|arda": "tek",
       "Diger|C1|5|Per|Weighted Dips|arda": "ek"
     },
-    "_cevaplar": "29 Eyl Arda: Lateral/Incline/Kickback/Standing/Spider/Drop/Heavy DB Shoulder Press/Heavy DB Lateral/Heavy Hammer = toplam; Cross-Body Hammer Diğer H3 10 = tek dumbbell, H4 40 = toplam; Heavy Cheat Side Raise = tek; Weighted Dips 118 = toplam, 25 = ek yük; Back Extension = elde tutulan plaka; Alper 90 kg."
+    "_cevaplar": "29 Eyl Arda: Lateral/Incline/Kickback/Standing/Spider/Drop/Heavy DB Shoulder Press/Heavy DB Lateral/Heavy Hammer = toplam; Cross-Body Hammer Diğer H3 10 = tek dumbbell, H4 40 = toplam; Heavy Cheat Side Raise = tek; Weighted Dips 118 = toplam, 25 = ek yük; Back Extension = elde tutulan plaka; Alper 90 kg. Ek (29 Eyl): Heavy Cheat Side Raise = dumbbell ×2 (sırayla iki kol), eski 27.5 = bir dumbbell; Kong / Stretch Drag / Cable Triceps Ext eski değerleri = iki tarafın toplamı."
   }
 }
