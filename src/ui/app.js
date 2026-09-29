@@ -5,6 +5,8 @@ import * as S from '../store.js';
 import * as P from '../program.js';
 import * as M from '../motor.js';
 import EKIP from '../../data/ekipman.json';
+import * as O from '../oneri.js';
+const anaAd = def => { const a = O.anaKaldirislar(def); return a.length ? ` · ${a.join(' + ')}` : ''; };
 
 const el = (tag, attrs = {}, ...kids) => { const e = document.createElement(tag); for (const [k, v] of Object.entries(attrs)) { if (v === null || v === undefined || v === false) continue; if (k === 'class') e.className = v; else if (k.startsWith('on')) e.addEventListener(k.slice(2), v); else e.setAttribute(k, v); } for (const k of kids.flat(9)) if (k !== null && k !== undefined && k !== false) e.append(k.nodeType ? k : document.createTextNode(String(k))); return e; };
 const svg = d => { const s = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); s.setAttribute('viewBox', '0 0 24 24'); for (const p of d.split('|')) { const e = document.createElementNS('http://www.w3.org/2000/svg', 'path'); e.setAttribute('d', p); s.append(e); } return s; };
@@ -872,42 +874,35 @@ export class App {
   }
   // ── İLERLEME ─────────────────────────────────────────────────────
   async rIlerleme(c) {
-    const { def, p, wk, stateAll } = c; this.head(def.cycle, 'İlerleme'); const cfg = M.CONFIG[p];
-    const m = el('div', { class: 'pop' }); this.main.append(m);
-    // Tahmini 1RM (K20): ana kaldırışlar için son tekli (RPE'li) + son üçlü
-    const lifts = cfg.weeklyFilter ?? [def.program === 'Deadlift' ? 'Deadlift' : null].filter(Boolean);
-    m.append(el('div', { class: 'h' }, el('div', { class: 'k' }, 'Tahmini 1RM · RTS'), el('div', { class: 'xs dim2' }, 'son tekli @RPE + son üçlü')));
-    const g = el('div', { class: 'grid', style: 'margin-top:8px' }); m.append(g);
-    for (const L of lifts) {
-      const rowsL = def.rows.filter(r => r.egzersiz === L);
-      const ent = stateAll.filter(s => s.actor === 'arda' && !s.deleted && M.isNum(s.kg) && s.kg > 0 && rowsL.some(r => r.row_key === s.row_key)).sort((a, b) => a.ts < b.ts ? 1 : -1);
-      const tek = ent.find(s => s.reps === 1 && M.isNum(s.rpe)), uc = ent.find(s => s.reps === 3);
-      const est = M.tahmini1RM({ testTipi: 'Tahmin', tekliKg: tek?.kg ?? null, tekliRpe: tek?.rpe ?? null, ucluKg: uc?.kg ?? null, clamp: cfg.rpeClamp });
-      const setup = def.config ?? {}; const resmi = { Deadlift: setup.deadlift_1rm_kg, Squat: setup.squat_1rm_kg, 'Front Squat': setup.front_squat_1rm_kg, 'Bench Press': setup.bench_1rm_arda_kg ?? setup.bench_1rm_cuma_ek_kg }[L];
-      g.append(el('div', { class: 'card' }, el('div', { class: 'h' }, el('span', { class: 'ex' }, L), el('span', { class: 'tab acc', style: 'font-weight:500;font-size:19px;letter-spacing:-.02em' }, est ? `${fmt(Math.round(est * 2) / 2)} kg` : '—')),
-        el('div', { class: 'xs dim tab', style: 'margin-top:2px' }, [tek ? `${fmt(tek.kg)}×1 @RPE${fmt(tek.rpe)}` : 'tekli yok', uc ? `${fmt(uc.kg)}×3` : null, resmi ? `program 1RM ${fmt(resmi)} kg` : null].filter(Boolean).join(' · '))));
-    }
-    // Hacim çubukları
-    const mx = Math.max(1, ...wk.map(w => Math.max(w.gercek, w.max)));
-    m.append(el('div', { class: 'h', style: 'margin-top:16px' }, el('div', { class: 'k' }, `Haftalık hacim · ${lifts.join(' + ') || 'tüm %1RM satırları'}`), el('div', { class: 'xs dim2' }, 'çizgi = beklenen min')));
-    m.append(el('div', { class: 'bars' }, ...wk.map(w => { const h = Math.max(2, Math.round(w.gercek / mx * 100)); const line = Math.round((1 - w.min / mx) * 100);
-      return el('div', { class: 'b' }, el('div', { class: 'l tab ' + sinyalRenk(w.sinyal) }, w.uyum.split(' ')[0]), el('div', { class: 'col ' + (w.gercek === 0 ? '' : w.gercek < w.min * 0.85 ? 'lo' : 'ok'), style: `height:${h}%` }, el('i', { style: `top:${Math.max(0, Math.min(100, Math.round((1 - (w.min / mx) / (w.gercek / mx || 1)) * 100)))}%;display:${w.gercek ? 'block' : 'none'}` })), el('div', { class: 'l tab' }, w.gercek ? fmt(Math.round(w.gercek)) : '·'), el('div', { class: 'l', style: 'font-size:9.5px' }, `H${w.week}`)); })));
-    m.append(el('div', { class: 'k', style: 'margin-top:18px' }, 'Sinyal şeridi'));
-    m.append(el('div', { class: 'serit' }, ...wk.map(w => el('i', { class: sinyalRenk(w.sinyal) === 'dim' ? '' : sinyalRenk(w.sinyal), title: `H${w.week} ${w.sinyal}` }))));
-    m.append(el('div', { class: 'xs dim2', style: 'margin-top:6px;line-height:1.4' }, wk.map(w => `H${w.week} ${w.sinyal}`).join(' · ')));
-    const ds = this.dinlenmeStat(stateAll.filter(s => s.actor === 'arda' && !s.deleted));
-    m.append(el('div', { class: 'card', style: 'margin-top:18px' }, el('div', { class: 'k2' }, 'Dinlenme uyumu (app kayıtları)'),
-      ds ? el('div', { class: 'grid', style: 'gap:6px;margin-top:9px' },
-        el('div', { class: 'kv' }, el('span', {}, 'Ortalama gerçek / plan'), el('span', { class: 'tab ' + (ds.ort > 1.15 ? 'red' : ds.ort < 0.85 ? 'blue' : 'ok') }, `×${ds.ort.toFixed(2)}`)),
-        el('div', { class: 'kv' }, el('span', {}, 'Uyumlu (±%15)'), el('span', { class: 'tab' }, `${ds.uyumlu}/${ds.n}`)),
-        el('div', { class: 'kv' }, el('span', {}, 'Erken devam'), el('span', { class: 'tab blue' }, ds.erken)),
-        el('div', { class: 'kv' }, el('span', {}, 'Uzun dinlenme'), el('span', { class: 'tab red' }, ds.gec)))
-      : el('div', { class: 'xs dim2', style: 'margin-top:6px' }, 'Henüz app\'ten kaydedilmiş ardışık set yok; ilk seanstan sonra dolar.')));
-    if (def.cycle_ozet?.length) {
-      m.append(el('div', { class: 'card', style: 'margin-top:18px' }, el('div', { class: 'k2' }, 'Cycle geçmişi (Excel)'), el('div', { class: 'grid', style: 'gap:6px;margin-top:9px' },
-        ...def.cycle_ozet.filter(o => typeof o.Hafta === 'number').map(o => el('div', { class: 'kv' }, el('span', {}, `C${o.Cycle} H${o.Hafta}`), el('span', { class: 'tab' }, `${fmt(Math.round(o['Gerçek Hacim (kg)'] ?? 0))} / ${fmt(Math.round(o['Beklenen Hacim (kg)'] ?? 0))} kg · ${Math.round((o['Uyum %'] ?? 0) * 100)}%`))))));
-    }
-    m.append(el('div', { class: 'xs dim2', style: 'margin-top:12px;line-height:1.5' }, 'Hacim = kg × set × tekrar, yalnız %1RM\'li satırlar (Excel Weekly Summary ile birebir; Python oracle ile doğrulanıyor). 1RM tahmini RTS tablosu (K18/K20).'));
+    // A29 (29 Eyl, Arda onayı: taslak A "koç notu üstte"): durum cümlesi + en çok 3 öneri (gerekçeli) · güç · hafta hafta iş · açıklama. Öneriler programı değiştirmez.
+    const { def, p, wk, state, stateAll, v } = c; this.head(`${PROG_AD[p]} · ${def.cycle} · Hafta ${v.week}`, 'İlerleme'); const cfg = M.CONFIG[p];
+    const m = el('div', { class: 'pop ilr' }); this.main.append(m);
+    const d = O.durum(def, state, wk, v.week);
+    const renk = { agir: 'warn', eksik: 'warn', kolay: 'blue', planda: 'ok', suruyor: 'dim', bos: 'dim' }[d.tip] ?? 'dim';
+    m.append(el('div', { class: 'card ilr-d' }, el('div', { class: 'st' }, el('span', { class: 'rz ' + renk }, d.rozet), d.gun ? el('span', { class: 'xs dim2' }, d.gun) : null), el('div', { class: 'say' }, d.cumle)));
+    const on = O.oneriler({ def, state, stateAll, wk, week: v.week, ov: c.ov });
+    if (on.length) m.append(el('div', { class: 'card ilr-o' }, el('div', { class: 'k2' }, 'Öneriler'), ...on.map(o => el('div', { class: 'rec' }, el('span', { class: 'ic ' + o.tip }, { warn: '!', info: 'i', ok: '✓' }[o.tip]), el('b', {}, o.baslik), el('span', { class: 'why' }, o.neden)))));
+    // Güç
+    const g = O.guc(def, stateAll);
+    if (g.length) m.append(el('div', { class: 'card ilr-g' }, el('div', { class: 'k2' }, 'Güç · tahmini tek tekrar maksimum'), ...g.map(x => {
+      const alt = x.veriYok ? 'Yeterli veri yok (RPE\'li tekli set girilmemiş)' : [x.prog ? `Programdaki ${fmt(x.prog)} kg'nin %${Math.round(x.oran * 100)}'${x.oran * 100 >= 100 ? 'ü' : 'i'}` : null, `son ${fmt(x.tek.kg)}×1 (RPE ${fmt(x.tek.rpe)})`].filter(Boolean).join(' · ');
+      const w = x.oran ? Math.max(4, Math.min(100, x.oran / 1.2 * 100)) : 0;
+      return el('div', { class: 'lift' }, el('span', {}, x.ad), el('span', { class: 'tab v' }, x.tahmin ? `${fmt(x.tahmin)} kg` : '—'), x.oran ? el('div', { class: 'gauge' }, el('em', { style: `width:${w}%` }), el('i', { style: `left:${100 / 1.2}%` })) : null, el('span', { class: 's' }, alt));
+    })));
+    // Hafta hafta iş
+    const mx = Math.max(1, ...wk.map(w => Math.max(w.gercek, w.min)));
+    const etk = w => w.week === 6 ? 'hafif' : !w.doluGun ? '' : w.doluGun < cfg.doluGunEsik && !wk.some(x => x.week > w.week && x.doluGun) ? 'sürüyor' : w.min ? `%${Math.round(w.gercek / w.min * 100)}` : '';
+    const nokta = w => { if (!w.doluGun) return null; const sp = O.rpeSapma(def, state, w.week).ort; return M.isNum(sp) && sp >= O.ESIK.rpe ? ['warn', 'ağır'] : M.isNum(sp) && sp <= -O.ESIK.rpe ? ['blue', 'kolay'] : ['ok', 'planda']; };
+    m.append(el('div', { class: 'card ilr-h' }, el('div', { class: 'k2' }, `Hafta hafta · yapılan / planlanan iş${anaAd(def)}`),
+      el('div', { class: 'bars' }, ...wk.map(w => { const h = Math.max(2, Math.round(w.gercek / mx * 100)); const n = nokta(w);
+        return el('div', { class: 'b' }, el('div', { class: 'l tab' }, etk(w)), el('div', { class: 'trk' }, el('div', { class: 'col ' + (n ? n[0] : ''), style: `height:${w.gercek ? h : 2}%` }), w.min ? el('i', { class: 'pl', style: `bottom:${Math.round(w.min / mx * 100)}%` }) : null), el('div', { class: 'l tab' }, `H${w.week}`)); })),
+      el('div', { class: 'xs dim2 lej' }, ...wk.filter(w => w.doluGun).map(w => { const n = nokta(w); return el('span', {}, el('span', { class: 'dot ' + n[0] }), `H${w.week} ${n[1]}`); }), el('span', {}, '— çizgi = planlanan en az iş'))));
+    // Açıklama + Excel geçmişi (katlı)
+    m.append(el('details', { class: 'card gl' }, el('summary', {}, 'Bu sayılar ne demek?'), el('div', { class: 'xs dim', style: 'margin-top:8px;line-height:1.55' },
+      'RPE: setin zorluğu; 10 = bir tekrar daha yapamazdım, 8 = iki tekrar daha yapardım. ', el('br'), 'Tahmini maksimum: son RPE\'li tekli setinden (ve son üçlüden) hesaplanan, tek tekrarda kaldırabileceğin kilo. Programdaki 1RM ile karşılaştırılır.', el('br'),
+      `Yapılan iş: kilo × set × tekrar toplamı; yalnız ana kaldırışlar${anaAd(def)}. Yüzde, planlanan en az işe göre.`, el('br'), 'Öneriler programı değiştirmez; ne görüldüğünü ve nedenini söyler, karar senin.')));
+    if (def.cycle_ozet?.length) m.append(el('details', { class: 'card gl' }, el('summary', {}, 'Önceki cycle (Excel)'), el('div', { class: 'grid', style: 'gap:6px;margin-top:9px' },
+      ...def.cycle_ozet.filter(o => typeof o.Hafta === 'number').map(o => el('div', { class: 'kv' }, el('span', {}, `C${o.Cycle} H${o.Hafta}`), el('span', { class: 'tab' }, `${fmt(Math.round(o['Gerçek Hacim (kg)'] ?? 0))} / ${fmt(Math.round(o['Beklenen Hacim (kg)'] ?? 0))} kg · %${Math.round((o['Uyum %'] ?? 0) * 100)}`))))));
   }
   // ── ALETLER ──────────────────────────────────────────────────────
   async rAletler() {

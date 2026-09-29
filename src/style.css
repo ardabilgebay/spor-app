@@ -766,3 +766,30 @@ main.hayal{position:absolute;left:0;right:0;z-index:5;pointer-events:none;overfl
 .xcard .l0 .ekt:active{transform:scale(.96)}
 .log .bwis{display:flex;gap:6px;justify-content:center;margin:-2px 0 6px}
 .log .bwis .pill{font-size:12px;padding:4px 12px}
+/* A29 — İlerleme: koç notu (durum + öneriler) · güç · hafta hafta iş */
+.ilr{display:grid;gap:12px}
+.ilr .card{margin:0}
+.ilr .st{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.ilr .rz{font-size:12.5px;font-weight:600;padding:4px 11px;border-radius:99px;background:rgba(255,255,255,.08);color:var(--ink)}
+.ilr .rz.warn{background:rgba(245,182,122,.16);color:var(--warn)}.ilr .rz.ok{background:rgba(111,207,151,.15);color:var(--ok)}.ilr .rz.blue{background:rgba(122,180,245,.15);color:var(--blue)}
+.ilr .say{font-size:15px;line-height:1.45;margin-top:8px}
+.ilr .rec{display:grid;grid-template-columns:24px 1fr;gap:3px 10px;padding:10px 0;border-top:1px solid rgba(255,255,255,.07)}
+.ilr .k2+.rec{border-top:0}
+.ilr .rec .ic{width:24px;height:24px;border-radius:50%;display:grid;place-items:center;font-size:12px;font-weight:600;background:rgba(255,255,255,.1)}
+.ilr .rec .ic.warn{background:rgba(245,182,122,.2);color:var(--warn)}.ilr .rec .ic.info{background:rgba(122,180,245,.18);color:var(--blue)}.ilr .rec .ic.ok{background:rgba(111,207,151,.18);color:var(--ok)}
+.ilr .rec b{font-weight:600;font-size:14px;line-height:1.35}.ilr .rec .why{grid-column:2;font-size:12.5px;color:var(--dim);line-height:1.4}
+.ilr .lift{display:grid;grid-template-columns:1fr auto;gap:3px 8px;padding:9px 0;border-top:1px solid rgba(255,255,255,.07)}
+.ilr .k2+.lift{border-top:0}
+.ilr .lift .v{font-weight:500;color:var(--acc-ink)}.ilr .lift .s{grid-column:1/-1;font-size:12px;color:var(--dim)}
+.ilr .gauge{grid-column:1/-1;height:6px;border-radius:3px;background:rgba(255,255,255,.08);position:relative;margin-top:3px}
+.ilr .gauge em{position:absolute;left:0;top:0;height:6px;border-radius:3px;background:var(--acc)}
+.ilr .gauge i{position:absolute;top:-3px;width:2px;height:12px;background:var(--ink);opacity:.7}
+.ilr .bars{height:120px}
+.ilr .bars .trk{flex:1;width:100%;position:relative}
+.ilr .bars .trk .col{position:absolute;left:0;right:0;bottom:0}
+.ilr .bars .col.warn{background:linear-gradient(180deg,rgba(245,182,122,.85),rgba(245,182,122,.25))}.ilr .bars .col.blue{background:linear-gradient(180deg,rgba(122,180,245,.85),rgba(122,180,245,.25))}
+.ilr .bars .pl{position:absolute;left:-2px;right:-2px;height:0;border-top:2px dashed rgba(255,255,255,.45)}
+.ilr .lej{display:flex;flex-wrap:wrap;gap:4px 12px;margin-top:8px}
+.ilr .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px;vertical-align:0;background:var(--dim2)}
+.ilr .dot.ok{background:var(--ok)}.ilr .dot.warn{background:var(--warn)}.ilr .dot.blue{background:var(--blue)}
+.ilr details.gl summary{cursor:pointer;font-size:14px;list-style:none}.ilr details.gl summary::after{content:' ›';color:var(--dim)}.ilr details.gl[open] summary::after{content:' ⌄'}

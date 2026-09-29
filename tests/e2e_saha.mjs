@@ -164,7 +164,8 @@ t('Ayarlar: deneme kayıtları bölümü var, Diğer için app kaydı yok', (awa
 await tab('Bugün'); await p.waitForTimeout(200);
 // İlerleme
 await tab('İlerleme'); await p.waitForTimeout(300);
-t('İlerleme: 1RM kartları + 6 çubuk', (await p.$$('main .bars .b')).length === 6 && (await p.textContent('main')).includes('Tahmini 1RM'));
+t('A29 İlerleme: durum rozeti + cümle, güç kartı, 6 çubuk, açıklama katlı; eski terimler yok', (await p.$$('main .ilr .rz')).length === 1 && (await p.textContent('main .ilr-d .say')).length > 10 && (await p.$$('main .bars .b')).length === 6 && (await p.textContent('main')).includes('tahmini tek tekrar maksimum') && (await p.$$('main details.gl')).length >= 1 && !/RTS|BANT|K18/.test(await p.textContent('main')), await p.textContent('main'));
+t('A29 İlerleme: öneriler en çok 3, her birinde gerekçe', (await p.$$('main .ilr-o .rec')).length <= 3 && (await p.$$eval('main .ilr-o .rec', a => a.every(x => x.querySelector('.why')?.textContent.length > 5))));
 // 28 Eyl: parmakla sekme geçişi (touch) — İlerleme → sola kaydır → Aletler
 { const box = await p.locator('main').boundingBox(); const y = box.y + 300;
   await p.evaluate(async ({ y }) => { const m = document.querySelector('main'); const T = (type, x) => { const t = new Touch({ identifier: 1, target: m, clientX: x, clientY: y }); m.dispatchEvent(new TouchEvent(type, { touches: type === 'touchend' ? [] : [t], changedTouches: [t], bubbles: true, cancelable: true })); };
@@ -188,7 +189,7 @@ await ctx.setOffline(false);
   await p.mouse.move(xAt(1), y); await p.mouse.down(); for (let i = 1; i <= 12; i++) { await p.mouse.move(xAt(1) + (xAt(2) - xAt(1)) * i / 12, y); await p.waitForTimeout(25); }
   await p.waitForTimeout(300); t('A19 sürüklerken İlerleme açıldı (parmak kaldırılmadan)', (await p.$eval('.tabs button.sel', b => b.textContent)).includes('İlerleme') && (await p.$$('.tabs.scrub')).length === 1);
   await p.mouse.up(); await p.waitForTimeout(400);
-  t('A19 bırakınca İlerleme, baloncuk oturdu', (await p.$eval('.tabs button.sel', b => b.textContent)).includes('İlerleme') && (await p.$$('.tabs.scrub')).length === 0 && (await p.textContent('main')).includes('1RM')); }
+  t('A19 bırakınca İlerleme, baloncuk oturdu', (await p.$eval('.tabs button.sel', b => b.textContent)).includes('İlerleme') && (await p.$$('.tabs.scrub')).length === 0 && (await p.textContent('main')).includes('maksimum')); }
 // Ayarlar (dişli)
 await p.locator('.hdr .disli').click(); await p.waitForTimeout(300);
 const txt = await p.textContent('main');
