@@ -762,7 +762,7 @@ main .sig{border-radius:14px;background:rgba(255,255,255,.04);border:1px solid r
 main.hayal{position:absolute;left:0;right:0;z-index:5;pointer-events:none;overflow:hidden;background:transparent}
 @media (prefers-reduced-motion:reduce){.island.over{animation:none;box-shadow:0 0 0 2px rgba(255,90,90,.9)}}
 /* A28 — ekipman etiketi (kartın durum satırında, dokununca değiştirilir) */
-.xcard .l0 .ekt{margin-left:6px;font:inherit;font-size:11px;padding:2px 8px;border-radius:99px;border:0;background:rgba(255,255,255,.08);color:inherit;opacity:.85}
+.xcard .l0 .ekt{margin-left:6px;min-height:0;line-height:1.5;font:inherit;font-size:11px;padding:2px 8px;border-radius:99px;border:0;background:rgba(255,255,255,.08);color:inherit;opacity:.85}
 .xcard .l0 .ekt:active{transform:scale(.96)}
 .log .bwis{display:flex;gap:6px;justify-content:center;margin:-2px 0 6px}
 .log .bwis .pill{font-size:12px;padding:4px 12px}
