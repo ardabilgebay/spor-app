@@ -214,7 +214,8 @@ export async function finishedSessions(program, cycle) {
   const set = new Set(); if (!son.size) return set;
   for (const [k, ts] of son) {
     const [w, d] = k.split('|'); const st = await db.set_state.where('[program+cycle+week+day]').equals([program, cycle, Number(w), d]).toArray();
-    if (!st.some(s => !s.deleted && s.ts_kind === 'device' && s.ts > ts)) set.add(k);
+    const gun = x => new Date(x).toDateString();   // aynı gün kapanıştan sonra düzeltme (ör. Program'dan set düzeltme) seansı yeniden AÇMAZ
+    if (!st.some(s => !s.deleted && s.ts_kind === 'device' && s.ts > ts && gun(s.ts) !== gun(ts))) set.add(k);
   }
   return set;
 }

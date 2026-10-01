@@ -54,11 +54,15 @@ t('stres haritası', (await S.stressFor('Deadlift', 'W2')).get(4) === 2);
   await S.logSession('finished', { program: 'Diger', cycle: 'C2', week: 2, day: 'Per', duration_s: 5, note: null });
   t('1Eki boş kapanış → bitmiş', (await S.finishedSessions('Diger', 'C2')).has('2|Per'));
   await new Promise(r => setTimeout(r, 5));
+  await S.logSet({ ref: { program: 'Diger', cycle: 'C2', week: 2, day: 'Per', row_key: 'Clean|' }, actor: 'arda', kg: 40, sets: 1, reps: 2, rpe: 7 });
+  t('1Eki AYNI GÜN kapanıştan sonra düzeltme → hâlâ bitmiş', (await S.finishedSessions('Diger', 'C2')).has('2|Per'));
+  const RD = Date; globalThis.Date = class extends RD { constructor(...a) { super(...(a.length ? a : [RD.now() + 2 * 864e5])); } static now() { return RD.now() + 2 * 864e5; } };
   await S.logSet({ ref: { program: 'Diger', cycle: 'C2', week: 2, day: 'Per', row_key: 'Snatch|' }, actor: 'arda', kg: 40, sets: 4, reps: 2, rpe: 7 });
-  t('1Eki kapanıştan sonra set → artık bitmiş değil', !(await S.finishedSessions('Diger', 'C2')).has('2|Per'));
+  t('1Eki ERTESİ GÜN kapanıştan sonra set → artık bitmiş değil', !(await S.finishedSessions('Diger', 'C2')).has('2|Per'));
   await new Promise(r => setTimeout(r, 5));
   await S.logSession('finished', { program: 'Diger', cycle: 'C2', week: 2, day: 'Per', duration_s: 3600, note: null });
   t('1Eki yeniden kapatınca bitmiş', (await S.finishedSessions('Diger', 'C2')).has('2|Per'));
+  globalThis.Date = RD;
 }
 console.log(`\n  ${ok}/${ok + fail} geçti — ${fail === 0 ? 'STORE TEST GECTI' : 'BASARISIZ'}`);
 process.exit(fail ? 1 : 0);
