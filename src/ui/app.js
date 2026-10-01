@@ -700,7 +700,7 @@ export class App {
       const rowsAfter = v.rows.map(x => x === r ? { ...x, tamam: true } : x); const nxt = hedef ?? P.sonrakiSatir(rowsAfter, rowsAfter[v.rows.indexOf(r)]);
       // 29 Eyl: son setten beri süren dinlenme SIFIRLANMAZ — sayaç sıradaki hareketin molasına yeniden hedeflenir (başlangıç aynı)
       const k0 = this.krono; const surer = k0 && k0.key === c.seansKey && k0.rowKey === r.row_key;
-      if (!skipped && nxt) { if (surer) { const sn = P.oncesiDinlenmeSn(nxt); Object.assign(k0, { sn, end: k0.start + sn * 1000, ad: nxt.egzersiz, rowKey: nxt.row_key, altSn: sn >= 180 ? 180 : 0, bitti: false }); } else if (!sessiz) this.kronoBaslat(c.seansKey, P.oncesiDinlenmeSn(nxt), nxt.egzersiz, nxt.row_key, { bitAd: r.egzersiz, basAd: nxt.egzersiz }); }
+      if (!skipped && nxt) { const gsn = P.gecisDinlenmeSn(r, nxt); if (surer) { const sn = gsn; Object.assign(k0, { sn, end: k0.start + sn * 1000, ad: nxt.egzersiz, rowKey: nxt.row_key, altSn: sn >= 180 ? 180 : 0, bitti: false }); } else if (!sessiz) this.kronoBaslat(c.seansKey, gsn, nxt.egzersiz, nxt.row_key, { bitAd: r.egzersiz, basAd: nxt.egzersiz }); }   // 1 Eki: geçiş molası (ağır→ağır 8, ağır→hafif 5, hafif→hafif 2 dk)
       else if (!skipped && !sessiz) { this.krono = null; clearInterval(this.kronoIv); }
       const sonTs = setMode && d.detail.length ? d.detail[d.detail.length - 1].ts : null;
       c.seans = { ...c.seans, ...(sessiz ? {} : { openKey: null }), last_save_at: skipped ? c.seans?.last_save_at ?? null : (sonTs ?? new Date(now).toISOString()) }; await S.setMeta(c.seansKey, c.seans);
@@ -762,7 +762,7 @@ export class App {
     this.island.classList.toggle('over', kalan < 0);   // F1: süre dolunca ada kırmızı halka ile yavaşça nabız atar
     const pct = kalan >= 0 ? Math.round((1 - kalan / k.sn) * 100) : Math.min(100, Math.round((-kalan / k.sn) * 100));
     const pill = this.island.querySelector('#kpill') ?? this.foot.querySelector('#kpill') ?? this.hR.querySelector('#kpill'); if (pill) { pill.querySelector('.kt').textContent = this.kronoMetin(kalan); pill.classList.toggle('over', kalan < 0); pill.querySelector('.ring').style.setProperty('--pct', `${pct}%`); }
-    const hz = this.island.querySelector('#khazir') ?? this.foot.querySelector('#khazir'); if (hz && !M.isNum(k.hazirS)) { const g = Math.round((Date.now() - k.start) / 1000); hz.disabled = g < k.altSn; hz.textContent = g < k.altSn ? `Hazırım · ${this.kronoMetin(k.altSn - g)}` : 'Hazırım'; }
+    if (!M.isNum(k.hazirS)) { const g = Math.round((Date.now() - k.start) / 1000); for (const hz of [this.island, this.foot, this.bekle].flatMap(x => x ? [...x.querySelectorAll('.abtn.hazir')] : [])) { hz.disabled = g < k.altSn; hz.textContent = g < k.altSn ? `Hazırım · ${this.kronoMetin(k.altSn - g)}` : 'Hazırım'; } }   // 1 Eki: bekleme ekranındaki Hazırım da güncellenir (önceden hep pasif kalıyordu)
     const big = this.main.querySelector('#krobig'); if (big) { big.textContent = this.kronoMetin(kalan); big.className = 'big tab ' + (kalan >= 0 ? 'on' : 'over'); }
     if (kalan === 0 && !k.bitti) { k.bitti = true; this.geriBildirim('alarm'); if (pill) { pill.classList.add('done'); setTimeout(() => { pill.classList.remove('done'); if (this.kronoBig) { this.kronoBig = false; pill.classList.remove('big'); } }, 1400); } }   // sayaç durmaz: aşım kırmızı sayar; büyükse nabız sonrası küçülür
   }

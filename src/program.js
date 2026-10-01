@@ -215,6 +215,14 @@ export function dinlenmeKategori(r) {
   return 'light';
 }
 export const DINLENME_SN = { top: 480, heavy: 300, backoff: 180, light: 90 };
+/** Hareket GEÇİŞİ molası (Arda, 1 Eki): biten hareket ağırsa (top/heavy/backoff) yeni hareket ağırsa 8 dk, hafifse 5 dk;
+ *  hafiften hafife 2 dk; hafiften ağıra yeni hareketin kendi molası. Her durumda yeni hareketin kendi molasından kısa olmaz
+ *  (satır bazlı dinlenme_sn, ör. Chin-up 3 dk, korunur). Set arası molalar (aynı hareket) değişmez. */
+export function gecisDinlenmeSn(biten, yeni) {
+  const kendi = oncesiDinlenmeSn(yeni); const agir = r => dinlenmeKategori(r) !== 'light';
+  const kural = agir(biten) ? (agir(yeni) ? 480 : 300) : (agir(yeni) ? 0 : 120);
+  return Math.max(kural, kendi);
+}
 /** Kaydedilen satırdan sonra sıradaki tamamlanmamış satır; yoksa null. */
 export function sonrakiSatir(rows, r) { const i = rows.indexOf(r); return rows.slice(i + 1).find(x => !x.tamam) ?? rows.slice(0, i).find(x => !x.tamam) ?? null; }
 /** Bir setin ÖNCESİNDEKİ plan molası. */

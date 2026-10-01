@@ -208,7 +208,15 @@ export async function logArmVariant({ program, cycle, week, day, varyant }) {
 /** Kapatılan seanslar (session.finished) → Set<"week|day">. */
 export async function finishedSessions(program, cycle) {
   const evs = await db.events.where('type').anyOf('session.finished', 'session.reopened').filter(e => e.data.program === program && e.data.cycle === cycle).sortBy('ts');
-  const set = new Set(); for (const e of evs) { const k = `${e.data.week}|${e.data.day}`; e.type === 'session.finished' ? set.add(k) : set.delete(k); } return set;
+  const son = new Map(); for (const e of evs) { const k = `${e.data.week}|${e.data.day}`; e.type === 'session.finished' ? son.set(k, e.ts) : son.delete(k); }
+  // 1 Eki (Arda: "Snatch bitince sonraki güne geçti"): kapanıştan SONRA o seansa cihazdan set girildiyse kapanış geçersiz (seans fiilen yeniden açılmış).
+  // Neden: 29 Eyl'de boş açılıp kapatılan Perşembe, 1 Eki'de gerçek seans başlayınca işaretçiyi Cuma'ya atlatıyordu. Olay yazılmaz; yalnız okuma kuralı.
+  const set = new Set(); if (!son.size) return set;
+  for (const [k, ts] of son) {
+    const [w, d] = k.split('|'); const st = await db.set_state.where('[program+cycle+week+day]').equals([program, cycle, Number(w), d]).toArray();
+    if (!st.some(s => !s.deleted && s.ts_kind === 'device' && s.ts > ts)) set.add(k);
+  }
+  return set;
 }
 /** SIFIRLAMA (deneme kayıtları): bir seansın app kaynaklı set girişlerini set.deleted ile siler, seansı session.reopened ile açar. Göç verisine dokunmaz; denetim izi kalır. */
 export async function resetSession(program, cycle, week, day, { onlyApp = true } = {}) {

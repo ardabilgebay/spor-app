@@ -96,4 +96,13 @@ t('Alper HEDEF · Alper 90 kg', a1.rows[0].hedef.endsWith('· Alper 90 kg'), a1.
   t('P8: tüm Chin-up/Pull-up satırları 180 sn', chin.length >= 10 && chin.every(r => P.oncesiDinlenmeSn(r) === 180), chin.length);
   t('P8: Machine Dips / Face Pull / Deadlift molası değişmedi', dg.rows.filter(r => /machine|face pull/i.test(r.egzersiz)).every(r => P.oncesiDinlenmeSn(r) === 90) && dl.rows.filter(r => r.modifier === 'Top Single').every(r => P.oncesiDinlenmeSn(r) === 480));
   t('P8: taban programdef değişmedi (golden)', !load('Deadlift').rows.some(r => 'dinlenme_sn' in r)); }
+// 1 Eki — hareket geçişi molası
+{
+  const top = { modifier: 'Top Single' }, agir = { modifier: 'Agir' }, hafif = { modifier: null }, chin = { modifier: null, dinlenme_sn: 180 };
+  t('geçiş ağır→ağır 8 dk', P.gecisDinlenmeSn(top, agir) === 480);
+  t('geçiş ağır→hafif 5 dk', P.gecisDinlenmeSn(agir, hafif) === 300);
+  t('geçiş hafif→hafif 2 dk', P.gecisDinlenmeSn(hafif, hafif) === 120);
+  t('geçiş hafif→top kendi molası 8 dk', P.gecisDinlenmeSn(hafif, top) === 480);
+  t('geçiş hafif→Chin-up satır molası 3 dk korunur', P.gecisDinlenmeSn(hafif, chin) === 180);
+}
 console.log(`\n  ${ok}/${ok + fail} geçti — ${fail ? 'BASARISIZ' : 'PROGRAM TEST GECTI'}`); process.exit(fail ? 1 : 0);
