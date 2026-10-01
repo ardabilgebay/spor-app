@@ -21,7 +21,8 @@ const ICON = {
 const TABS = [['bugun', 'Bugün'], ['program', 'Program'], ['ilerleme', 'İlerleme']];
 const PROGS = ['Deadlift', 'Alper', 'Diger'];
 const PROG_AD = { Deadlift: 'Deadlift', Alper: 'Alper Günleri', Diger: 'Diğer Günler' };
-const RPE_LIST = [6, 6.5, 7, 7.5, 8, 8.5, 9, 9.5, 10];
+const RPE_LIST = [5, 6, 6.5, 7, 7.5, 8, 8.5, 9, 9.5, 10];   // 1 Eki (Arda): 5 = "6'dan da kolay" (≤5)
+const rpeEt = n => n === 5 ? '≤5' : fmt(n);
 const STRES_AD = ['çok iyi', 'iyi', 'normal', 'yorgun', 'bitkin'];
 const KG_ADIM = 2.5;
 const sinyalRenk = s => !s || s === '—' ? 'dim' : s.startsWith('🔴') ? 'red' : s.startsWith('🔵') ? 'blue' : s.startsWith('⏳') ? 'warn' : s.startsWith('⏸') ? 'dim' : 'ok';
@@ -573,7 +574,7 @@ export class App {
     const repBtns = reps.map(n => el('button', { class: 'tab', onclick: () => { d.reps = n; saveDraft(); paint(); } }, n));
     const repIn = el('input', { type: 'text', inputmode: 'numeric', placeholder: r.tekrar_metin ?? '…', style: 'flex:none;width:54px;text-align:center', class: 'tab' });
     repIn.addEventListener('change', () => { d.reps = M.parseKg(repIn.value); saveDraft(); paint(); });
-    const rpeBtns = RPE_LIST.map(n => el('button', { class: 'tab', onclick: () => { d.rpe = d.rpe === n ? null : n; saveDraft(); paint(); } }, fmt(n)));
+    const rpeBtns = RPE_LIST.map(n => el('button', { class: 'tab', onclick: () => { d.rpe = d.rpe === n ? null : n; saveDraft(); paint(); } }, rpeEt(n)));
     // set-set modu: kayıtlı setler listesi
     const setList = el('div', { class: 'sets hidden' });
     body.append(setList);
@@ -583,7 +584,7 @@ export class App {
     // 28 Eyl (R4-B): tekrar | ♥ başta | ♥ sonda | RPE — dört yatay şerit, hepsi 44 pt. Nabız şeritleri varsayılan konumda (95 / 122) SOLUK durur;
     // dokunulmadıkça KAYDEDİLMEZ (varsayılan veri uydurmaz) — parmakla yakın değere kaydırılır ya da ortadakine dokunulur.
     const repPk = this.serit('tkr', [null, ...Array.from({ length: Math.max(30, (r.tekrar ?? 0) + 10) }, (_, i) => i + 1)], x => x === null ? (r.tekrar_metin ?? '—') : String(x), d.reps ?? null, x => { d.reps = x; saveDraft(); paint(); });
-    const rpePk = this.serit('rpe', [null, ...RPE_LIST], x => x === null ? '—' : fmt(x), d.rpe ?? null, x => { d.rpe = x; saveDraft(); paint(); });
+    const rpePk = this.serit('rpe', [null, ...RPE_LIST], x => x === null ? '—' : rpeEt(x), d.rpe ?? null, x => { d.rpe = x; saveDraft(); paint(); });
     const NABIZ = Array.from({ length: 201 }, (_, i) => i + 30);   // 30–230 (eski doğrulama ile aynı)
     const hbPk = this.serit('hrb', NABIZ, x => String(x), M.isNum(d.hrBas) ? d.hrBas : null, x => { d.hrBas = x; saveDraft(); paint(); }, { varsayilan: () => hrBasOf(d.detail[d.detail.length - 1]) ?? 95 });   // (a) önceki setin değerinde bekler
     const hsPk = this.serit('hrs', NABIZ, x => String(x), M.isNum(d.hrSon) ? d.hrSon : null, x => { d.hrSon = x; saveDraft(); paint(); }, { varsayilan: () => hrSonOf(d.detail.length - 1) ?? 122 });

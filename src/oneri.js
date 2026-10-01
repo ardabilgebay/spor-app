@@ -102,7 +102,7 @@ export function oneriler({ def, state, stateAll, wk, week, ov = null, now = new 
   if (d.tip === 'kolay') out.push({ tip: 'info', baslik: 'Setler hedeften kolay geliyor', neden: `${d.week}. haftada ortalama ${f1(-d.sapma.ort)} RPE düşük. Kiloyu artırmak senin kararın; app programı kendisi değiştirmez.` });
   // 5) Mola
   const ml = mola(stateAll, now);
-  if (ml && Math.abs(ml.medyan - 1) >= ESIK.mola) out.push({ tip: 'info', baslik: `Setler arası molalar planın %${Math.round(Math.abs(ml.medyan - 1) * 100)} ${ml.medyan > 1 ? 'uzun' : 'kısa'}`, neden: `Son ${ESIK.molaGun} günde ${ml.n} setin ortası (hareketlerin ilk setleri hariç).` });
+  if (ml && Math.abs(ml.medyan - 1) >= ESIK.mola) out.push({ tip: 'info', baslik: ml.medyan > 1 ? `Toparlanman plandan %${Math.round((ml.medyan - 1) * 100)} uzun sürüyor` : `Molalar plandan %${Math.round((1 - ml.medyan) * 100)} kısa`, neden: `Son ${ESIK.molaGun} günde ${ml.n} setin ortası (hareketlerin ilk setleri hariç). ${ml.medyan > 1 ? 'Bu ağırlıklarda tam toparlanmak hipertrofi için de iyidir; sorun değil, yalnız bilgi.' : 'Kısa molada sonraki setin tekrarı düşebilir; kendini hazır hissetmeden başlama.'}` });
   // 6) Hiç uyarı yoksa: planda
   if (!out.some(o => o.tip === 'warn') && (d.tip === 'planda' || d.tip === 'suruyor')) out.push({ tip: 'ok', baslik: 'Plana uygun gidiyorsun', neden: d.cumle });
   const sira = { warn: 0, info: 1, ok: 2 };

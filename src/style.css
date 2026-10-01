@@ -793,3 +793,9 @@ main.hayal{position:absolute;left:0;right:0;z-index:5;pointer-events:none;overfl
 .ilr .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px;vertical-align:0;background:var(--dim2)}
 .ilr .dot.ok{background:var(--ok)}.ilr .dot.warn{background:var(--warn)}.ilr .dot.blue{background:var(--blue)}
 .ilr details.gl summary{cursor:pointer;font-size:14px;list-style:none}.ilr details.gl summary::after{content:' ›';color:var(--dim)}.ilr details.gl[open] summary::after{content:' ⌄'}
+
+/* 1 Eki (Arda): mola aşımı ceza gibi görünmesin — süre dolunca adada kırmızı nabız (hatırlatma) kalır; aşım sayacı nötr gri "+1:20" */
+.kpill.over{border-color:var(--acc-line);background:var(--acc-bg);color:var(--dim)}.kpill.over .ring{background:conic-gradient(var(--dim2) 100%,var(--ring) 0)}
+.kpill.over.big{border-color:var(--acc-line)}
+.island.over .kpill .kt,.bekle.over .bk-t{color:var(--dim)}
+.krobox .big.over{color:var(--dim);background:none;-webkit-background-clip:initial;background-clip:initial}
